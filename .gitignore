@@ -5,3 +5,4 @@ dist/
 .taste-skill/
 .vscode/
 pyrefly.toml
+*.zip
