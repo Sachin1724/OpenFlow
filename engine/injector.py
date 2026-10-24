@@ -1,0 +1,229 @@
+import time
+import ctypes
+from ctypes import wintypes
+import pyperclip
+from typing import Dict, Any
+
+user32 = ctypes.windll.user32
+kernel32 = ctypes.windll.kernel32
+
+VK_CONTROL = 0x11
+VK_SHIFT = 0x10
+VK_MENU = 0x12  # Alt
+VK_V = 0x56
+KEYEVENTF_KEYUP = 0x0002
+KEYEVENTF_UNICODE = 0x0004
+SW_RESTORE = 9
+SW_SHOW = 5
+PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+
+# Input structures for SendInput
+class MOUSEINPUT(ctypes.Structure):
+    _fields_ = [
+        ("dx", wintypes.LONG),
+        ("dy", wintypes.LONG),
+        ("mouseData", wintypes.DWORD),
+        ("dwFlags", wintypes.DWORD),
+        ("time", wintypes.DWORD),
+        ("dwExtraInfo", ctypes.c_ulonglong),
+    ]
+
+class KEYBDINPUT(ctypes.Structure):
+    _fields_ = [
+        ("wVk", wintypes.WORD),
+        ("wScan", wintypes.WORD),
+        ("dwFlags", wintypes.DWORD),
+        ("time", wintypes.DWORD),
+        ("dwExtraInfo", ctypes.c_ulonglong),
+    ]
+
+class HARDWAREINPUT(ctypes.Structure):
+    _fields_ = [
+        ("uMsg", wintypes.DWORD),
+        ("wParamL", wintypes.WORD),
+        ("wParamH", wintypes.WORD),
+    ]
+
+class INPUT_UNION(ctypes.Union):
+    _fields_ = [
+        ("mi", MOUSEINPUT),
+        ("ki", KEYBDINPUT),
+        ("hi", HARDWAREINPUT),
+    ]
+
+class INPUT(ctypes.Structure):
+    _fields_ = [
+        ("type", wintypes.DWORD),
+        ("u", INPUT_UNION),
+    ]
+
+INPUT_KEYBOARD = 1
+
+
+class WindowInjector:
+    def __init__(self):
+        pass
+
+    def get_foreground_window(self) -> Dict[str, Any]:
+        """Captures currently focused window handle, title, and process name."""
+        hwnd = user32.GetForegroundWindow()
+        if not hwnd:
+            return {"hwnd": 0, "title": "Desktop", "process": "explorer.exe"}
+
+        title_buf = ctypes.create_unicode_buffer(512)
+        user32.GetWindowTextW(hwnd, title_buf, 512)
+        window_title = title_buf.value
+
+        pid = wintypes.DWORD()
+        user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+
+        process_name = "unknown.exe"
+        h_process = kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, pid.value)
+        if h_process:
+            proc_buf = ctypes.create_unicode_buffer(1024)
+            size = wintypes.DWORD(1024)
+            if kernel32.QueryFullProcessImageNameW(h_process, 0, proc_buf, ctypes.byref(size)):
+                import os
+                process_name = os.path.basename(proc_buf.value)
+            kernel32.CloseHandle(h_process)
+
+        return {
+            "hwnd": hwnd,
+            "title": window_title,
+            "process": process_name
+        }
+
+    def force_focus(self, target_hwnd: int):
+        """Forcibly restores foreground focus using Win32 AttachThreadInput."""
+        if not target_hwnd or not user32.IsWindow(target_hwnd):
+            return
+
+        current_thread = kernel32.GetCurrentThreadId()
+        fg_hwnd = user32.GetForegroundWindow()
+        fg_thread = user32.GetWindowThreadProcessId(fg_hwnd, None) if fg_hwnd else 0
+        target_thread = user32.GetWindowThreadProcessId(target_hwnd, None)
+
+        if current_thread != target_thread:
+            user32.AttachThreadInput(current_thread, target_thread, True)
+        if fg_thread and fg_thread != target_thread:
+            user32.AttachThreadInput(fg_thread, target_thread, True)
+
+        user32.ShowWindow(target_hwnd, SW_SHOW)
+        user32.SetForegroundWindow(target_hwnd)
+        user32.BringWindowToTop(target_hwnd)
+
+        if current_thread != target_thread:
+            user32.AttachThreadInput(current_thread, target_thread, False)
+        if fg_thread and fg_thread != target_thread:
+            user32.AttachThreadInput(fg_thread, target_thread, False)
+
+        time.sleep(0.04)
+
+    def _release_all_modifiers(self):
+        """Releases Shift, Ctrl, Alt, Win keys so Ctrl+V is not mixed with Shift."""
+        keys = [
+            VK_SHIFT, 0xA0, 0xA1,   # VK_SHIFT, VK_LSHIFT, VK_RSHIFT
+            VK_CONTROL, 0xA2, 0xA3, # VK_CONTROL, VK_LCONTROL, VK_RCONTROL
+            VK_MENU, 0xA4, 0xA5,    # Alt
+            0x5B, 0x5C              # Windows keys
+        ]
+        for vk in keys:
+            user32.keybd_event(vk, 0, KEYEVENTF_KEYUP, 0)
+        time.sleep(0.02)
+
+    def inject_text(self, text: str, target_hwnd: int = 0, method: str = "clipboard", restore_clipboard: bool = True):
+        """Automatically writes the transcribed text directly into the focused control."""
+        if not text:
+            return
+
+        # 1. Force foreground focus to the target application
+        if target_hwnd:
+            self.force_focus(target_hwnd)
+
+        # 2. Clear any lingering modifier keys (especially Shift from Ctrl+Shift release!)
+        self._release_all_modifiers()
+
+        # 3. Perform text injection
+        if method == "type":
+            self._type_unicode(text)
+        else:
+            success = self._paste_clipboard(text, restore_clipboard=restore_clipboard)
+            if not success:
+                print("[OpenFlow Injector] Clipboard paste failed, falling back to direct Unicode typing...")
+                self._type_unicode(text)
+
+    def _paste_clipboard(self, text: str, restore_clipboard: bool = True) -> bool:
+        old_clipboard = None
+        if restore_clipboard:
+            try:
+                old_clipboard = pyperclip.paste()
+            except Exception:
+                old_clipboard = None
+
+        copied = False
+        for _ in range(5):
+            try:
+                pyperclip.copy(text)
+                copied = True
+                break
+            except Exception:
+                time.sleep(0.02)
+
+        if not copied:
+            return False
+
+        time.sleep(0.03)
+
+        # Send pure Ctrl + V
+        inputs = (INPUT * 4)()
+
+        # Ctrl Down
+        inputs[0].type = INPUT_KEYBOARD
+        inputs[0].u.ki.wVk = VK_CONTROL
+        inputs[0].u.ki.dwFlags = 0
+
+        # V Down
+        inputs[1].type = INPUT_KEYBOARD
+        inputs[1].u.ki.wVk = VK_V
+        inputs[1].u.ki.dwFlags = 0
+
+        # V Up
+        inputs[2].type = INPUT_KEYBOARD
+        inputs[2].u.ki.wVk = VK_V
+        inputs[2].u.ki.dwFlags = KEYEVENTF_KEYUP
+
+        # Ctrl Up
+        inputs[3].type = INPUT_KEYBOARD
+        inputs[3].u.ki.wVk = VK_CONTROL
+        inputs[3].u.ki.dwFlags = KEYEVENTF_KEYUP
+
+        user32.SendInput(4, ctypes.byref(inputs), ctypes.sizeof(INPUT))
+
+        # Allow application to process before restoring clipboard
+        if restore_clipboard and old_clipboard is not None:
+            time.sleep(0.18)
+            try:
+                pyperclip.copy(old_clipboard)
+            except Exception:
+                pass
+
+        return True
+
+    def _type_unicode(self, text: str):
+        """Directly sends Unicode characters into the focused control without clipboard."""
+        for char in text:
+            code = ord(char)
+            inputs = (INPUT * 2)()
+
+            # Key down
+            inputs[0].type = INPUT_KEYBOARD
+            inputs[0].u.ki.wScan = code
+            inputs[0].u.ki.dwFlags = KEYEVENTF_UNICODE
+
+            # Key up
+            inputs[1].type = INPUT_KEYBOARD
+            inputs[1].u.ki.wScan = code
+            inputs[1].u.ki.dwFlags = KEYEVENTF_UNICODE | KEYEVENTF_KEYUP
+
+            user32.SendInput(2, ctypes.byref(inputs), ctypes.sizeof(INPUT))
+            time.sleep(0.001)
