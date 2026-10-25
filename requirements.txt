@@ -4,3 +4,15 @@ sounddevice>=0.4
 numpy>=1.24
 pynput>=1.7
 pyperclip>=1.8
+huggingface_hub>=0.22
+psutil>=5.9
+
+# ── Optional: Local text refiner (speech-to-writing SLM) ──────────────────────
+# Install the pre-built CPU-only wheel (works on every machine, no CUDA needed):
+#   pip install llama-cpp-python
+#
+# For NVIDIA GPU acceleration (much faster):
+#   pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu121
+#
+# If llama-cpp-python is NOT installed, OpenFlow still works — the regex
+# formatter in engine/formatter.py handles basic cleanup automatically.

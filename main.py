@@ -16,6 +16,7 @@ from .engine.injector import WindowInjector
 from .engine.hotkey_manager import GlobalHotkeyManager
 from .engine.sound_effects import play_start_sound, play_stop_sound, play_paste_sound
 from .engine.context_detector import get_active_app_context, build_initial_prompt, AppContext
+from .engine.refiner import LocalRefiner
 from .ui.floating_pill import FloatingPill, ui_font_family
 from .ui.main_window import MainWindow
 from .ui.setup_dialog import SetupDialog
@@ -103,6 +104,18 @@ class OpenFlowApp(QObject):
         print(f"[OpenFlow] {rt['hw']['note']} Model: {rt['model_size']}")
         self.transcriber.on_status = self.bridge.sig_status.emit
         self.transcriber.on_progress = self.bridge.sig_download.emit
+
+        # Local text refiner — auto-selects model tier based on hardware
+        # Runs in background thread; HUD progress shown via existing sig_download signal
+        hw = hardware.detect()
+        self.refiner = LocalRefiner(
+            cuda_ok=hw["cuda_ok"],
+            cpu_cores=hw["cpu_cores"],
+            ram_gb=hw["ram_gb"],
+            vram_gb=hw.get("vram_gb", 0.0),
+            on_status=self.bridge.sig_status.emit,
+            on_progress=self.bridge.sig_download.emit,
+        )
 
         silence_sec = float(self.config.get("silence_duration", 1.1))
         self.audio_recorder = AudioRecorder(
@@ -361,7 +374,16 @@ class OpenFlowApp(QObject):
 
             # Format speech (clean fillers, dev syntax, email, etc.)
             tone = self.config.get("tone_preset", "smart_clean")
-            formatted = self.formatter.format(raw_text, tone_preset=tone, language=detected_lang)
+
+            # Stage 1: Local SLM refiner — self-corrections, filler removal, punctuation
+            # Falls back to raw_text automatically if LLM is not ready or too slow
+            if self.refiner.is_ready and tone != "verbatim":
+                refined_text = self.refiner.refine(raw_text)
+            else:
+                refined_text = raw_text
+
+            # Stage 2: Regex formatter — developer syntax, email structure, bullet points
+            formatted = self.formatter.format(refined_text, tone_preset=tone, language=detected_lang)
             word_count = len(formatted.split())
 
             # Automatically write text into the target window
