@@ -16,6 +16,8 @@ from .styles import MAIN_WINDOW_QSS, COLORS
 
 class MainWindow(QMainWindow):
     config_changed = pyqtSignal(dict)
+    sig_request_check_update = pyqtSignal()
+    sig_request_install_update = pyqtSignal()
 
     def __init__(self, db: Database, config: dict):
         super().__init__()
@@ -408,6 +410,35 @@ class MainWindow(QMainWindow):
         save_btn.clicked.connect(self._save_settings)
         c_layout.addWidget(save_btn)
 
+        # Updates Section
+        up_sep = QFrame(self)
+        up_sep.setFixedHeight(1)
+        up_sep.setStyleSheet("background: rgba(255, 255, 255, 0.08); margin: 8px 0;")
+        c_layout.addWidget(up_sep)
+
+        up_layout = QHBoxLayout()
+        up_layout.setSpacing(12)
+        from .. import __version__
+        self.ver_label = QLabel(f"Version: <b>v{__version__}</b>", self)
+        self.ver_label.setStyleSheet(f"color: {COLORS['text_secondary']}; font-size: 13px;")
+        up_layout.addWidget(self.ver_label)
+
+        self.update_status_label = QLabel("", self)
+        self.update_status_label.setStyleSheet(f"color: {COLORS['text_muted']}; font-size: 12px;")
+        up_layout.addWidget(self.update_status_label, 1)
+
+        self.btn_check_update = QPushButton("Check for Updates", self)
+        self.btn_check_update.clicked.connect(self._on_check_update_clicked)
+        up_layout.addWidget(self.btn_check_update)
+
+        self.btn_install_update = QPushButton("Download & Install", self)
+        self.btn_install_update.setObjectName("PrimaryButton")
+        self.btn_install_update.hide()
+        self.btn_install_update.clicked.connect(lambda: self.sig_request_install_update.emit())
+        up_layout.addWidget(self.btn_install_update)
+
+        c_layout.addLayout(up_layout)
+
         layout.addWidget(card)
         layout.addStretch()
         return widget
@@ -505,3 +536,26 @@ class MainWindow(QMainWindow):
         self.card_dictations.findChild(QLabel, "MetricValue").setText(str(stats["total_dictations"]))
         self.card_words.findChild(QLabel, "MetricValue").setText(f"{stats['total_words']:,}")
         self.card_saved.findChild(QLabel, "MetricValue").setText(f"{stats['time_saved_hours']} hrs")
+
+    def _on_check_update_clicked(self):
+        self.show_update_checking()
+        self.sig_request_check_update.emit()
+
+    def show_update_checking(self):
+        self.update_status_label.setText("Checking for updates...")
+        self.btn_check_update.setEnabled(False)
+
+    def show_update_available(self, version: str, notes: str = ""):
+        self.btn_check_update.setEnabled(True)
+        self.update_status_label.setText(f"Update available: <b>v{version}</b>")
+        self.btn_install_update.setText(f"Install v{version}")
+        self.btn_install_update.show()
+
+    def show_up_to_date(self, version: str = ""):
+        self.btn_check_update.setEnabled(True)
+        self.update_status_label.setText("OpenFlow is up to date.")
+        self.btn_install_update.hide()
+
+    def show_update_error(self, message: str):
+        self.btn_check_update.setEnabled(True)
+        self.update_status_label.setText(f"Update check: {message}")

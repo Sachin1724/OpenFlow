@@ -150,6 +150,8 @@ h1, h2 { font-weight: 500; letter-spacing: -0.04em; line-height: 0.98; text-wrap
 .pill[data-state="writing"] .ind::before { inset: 3px; background: none; border: 2px solid #fff; border-right-color: transparent; border-bottom-color: transparent; animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .pill[data-state="done"] .ind::before { inset: 4px 3px 7px 4px; border-radius: 0; background: none; border: solid #fff; border-width: 0 0 2px 2px; transform: rotate(-45deg) scale(.9); }
+.pill .txt.pop { animation: pop .28s var(--ease); }
+@keyframes pop { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: none; } }
 .pill .txt { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pill .badge { height: 20px; padding: 0 9px; border-radius: 10px; background: rgba(255,255,255,.08); color: rgba(255,255,255,.6); font-size: 11px; display: grid; place-items: center; }
 .pill .bars { display: flex; align-items: center; gap: 4px; height: 20px; width: 40px; justify-content: center; }
@@ -525,8 +527,9 @@ section { position: relative; }
     const txt = pill.querySelector('.txt'), badge = pill.querySelector('.badge'), bars = [...pill.querySelectorAll('.bars i')];
     let busy = false, raf = 0, t0 = 0;
     const d = { pill, txt, badge, busy: () => busy };
-    d.setState = (s, t) => { pill.dataset.state = s; if (t != null) txt.textContent = t; };
-    d.syncLang = () => { badge.textContent = LANGS[state.lang][0]; if (!busy) txt.textContent = 'Realtek Microphone'; };
+    const setTxt = t => { if (txt.textContent === t) return; txt.textContent = t; if (reduce) return; txt.classList.remove('pop'); void txt.offsetWidth; txt.classList.add('pop'); };
+    d.setState = (s, t) => { pill.dataset.state = s; if (t != null) setTxt(t); };
+    d.syncLang = () => { badge.textContent = LANGS[state.lang][0]; if (!busy) setTxt('Realtek Microphone'); };
     function animate(ts) {
       const lvl = .55 + .45 * Math.sin(ts / 420);
       bars.forEach((b, i) => { const m = .35 + .65 * Math.sin(ts / 110 + i * 1.25); b.style.height = Math.max(3, 18 * lvl * Math.abs(m)) + 'px'; });
@@ -541,7 +544,7 @@ section { position: relative; }
       const words = textFor().split(/\s+/);
       let k = 0;
       while (d.held && k < words.length) {                       // live preview while the key is held
-        if (state.preview) txt.textContent = words.slice(0, ++k).join(' ').slice(-26);
+        if (state.preview) setTxt(words.slice(0, ++k).join(' ').slice(-26));
         await wait(260);
       }
       if (!state.pause && d.held) { /* write only on release */ }

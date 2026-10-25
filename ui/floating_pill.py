@@ -2,15 +2,15 @@ import math
 import glob
 import os
 from PyQt6.QtWidgets import (
-    QWidget, QHBoxLayout, QVBoxLayout, QLabel, QPushButton, QComboBox,
-    QProgressBar, QFrame, QApplication
+    QWidget, QHBoxLayout, QVBoxLayout, QLabel, QPushButton,
+    QProgressBar, QFrame, QApplication, QMenu, QSizePolicy
 )
 from PyQt6.QtCore import (
-    Qt, QTimer, QPoint, QRect, QRectF, QPropertyAnimation, QVariantAnimation,
+    Qt, QTimer, QPoint, QPointF, QRect, QRectF, QPropertyAnimation, QVariantAnimation,
     QEasingCurve, pyqtSignal
 )
 from PyQt6.QtGui import (
-    QPainter, QColor, QBrush, QPen, QFont, QFontDatabase, QPainterPath
+    QPainter, QColor, QBrush, QPen, QFont, QFontDatabase, QFontMetricsF, QLinearGradient, QPainterPath
 )
 
 from ..engine.audio_recorder import list_microphones
@@ -153,16 +153,198 @@ class MoreButton(QPushButton):
             p.drawEllipse(QRectF(self.width() / 2.0 + dx - 1.4, cy - 1.4, 2.8, 2.8))
 
 
+
+_ASSETS = os.path.join(os.path.dirname(__file__), "..", "assets").replace("\\", "/")
+
+
+class AnimatedText(QWidget):
+    """Single-line text that animates its changes.
+    - Replacing text (state change): the old line lifts and fades out while the new one rises in.
+    - Growing text (live preview): the existing words stay put and only the new words fade in;
+      when the line overflows it scrolls left under a soft fade, like a caption."""
+
+    def __init__(self, text: str, font: QFont, parent=None):
+        super().__init__(parent)
+        self._font = font
+        self._text = text
+        self._prev = ""
+        self._mode = "swap"
+        self._p = 1.0
+        self._x0 = 0.0
+        self._x_cur = 0.0
+        self._ease = QEasingCurve(QEasingCurve.Type.OutCubic)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.setMinimumWidth(0)
+        self._anim = QVariantAnimation(self)
+        self._anim.setStartValue(0.0)
+        self._anim.setEndValue(1.0)
+        self._anim.setDuration(240)
+        self._anim.valueChanged.connect(self._on_tick)
+
+    def text(self) -> str:
+        return self._text
+
+    def setText(self, text: str):
+        if text == self._text:
+            return
+        self._x0 = self._x_cur
+        self._mode = "grow" if (self._text and text.startswith(self._text)) else "swap"
+        self._prev = self._text
+        self._text = text
+        self._p = 0.0
+        self._anim.stop()
+        self._anim.setDuration(160 if self._mode == "grow" else 240)
+        self._anim.start()
+
+    def _on_tick(self, v):
+        self._p = float(v)
+        self.update()
+
+    def _target_x(self, fm: QFontMetricsF, text: str) -> float:
+        tw = fm.horizontalAdvance(text)
+        return 0.0 if tw <= self.width() else self.width() - tw
+
+    def paintEvent(self, event):
+        p = QPainter(self)
+        p.setRenderHint(QPainter.RenderHint.TextAntialiasing)
+        p.setFont(self._font)
+        p.setPen(QColor(255, 255, 255))
+        fm = QFontMetricsF(self._font)
+        base_y = (self.height() + fm.ascent() - fm.descent()) / 2.0
+        e = self._ease.valueForProgress(self._p)
+
+        if self._mode == "swap":
+            w = self.width()
+            if self._prev and e < 1.0:
+                p.setOpacity(1.0 - e)
+                p.drawText(QPointF(0, base_y - 7 * e), fm.elidedText(self._prev, Qt.TextElideMode.ElideRight, w))
+            p.setOpacity(e)
+            p.drawText(QPointF(0, base_y + 7 * (1.0 - e)), fm.elidedText(self._text, Qt.TextElideMode.ElideRight, w))
+            self._x_cur = 0.0
+            return
+
+        tx = self._target_x(fm, self._text)
+        x = self._x0 + (tx - self._x0) * e
+        self._x_cur = x
+        prefix, tail = self._prev, self._text[len(self._prev):]
+        p.drawText(QPointF(x, base_y), prefix)
+        p.setOpacity(e)
+        p.drawText(QPointF(x + fm.horizontalAdvance(prefix), base_y), tail)
+        if x < -0.5:  # overflowing: fade the left edge into the capsule
+            p.setOpacity(1.0)
+            g = QLinearGradient(0, 0, 26, 0)
+            g.setColorAt(0.0, QColor(0, 0, 0, 255))
+            g.setColorAt(1.0, QColor(0, 0, 0, 0))
+            p.fillRect(QRectF(0, 0, 26, self.height()), QBrush(g))
+
+
+class ValueRow(QWidget):
+    """iOS-style row: title on the left, current value and a pop-up chevron on the right.
+    Tapping opens a rounded, translucent menu with the current choice checked.
+    Offers the small slice of the QComboBox API the panel already uses."""
+    currentIndexChanged = pyqtSignal(int)
+
+    def __init__(self, title: str, font_family: str, parent=None):
+        super().__init__(parent)
+        self._title = title
+        self._family = font_family
+        self._items = []
+        self._idx = -1
+        self._hover = False
+        self.setFixedHeight(44)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+
+    def clear(self):
+        self._items, self._idx = [], -1
+        self.update()
+
+    def addItem(self, text, data=None):
+        self._items.append((text, data))
+        if self._idx < 0:
+            self._idx = 0
+        self.update()
+
+    def count(self):
+        return len(self._items)
+
+    def currentIndex(self):
+        return self._idx
+
+    def setCurrentIndex(self, i: int):
+        if 0 <= i < len(self._items) and i != self._idx:
+            self._idx = i
+            self.update()
+            self.currentIndexChanged.emit(i)
+
+    def currentData(self):
+        return self._items[self._idx][1] if self._idx >= 0 else None
+
+    def currentText(self):
+        return self._items[self._idx][0] if self._idx >= 0 else ""
+
+    def enterEvent(self, e):
+        self._hover = True
+        self.update()
+
+    def leaveEvent(self, e):
+        self._hover = False
+        self.update()
+
+    def mouseReleaseEvent(self, e):
+        if e.button() != Qt.MouseButton.LeftButton or not self._items:
+            return
+        menu = QMenu(self)
+        menu.setWindowFlags(menu.windowFlags() | Qt.WindowType.FramelessWindowHint | Qt.WindowType.NoDropShadowWindowHint)
+        menu.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        menu.setStyleSheet(f"""
+            QMenu {{ background: rgba(28,28,30,0.97); border: 1px solid rgba(255,255,255,0.12);
+                     border-radius: 12px; padding: 6px; color: #fff; }}
+            QMenu::item {{ padding: 7px 30px 7px 28px; border-radius: 7px; margin: 1px 0; }}
+            QMenu::item:selected {{ background: rgba(255,255,255,0.14); }}
+            QMenu::indicator {{ width: 14px; height: 14px; left: 8px; }}
+            QMenu::indicator:checked {{ image: url({_ASSETS}/check_white.svg); }}
+        """)
+        menu.setFont(QFont(self._family, 10))
+        for i, (text, _) in enumerate(self._items):
+            act = menu.addAction(text)
+            act.setCheckable(True)
+            act.setChecked(i == self._idx)
+            act.triggered.connect(lambda _=False, i=i: self.setCurrentIndex(i))
+        menu.exec(self.mapToGlobal(QPoint(0, self.height() + 2)))
+
+    def paintEvent(self, event):
+        p = QPainter(self)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        if self._hover:
+            p.fillRect(self.rect(), QColor(255, 255, 255, 12))
+        f = QFont(self._family, 10)
+        p.setFont(f)
+        p.setPen(QColor(255, 255, 255))
+        p.drawText(QRectF(14, 0, 96, self.height()), Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft, self._title)
+        cx, cy = self.width() - 18, self.height() / 2.0
+        pen = QPen(QColor(255, 255, 255, 200 if self._hover else 120), 1.5,
+                   Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin)
+        p.setPen(pen)
+        p.drawPolyline([QPointF(cx - 3, cy - 2.5), QPointF(cx, cy - 5.5), QPointF(cx + 3, cy - 2.5)])
+        p.drawPolyline([QPointF(cx - 3, cy + 2.5), QPointF(cx, cy + 5.5), QPointF(cx + 3, cy + 2.5)])
+        fm = QFontMetricsF(f)
+        vr = QRectF(112, 0, self.width() - 112 - 34, self.height())
+        p.setPen(QColor(255, 255, 255, 210 if self._hover else 140))
+        p.drawText(vr, Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignRight,
+                   fm.elidedText(self.currentText(), Qt.TextElideMode.ElideRight, vr.width()))
+
+
 class FloatingPill(QWidget):
     """
     Black-and-white capsule HUD.
-    Capsule (360x44) morphs into a grouped settings panel (380x290), anchored at its
+    Capsule (360x44) morphs into a grouped settings panel (360x312), anchored at its
     bottom-centre. One progress value drives geometry, corner radius and a content crossfade.
     """
     sig_mic_changed = pyqtSignal(object)
     sig_language_changed = pyqtSignal(str)
     sig_tone_changed = pyqtSignal(str)
     sig_open_dashboard = pyqtSignal()
+    sig_update_requested = pyqtSignal()
 
     LANGS = [
         ("auto", "Auto Detect"), ("en", "English"), ("hi", "Hindi"), ("es", "Spanish"),
@@ -195,7 +377,7 @@ class FloatingPill(QWidget):
         self.current_language = current_language
 
         self._cap_w, self._cap_h = 360, 44
-        self._hud_w, self._hud_h = 380, 290
+        self._hud_w, self._hud_h = 360, 312
         self._t = 0.0            # 0 = capsule, 1 = HUD
         self._dl = -1            # model download percent, -1 when not downloading
         self._anchor = QPoint()  # bottom-centre of the window during a morph
@@ -236,8 +418,7 @@ class FloatingPill(QWidget):
         self.indicator = StateIndicator(self.capsule_widget)
         lay.addWidget(self.indicator, 0, Qt.AlignmentFlag.AlignVCenter)
 
-        self.text_label = QLabel(self.current_mic_name, self.capsule_widget)
-        self.text_label.setFont(self._font(10, QFont.Weight.Medium))
+        self.text_label = AnimatedText(self.current_mic_name, self._font(10, QFont.Weight.Medium), self.capsule_widget)
         self.text_label.setFixedHeight(24)
         lay.addWidget(self.text_label, 1, Qt.AlignmentFlag.AlignVCenter)
 
@@ -257,34 +438,15 @@ class FloatingPill(QWidget):
         self.btn_more.clicked.connect(self.toggle_morph_hud)
         lay.addWidget(self.btn_more, 0, Qt.AlignmentFlag.AlignVCenter)
 
-    def _make_combo(self) -> QComboBox:
-        cb = QComboBox(self)
-        cb.setFont(self._font(10))
-        cb.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
-        cb.setMinimumContentsLength(8)
-        cb.setCursor(Qt.CursorShape.PointingHandCursor)
-        cb.setStyleSheet(f"""
-            QComboBox {{ background: transparent; border: none; color: {FG_DIM}; padding: 4px 2px; }}
-            QComboBox:hover {{ color: {FG}; }}
-            QComboBox::drop-down {{ border: none; width: 14px; }}
-            QComboBox::down-arrow {{ image: none; }}
-            QComboBox QAbstractItemView {{
-                background: #1c1c1e; color: {FG}; border: 1px solid {HAIRLINE};
-                selection-background-color: rgba(255,255,255,0.14); selection-color: {FG};
-                outline: 0; padding: 4px;
-            }}
-        """)
-        return cb
-
     def _row(self, title: str, widget: QWidget) -> QWidget:
         row = QWidget(self)
-        row.setFixedHeight(42)
+        row.setFixedHeight(44)
         lay = QHBoxLayout(row)
         lay.setContentsMargins(14, 0, 12, 0)
         lay.setSpacing(10)
         lbl = QLabel(title, row)
         lbl.setFont(self._font(10))
-        lbl.setFixedWidth(84)
+        lbl.setFixedWidth(98)
         lay.addWidget(lbl)
         lay.addWidget(widget, 1)
         return row
@@ -293,7 +455,7 @@ class FloatingPill(QWidget):
         self.hud_widget = QWidget(self)
         self.hud_widget.setFixedSize(self._hud_w, self._hud_h)
         lay = QVBoxLayout(self.hud_widget)
-        lay.setContentsMargins(16, 14, 16, 16)
+        lay.setContentsMargins(16, 20, 16, 16)
         lay.setSpacing(12)
 
         header = QHBoxLayout()
@@ -315,20 +477,20 @@ class FloatingPill(QWidget):
 
         group = QFrame(self)
         group.setObjectName("Group")
-        group.setStyleSheet(f"QFrame#Group {{ background: {FILL}; border-radius: 12px; }}")
+        group.setStyleSheet(f"QFrame#Group {{ background: {FILL}; border-radius: 14px; }}")
         g = QVBoxLayout(group)
         g.setContentsMargins(0, 0, 0, 0)
         g.setSpacing(0)
 
-        self.mic_combo = self._make_combo()
+        self.mic_combo = ValueRow("Microphone", self.font_family, self)
         self.populate_mics()
         self.mic_combo.currentIndexChanged.connect(self._on_mic_selected)
 
-        self.lang_combo = self._make_combo()
+        self.lang_combo = ValueRow("Language", self.font_family, self)
         self.populate_languages()
         self.lang_combo.currentIndexChanged.connect(self._on_language_selected)
 
-        self.tone_combo = self._make_combo()
+        self.tone_combo = ValueRow("Style", self.font_family, self)
         for key, label in self.TONES:
             self.tone_combo.addItem(label, key)
         self.tone_combo.currentIndexChanged.connect(self._on_tone_selected)
@@ -344,9 +506,9 @@ class FloatingPill(QWidget):
         """)
 
         rows = [
-            self._row("Microphone", self.mic_combo),
-            self._row("Language", self.lang_combo),
-            self._row("Style", self.tone_combo),
+            self.mic_combo,
+            self.lang_combo,
+            self.tone_combo,
             self._row("Input", self.live_level_bar),
         ]
         for i, r in enumerate(rows):
@@ -354,10 +516,23 @@ class FloatingPill(QWidget):
             if i < len(rows) - 1:
                 sep = QFrame(self)
                 sep.setFixedHeight(1)
-                sep.setStyleSheet(f"background: {HAIRLINE}; margin-left: 14px;")
+                sep.setStyleSheet(f"background: {HAIRLINE}; margin-left: 14px; margin-right: 14px;")
                 g.addWidget(sep)
         lay.addWidget(group)
         lay.addStretch()
+
+        self.btn_update = QPushButton("Update Available · Install", self)
+        self.btn_update.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_update.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.btn_update.setFixedHeight(34)
+        self.btn_update.setFont(self._font(10, QFont.Weight.Medium))
+        self.btn_update.setStyleSheet("""
+            QPushButton { background: rgba(255, 255, 255, 0.16); color: #ffffff; border: 1px solid rgba(255,255,255,0.30); border-radius: 17px; }
+            QPushButton:hover { background: rgba(255, 255, 255, 0.26); }
+        """)
+        self.btn_update.hide()
+        self.btn_update.clicked.connect(self._on_update_clicked)
+        lay.addWidget(self.btn_update)
 
         self.btn_transfer = QPushButton("Open Dashboard", self)
         self.btn_transfer.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -486,6 +661,29 @@ class FloatingPill(QWidget):
         self.collapse_to_capsule()
         self.sig_open_dashboard.emit()
 
+    def _on_update_clicked(self):
+        self.btn_update.setEnabled(False)
+        self.btn_update.setText("Updating...")
+        self.sig_update_requested.emit()
+
+    def show_update_available(self, version: str = ""):
+        """Reveals the install button in the settings panel."""
+        self.btn_update.setText(f"Update Available · Install {version}".strip())
+        self.btn_update.setEnabled(True)
+        self.btn_update.show()
+
+    def _on_update_clicked(self):
+        self.btn_update.setText("Downloading update...")
+        self.btn_update.setEnabled(False)
+        self.sig_update_requested.emit()
+
+    def show_update_available(self, version: str):
+        self.btn_update.setText(f"Update v{version} Available · Install")
+        self.btn_update.setEnabled(True)
+        self.btn_update.show()
+        if not self.is_expanded_hud and self.isVisible():
+            self.show_message(f"Update v{version} available")
+
     def position_bottom_center(self):
         screen = QApplication.primaryScreen()
         if screen:
@@ -522,7 +720,7 @@ class FloatingPill(QWidget):
     def update_realtime_text(self, text: str):
         if not text or self.current_state != "listening" or self.is_expanded_hud:
             return
-        self.text_label.setText(text if len(text) <= 26 else "…" + text[-24:])
+        self.text_label.setText(text[-160:])
 
     def show_processing(self):
         if self.is_expanded_hud:
@@ -597,7 +795,7 @@ class FloatingPill(QWidget):
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
 
         rect = QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5)
-        r = min(rect.height() / 2.0, 22.0)
+        r = min(rect.height() / 2.0, 22.0 + 6.0 * self._t)
 
         if self.current_state in ("listening", "pasted") and self._t < 0.05:
             border = QColor(255, 255, 255, 120)
@@ -609,6 +807,11 @@ class FloatingPill(QWidget):
         p.setBrush(QBrush(QColor(0, 0, 0, 242)))
         p.setPen(QPen(border, 1.0))
         p.drawRoundedRect(rect, r, r)
+
+        if self._t > 0.4:  # sheet grabber
+            p.setPen(Qt.PenStyle.NoPen)
+            p.setBrush(QColor(255, 255, 255, int(70 * min(1.0, (self._t - 0.4) / 0.4))))
+            p.drawRoundedRect(QRectF(self.width() / 2.0 - 18, 7, 36, 4), 2, 2)
 
         if self._dl >= 0 and self._t < 0.05:  # download progress fill, clipped to the capsule
             clip = QPainterPath()

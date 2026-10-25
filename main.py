@@ -17,11 +17,13 @@ from .engine.hotkey_manager import GlobalHotkeyManager
 from .engine.sound_effects import play_start_sound, play_stop_sound, play_paste_sound
 from .engine.context_detector import get_active_app_context, build_initial_prompt, AppContext
 from .engine.refiner import LocalRefiner
+from .engine.updater import AppUpdater
 from .ui.floating_pill import FloatingPill, ui_font_family
 from .ui.main_window import MainWindow
 from .ui.setup_dialog import SetupDialog
 from .autostart import set_autostart
 from .engine import hardware
+from . import __version__
 
 
 def create_tray_icon_pixmap() -> QPixmap:
@@ -54,6 +56,8 @@ class AppBridge(QObject):
     sig_error = pyqtSignal(str)   # short message shown in the capsule
     sig_status = pyqtSignal(str)  # model download/load messages
     sig_download = pyqtSignal(int, str)  # (percent, model name)
+    sig_update_available = pyqtSignal(str, str, str, str)  # (version, release_url, download_url, notes)
+    sig_update_ready = pyqtSignal(str)                     # (installer_path)
 
 
 class OpenFlowApp(QObject):
@@ -88,7 +92,7 @@ class OpenFlowApp(QObject):
         self.bridge.sig_download.connect(self._handle_ui_download)
         self.bridge.sig_realtime_text.connect(self._handle_ui_realtime_text)
         self.bridge.sig_transcription_complete.connect(self._handle_ui_complete)
-        self.bridge.sig_status.connect(lambda m: self.tray.showMessage("OpenFlow", m, QSystemTrayIcon.MessageIcon.Information, 3000))
+        self.bridge.sig_status.connect(self._handle_status)
 
         # Engine Components
         self.injector = WindowInjector()
@@ -145,6 +149,21 @@ class OpenFlowApp(QObject):
         self.main_window = MainWindow(self.db, self.config)
         self.main_window.config_changed.connect(self._on_config_changed)
 
+        # In-App Auto-Updater
+        self.updater = AppUpdater(current_version=__version__, repo="Sachin1724/OpenFlow", parent=self)
+        self.updater.sig_update_available.connect(self._on_update_available)
+        self.updater.sig_no_update.connect(self._on_no_update)
+        self.updater.sig_progress.connect(self._handle_ui_download)
+        self.updater.sig_ready.connect(self._on_update_ready)
+        self.updater.sig_error.connect(self._on_update_error)
+
+        self.floating_pill.sig_update_requested.connect(lambda: self.updater.start_download_async())
+        self.main_window.sig_request_check_update.connect(lambda: self.updater.check_for_updates_async(notify_if_current=True))
+        self.main_window.sig_request_install_update.connect(lambda: self.updater.start_download_async())
+
+        # Check for updates in background 8 seconds after startup
+        QTimer.singleShot(8000, lambda: self.updater.check_for_updates_async(notify_if_current=False))
+
         # System Tray
         self._init_tray()
 
@@ -166,6 +185,9 @@ class OpenFlowApp(QObject):
         menu = QMenu()
         act_open = menu.addAction("Show Dashboard")
         act_open.triggered.connect(self.show_dashboard)
+
+        act_update = menu.addAction("Check for Updates...")
+        act_update.triggered.connect(lambda: self.updater.check_for_updates_async(notify_if_current=True))
 
         act_toggle = menu.addAction("Dictate Now")
         act_toggle.triggered.connect(self._toggle_dictation_manual)
@@ -436,6 +458,14 @@ class OpenFlowApp(QObject):
         if self.config.get("show_floating_pill", True):
             self.floating_pill.show_processing()
 
+    @pyqtSlot(str)
+    def _handle_status(self, message: str):
+        # status can arrive during startup, before the tray icon exists
+        tray = getattr(self, "tray", None)
+        if tray is not None:
+            tray.showMessage("OpenFlow", message, QSystemTrayIcon.MessageIcon.Information, 3000)
+        print(f"[OpenFlow] {message}")
+
     @pyqtSlot(int, str)
     def _handle_ui_download(self, percent: int, model: str):
         self.main_window.set_download(percent, model)
@@ -462,6 +492,39 @@ class OpenFlowApp(QObject):
             self.floating_pill.show_pasted(words, latency)
         self.main_window.refresh_history()
         self.main_window.refresh_stats()
+
+    def _on_update_available(self, version: str, rel_url: str, dl_url: str, notes: str):
+        self.main_window.show_update_available(version, notes)
+        self.floating_pill.show_update_available(version)
+        self.tray.showMessage(
+            "OpenFlow Update Available",
+            f"Version {version} is available. Click to download and install.",
+            QSystemTrayIcon.MessageIcon.Information,
+            5000
+        )
+
+    def _on_no_update(self, version: str):
+        self.main_window.show_up_to_date(version)
+        self.tray.showMessage(
+            "OpenFlow",
+            f"OpenFlow is up to date (v{version}).",
+            QSystemTrayIcon.MessageIcon.Information,
+            2500
+        )
+
+    def _on_update_ready(self, installer_path: str):
+        self.floating_pill.show_message("Update ready · Restarting...")
+        self.tray.showMessage(
+            "OpenFlow",
+            "Update downloaded. Launching installer and restarting...",
+            QSystemTrayIcon.MessageIcon.Information,
+            3000
+        )
+        # Clean exit and launch installer after short pause to display notice
+        QTimer.singleShot(1500, lambda: self.updater.install_and_restart(installer_path, silent=False))
+
+    def _on_update_error(self, message: str):
+        self.main_window.show_update_error(message)
 
     def quit_app(self):
         self.hotkey_mgr.stop()

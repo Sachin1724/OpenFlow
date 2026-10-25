@@ -5,6 +5,7 @@ from .formatter import TextFormatter
 from .injector import WindowInjector
 from .hotkey_manager import GlobalHotkeyManager
 from .sound_effects import play_start_sound, play_stop_sound, play_paste_sound
+from .updater import AppUpdater
 
 __all__ = [
     "AudioRecorder",
@@ -15,5 +16,6 @@ __all__ = [
     "GlobalHotkeyManager",
     "play_start_sound",
     "play_stop_sound",
-    "play_paste_sound"
+    "play_paste_sound",
+    "AppUpdater",
 ]
