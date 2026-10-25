@@ -7,6 +7,10 @@ from typing import Callable, Optional, List, Dict
 
 SAMPLE_RATE = 16000
 
+# Pre-roll: keep this many samples in a ring buffer so the first
+# syllable is never clipped when the user presses Ctrl+Shift.
+PREROLL_SAMPLES = int(SAMPLE_RATE * 0.25)  # 250 ms @ 16 kHz
+
 
 def clean_device_name(raw: str) -> str:
     """Extract clean friendly name from raw Windows Bluetooth/Audio GUID strings."""
@@ -45,6 +49,11 @@ class AudioRecorder:
         self._audio_chunks = []
         self._lock = threading.Lock()
 
+        # 250 ms pre-roll ring buffer - always collecting even before Ctrl+Shift
+        # so the first syllable is never clipped when the user presses the hotkey.
+        self._preroll: np.ndarray = np.zeros(PREROLL_SAMPLES, dtype=np.float32)
+        self._preroll_lock = threading.Lock()
+
         # VAD & Auto-write tracking
         self._has_spoken = False
         self._last_speech_time = 0.0
@@ -78,10 +87,22 @@ class AudioRecorder:
     def _audio_callback(self, indata, frames, time_info, status):
         if status:
             pass
+
+        mono_data = indata[:, 0].copy() if indata.ndim > 1 else indata.copy()
+
+        # Always update the pre-roll ring buffer, even before recording starts.
+        # This ensures the 250 ms before Ctrl+Shift is captured.
+        with self._preroll_lock:
+            n = len(mono_data)
+            if n >= PREROLL_SAMPLES:
+                self._preroll = mono_data[-PREROLL_SAMPLES:].copy()
+            else:
+                self._preroll = np.roll(self._preroll, -n)
+                self._preroll[-n:] = mono_data
+
         if not self._is_recording:
             return
 
-        mono_data = indata[:, 0].copy() if indata.ndim > 1 else indata.copy()
         with self._lock:
             self._audio_chunks.append(mono_data)
 
@@ -126,7 +147,9 @@ class AudioRecorder:
 
     def start_recording(self):
         with self._lock:
-            self._audio_chunks = []
+            # Seed audio_chunks with pre-roll so the 250 ms before key-press is included
+            with self._preroll_lock:
+                self._audio_chunks = [self._preroll.copy()]
             self._is_recording = True
             self._has_spoken = False
             self._silence_triggered = False

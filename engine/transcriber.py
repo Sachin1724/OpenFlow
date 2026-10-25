@@ -108,10 +108,26 @@ class Transcriber:
         finally:
             self._lock.release()
 
-    def transcribe(self, audio: np.ndarray, language: Optional[str] = None) -> Tuple[str, float, int, str]:
+    def transcribe(
+        self,
+        audio: np.ndarray,
+        language: Optional[str] = None,
+        initial_prompt: Optional[str] = None,
+    ) -> Tuple[str, float, int, str]:
         """
         Final high-accuracy transcription for pasting.
-        Returns: (transcribed_text, duration_seconds, latency_ms, detected_language)
+
+        Parameters
+        ----------
+        audio          : float32 mono numpy array at 16 kHz
+        language       : ISO-639-1 code or None/auto for auto-detect
+        initial_prompt : Pre-built context prompt from context_detector.
+                         When provided, overrides the default English prompt.
+                         Pass None to let transcribe() build a basic fallback.
+
+        Returns
+        -------
+        (transcribed_text, duration_seconds, latency_ms, detected_language)
         """
         if len(audio) < 1600:
             return "", 0.0, 0, self.language
@@ -133,8 +149,11 @@ class Transcriber:
             self.language = lang
             self._load_model()
 
-        # English gets a punctuation hint; the English prompt would bias other languages.
-        prompt = "Use standard punctuation, commas, periods, and capitalization." if lang == "en" else None
+        # Resolve prompt: caller-supplied > basic English fallback > None for non-English
+        if initial_prompt is None:
+            if lang == "en":
+                initial_prompt = "Use standard punctuation, commas, periods, and capitalization."
+            # For Indic languages we leave None so Whisper uses its own language priors
 
         with self._lock:
             segments, info = self.model.transcribe(
@@ -144,7 +163,7 @@ class Transcriber:
                 vad_filter=True,
                 vad_parameters=dict(min_silence_duration_ms=300),
                 condition_on_previous_text=False,
-                initial_prompt=prompt,
+                initial_prompt=initial_prompt,
             )
             full_text = " ".join([seg.text.strip() for seg in segments]).strip()
 

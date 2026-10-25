@@ -15,6 +15,7 @@ from .engine.formatter import TextFormatter
 from .engine.injector import WindowInjector
 from .engine.hotkey_manager import GlobalHotkeyManager
 from .engine.sound_effects import play_start_sound, play_stop_sound, play_paste_sound
+from .engine.context_detector import get_active_app_context, build_initial_prompt, AppContext
 from .ui.floating_pill import FloatingPill, ui_font_family
 from .ui.main_window import MainWindow
 from .ui.setup_dialog import SetupDialog
@@ -72,8 +73,9 @@ class OpenFlowApp(QObject):
             set_autostart(self.config["autostart"])
         self.db = Database()
 
-        # Target window storage
+        # Target window + app context (snapshotted on hotkey press)
         self.target_window_info = {"hwnd": 0, "title": "", "process": ""}
+        self._app_context: AppContext = get_active_app_context()  # type: ignore[assignment]
         self._is_processing = False
 
         # Bridge
@@ -279,6 +281,10 @@ class OpenFlowApp(QObject):
         # 1. Capture the exact active target window immediately
         self.target_window_info = self.injector.get_foreground_window()
 
+        # 1b. Snapshot active app context for prompt biasing
+        self._app_context = get_active_app_context()
+        print(f"[OpenFlow] Context: {self._app_context['category']} | {self._app_context['process']} | '{self._app_context['title'][:60]}'")
+
         # 2. Pleasant start sound
         if self.config.get("sound_feedback", True):
             play_start_sound()
@@ -329,11 +335,24 @@ class OpenFlowApp(QObject):
 
             # Refresh dictionary
             self.formatter.set_dictionary(self.db.get_dictionary())
+            dict_entries = self.db.get_dictionary()
+            custom_vocab = [e["replace_with"] for e in dict_entries]  # preferred spellings
+
+            # Build context-aware initial_prompt for vocabulary biasing
+            lang = self.config.get("language", "auto")
+            initial_prompt = build_initial_prompt(
+                context=self._app_context,
+                custom_vocab=custom_vocab,
+                language=lang,
+            )
+            if initial_prompt:
+                print(f"[OpenFlow] Prompt ({len(initial_prompt)} chars): {initial_prompt[:80]}...")
 
             # Transcribe full audio with Whisper GPU
             raw_text, duration_sec, latency_ms, detected_lang = self.transcriber.transcribe(
                 audio_data,
-                language=self.config.get("language", "auto")
+                language=lang,
+                initial_prompt=initial_prompt,
             )
 
             if not raw_text.strip():
