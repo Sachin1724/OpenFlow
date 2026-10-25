@@ -25,7 +25,7 @@ pyi.run([
     # the dev machine has large unrelated ML packages installed; keep them out of the exe
     *[a for m in ("torch", "torchaudio", "torchvision", "tensorflow", "transformers", "sklearn", "scipy",
                   "pandas", "matplotlib", "IPython", "notebook", "jupyter", "sentence_transformers",
-                  "speechbrain", "librosa", "cv2", "PIL", "tkinter", "pytest")
+                  "speechbrain", "librosa", "cv2", "PIL", "tkinter", "pytest", "polars", "pyarrow", "datasets", "numba", "sympy")
       for a in ("--exclude-module", m)],
     "--hidden-import", "pynput.keyboard._win32",
     "--hidden-import", "pynput.mouse._win32",
