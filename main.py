@@ -180,9 +180,15 @@ class OpenFlowApp(QObject):
     def _init_tray(self):
         self.tray = QSystemTrayIcon(self.app)
         self.tray.setIcon(QIcon(create_tray_icon_pixmap()))
-        self.tray.setToolTip("OpenFlow")
+        self.tray.setToolTip("OpenFlow — Hold Ctrl+Shift to Speak")
 
         menu = QMenu()
+        act_hud = menu.addAction("Show Capsule HUD")
+        act_hud.triggered.connect(lambda: self.floating_pill.show_message("OpenFlow Active · Hold Ctrl+Shift to Speak", duration_ms=3500))
+
+        act_expand = menu.addAction("Capsule Settings (Expand HUD)")
+        act_expand.triggered.connect(self.floating_pill.expand_to_hud)
+
         act_open = menu.addAction("Show Dashboard")
         act_open.triggered.connect(self.show_dashboard)
 
@@ -216,7 +222,10 @@ class OpenFlowApp(QObject):
 
     def _on_tray_activated(self, reason):
         if reason == QSystemTrayIcon.ActivationReason.Trigger:
+            self.floating_pill.show_message("OpenFlow Active · Hold Ctrl+Shift to Speak", duration_ms=3500)
+        elif reason == QSystemTrayIcon.ActivationReason.DoubleClick:
             self.show_dashboard()
+
 
     def show_dashboard(self):
         self.main_window.show()
@@ -532,6 +541,8 @@ class OpenFlowApp(QObject):
 
     def run(self):
         print("[OpenFlow] Started! Hold Ctrl+Shift anywhere to speak — release to paste.")
+        # Immediately display the floating capsule HUD so user sees OpenFlow is ready
+        self.floating_pill.show_message("OpenFlow Ready · Hold Ctrl+Shift to Speak", duration_ms=4500)
         self.tray.showMessage(
             "OpenFlow Ready",
             "Hold CTRL + SHIFT anywhere to speak. Release to write instantly!",
@@ -563,8 +574,15 @@ def main():
     server = QLocalServer()
     QLocalServer.removeServer(SINGLE_INSTANCE_KEY)
     server.listen(SINGLE_INSTANCE_KEY)
-    server.newConnection.connect(lambda: (server.nextPendingConnection(), app.show_dashboard()))
+    server.newConnection.connect(
+        lambda: (
+            server.nextPendingConnection(),
+            app.floating_pill.show_message("OpenFlow Active · Hold Ctrl+Shift to Speak", duration_ms=3500),
+            app.show_dashboard(),
+        )
+    )
     app.run()
+
 
 
 if __name__ == "__main__":

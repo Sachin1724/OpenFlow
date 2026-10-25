@@ -40,13 +40,32 @@ def find_iscc() -> str:
     )
 
 
+def is_source_newer(exe_path: str) -> bool:
+    """Check if any Python source or packaging file has been modified after the exe was built."""
+    if not os.path.exists(exe_path):
+        return True
+    exe_mtime = os.path.getmtime(exe_path)
+    for root, _, files in os.walk(ROOT):
+        if any(ignored in root for ignored in ("dist", "build", ".git", "__pycache__", ".vscode")):
+            continue
+        for f in files:
+            if f.endswith((".py", ".iss", ".ico", ".svg")):
+                try:
+                    if os.path.getmtime(os.path.join(root, f)) > exe_mtime:
+                        return True
+                except OSError:
+                    pass
+    return False
+
+
 def step1_pyinstaller(rebuild: bool = False):
     """Build PyInstaller distribution."""
-    if os.path.exists(APP_EXE) and not rebuild:
-        print(f"[1/2] PyInstaller build already exists at: {APP_EXE}")
+    needs_rebuild = rebuild or is_source_newer(APP_EXE)
+    if os.path.exists(APP_EXE) and not needs_rebuild:
+        print(f"[1/2] PyInstaller build is up to date at: {APP_EXE}")
         return
 
-    print("[1/2] Running PyInstaller build (this bundles Python, faster-whisper, PyQt6)...")
+    print("[1/2] Running PyInstaller build (bundling updated code, faster-whisper, PyQt6)...")
     build_script = os.path.join(ROOT, "packaging", "build.py")
     res = subprocess.run([sys.executable, build_script], cwd=ROOT)
     if res.returncode != 0:
@@ -55,6 +74,7 @@ def step1_pyinstaller(rebuild: bool = False):
     if not os.path.exists(APP_EXE):
         raise FileNotFoundError(f"Expected output not found: {APP_EXE}")
     print(f"       Built: {APP_EXE}")
+
 
 
 def step2_inno_setup():

@@ -10,8 +10,9 @@ from PyQt6.QtCore import (
     QEasingCurve, pyqtSignal
 )
 from PyQt6.QtGui import (
-    QPainter, QColor, QBrush, QPen, QFont, QFontDatabase, QFontMetricsF, QLinearGradient, QPainterPath
+    QPainter, QColor, QBrush, QPen, QFont, QFontDatabase, QFontMetricsF, QLinearGradient, QPainterPath, QPolygonF
 )
+
 
 from ..engine.audio_recorder import list_microphones
 
@@ -325,8 +326,9 @@ class ValueRow(QWidget):
         pen = QPen(QColor(255, 255, 255, 200 if self._hover else 120), 1.5,
                    Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin)
         p.setPen(pen)
-        p.drawPolyline([QPointF(cx - 3, cy - 2.5), QPointF(cx, cy - 5.5), QPointF(cx + 3, cy - 2.5)])
-        p.drawPolyline([QPointF(cx - 3, cy + 2.5), QPointF(cx, cy + 5.5), QPointF(cx + 3, cy + 2.5)])
+        p.drawPolyline(QPolygonF([QPointF(cx - 3, cy - 2.5), QPointF(cx, cy - 5.5), QPointF(cx + 3, cy - 2.5)]))
+        p.drawPolyline(QPolygonF([QPointF(cx - 3, cy + 2.5), QPointF(cx, cy + 5.5), QPointF(cx + 3, cy + 2.5)]))
+
         fm = QFontMetricsF(f)
         vr = QRectF(112, 0, self.width() - 112 - 34, self.height())
         p.setPen(QColor(255, 255, 255, 210 if self._hover else 140))
@@ -662,27 +664,19 @@ class FloatingPill(QWidget):
         self.sig_open_dashboard.emit()
 
     def _on_update_clicked(self):
-        self.btn_update.setEnabled(False)
-        self.btn_update.setText("Updating...")
-        self.sig_update_requested.emit()
-
-    def show_update_available(self, version: str = ""):
-        """Reveals the install button in the settings panel."""
-        self.btn_update.setText(f"Update Available · Install {version}".strip())
-        self.btn_update.setEnabled(True)
-        self.btn_update.show()
-
-    def _on_update_clicked(self):
         self.btn_update.setText("Downloading update...")
         self.btn_update.setEnabled(False)
         self.sig_update_requested.emit()
 
-    def show_update_available(self, version: str):
-        self.btn_update.setText(f"Update v{version} Available · Install")
+    def show_update_available(self, version: str = ""):
+        """Reveals the install button in the settings panel."""
+        label = f"Update v{version} Available · Install" if version else "Update Available · Install"
+        self.btn_update.setText(label)
         self.btn_update.setEnabled(True)
         self.btn_update.show()
         if not self.is_expanded_hud and self.isVisible():
-            self.show_message(f"Update v{version} available")
+            self.show_message(label, duration_ms=3000)
+
 
     def position_bottom_center(self):
         screen = QApplication.primaryScreen()
@@ -749,8 +743,8 @@ class FloatingPill(QWidget):
             self.show()
         self.update()
 
-    def show_message(self, text: str):
-        """Brief notice (errors, empty result), then fade away."""
+    def show_message(self, text: str, duration_ms: int = 2200):
+        """Brief notice (errors, empty result, ready notification), then fade away."""
         self.current_state = "idle"
         self.indicator.set_state("idle")
         self.text_label.setText(text)
@@ -759,7 +753,8 @@ class FloatingPill(QWidget):
         if not self.is_expanded_hud:
             self.show()
             self.setWindowOpacity(1.0)
-            self.hide_timer.start(2200)
+            self.hide_timer.start(duration_ms)
+
 
     def show_pasted(self, word_count: int, latency_ms: int = 0):
         if self.is_expanded_hud:
