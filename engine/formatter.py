@@ -1,5 +1,5 @@
 import re
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 FILLER_WORDS = [
     r"\b(um+)\b",
@@ -15,7 +15,7 @@ FILLER_WORDS = [
 
 
 class TextFormatter:
-    def __init__(self, dictionary_entries: List[Dict[str, Any]] = None):
+    def __init__(self, dictionary_entries: Optional[List[Dict[str, Any]]] = None):
         self.dictionary = dictionary_entries or []
 
     def set_dictionary(self, entries: List[Dict[str, Any]]):

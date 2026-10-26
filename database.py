@@ -95,7 +95,7 @@ class Database:
                 duration_seconds, word_count, tone_preset, model_used, device_used, latency_ms
             ))
             conn.commit()
-            return cursor.lastrowid
+            return cursor.lastrowid if cursor.lastrowid is not None else 0
 
     def get_history(self, limit: int = 100, query: str = "") -> List[Dict[str, Any]]:
         with self._get_connection() as conn:

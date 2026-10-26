@@ -162,6 +162,8 @@ class LocalRefiner:
             self._log(f"Refiner bootstrap failed: {e}")
 
     def _ensure_downloaded(self) -> str | None:
+        if not self._tier or self._tier not in _MODELS:
+            return None
         repo, filename, _, _ = _MODELS[self._tier]
         dest = REFINER_CACHE / filename
 
@@ -177,7 +179,7 @@ class LocalRefiner:
             return None
 
         REFINER_CACHE.mkdir(parents=True, exist_ok=True)
-        label = self._tier
+        label = self._tier or ""
 
         self._log(f"Refiner: downloading {filename} ({repo}) …")
         self._report_progress(0, label)
@@ -192,7 +194,7 @@ class LocalRefiner:
                     written = tmp_path.stat().st_size
                     # Estimate total from known sizes
                     _sizes = {"qwen0.5b-q4": 398_000_000, "smollm360-q4": 230_000_000, "smollm135-q4": 90_000_000}
-                    total = _sizes.get(self._tier, 0)
+                    total = _sizes.get(self._tier or "", 0)
                     if total:
                         pct = min(99, int(written * 100 / total))
                         if pct != last:
@@ -205,7 +207,6 @@ class LocalRefiner:
                 repo_id=repo,
                 filename=filename,
                 local_dir=str(REFINER_CACHE),
-                local_dir_use_symlinks=False,
             )
         except Exception as e:
             done_evt.set()
