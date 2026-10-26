@@ -25,6 +25,13 @@ from .autostart import set_autostart
 from .engine import hardware
 from . import __version__
 
+_BOOT_T0 = time.perf_counter()
+
+
+def _boot(msg: str):
+    """Boot timeline in the log, so a slow start can be pinned on one phase."""
+    print(f"[OpenFlow] boot +{time.perf_counter() - _BOOT_T0:5.1f}s  {msg}")
+
 
 def create_tray_icon_pixmap() -> QPixmap:
     pixmap = QPixmap(32, 32)
@@ -64,7 +71,7 @@ class OpenFlowApp(QObject):
     def __init__(self):
         self.app = QApplication.instance() or QApplication(sys.argv)
         super().__init__()
-        self.app.setQuitOnLastWindowClosed(False)
+        self.app.setQuitOnLastWindowClosed(False)  # type: ignore[attr-defined]
 
         ui_font_family()
 
@@ -77,11 +84,13 @@ class OpenFlowApp(QObject):
             save_config(self.config)
             set_autostart(self.config["autostart"])
         self.db = Database()
+        _boot("database ready")
 
         # Target window + app context (snapshotted on hotkey press)
         self.target_window_info = {"hwnd": 0, "title": "", "process": ""}
         self._app_context: AppContext = get_active_app_context()  # type: ignore[assignment]
         self._is_processing = False
+        _boot("app context detected")
 
         # Bridge
         self.bridge = AppBridge()
@@ -121,6 +130,7 @@ class OpenFlowApp(QObject):
             on_progress=self.bridge.sig_download.emit,
         )
 
+        _boot("refiner created")
         silence_sec = float(self.config.get("silence_duration", 1.1))
         self.audio_recorder = AudioRecorder(
             device_index=self.config.get("input_device_index"),
@@ -139,15 +149,19 @@ class OpenFlowApp(QObject):
         )
 
         # UI Components
+        _boot("recorder + hotkey objects created")
         initial_mic = self.audio_recorder.get_current_device_name()
+        _boot("microphone queried")
         self.floating_pill = FloatingPill(current_mic_name=initial_mic, current_language=self.config.get("language", "en"))
         self.floating_pill.sig_mic_changed.connect(self._on_capsule_mic_changed)
         self.floating_pill.sig_language_changed.connect(self._on_capsule_language_changed)
         self.floating_pill.sig_tone_changed.connect(self._on_capsule_tone_changed)
         self.floating_pill.sig_open_dashboard.connect(self.show_dashboard)
 
+        _boot("capsule built")
         self.main_window = MainWindow(self.db, self.config)
         self.main_window.config_changed.connect(self._on_config_changed)
+        _boot("dashboard built")
 
         # In-App Auto-Updater
         self.updater = AppUpdater(current_version=__version__, repo="Sachin1724/OpenFlow", parent=self)
@@ -166,6 +180,7 @@ class OpenFlowApp(QObject):
 
         # System Tray
         self._init_tray()
+        _boot("tray ready")
 
         # Start hotkey listening
         self.hotkey_mgr.start()
@@ -377,6 +392,13 @@ class OpenFlowApp(QObject):
                 self.bridge.sig_error.emit("Too short")
                 return
 
+            peak = float(abs(audio_data).max())
+            print(f"[OpenFlow] Captured {len(audio_data) / 16000:.1f}s of audio, peak level {peak:.3f}")
+            if peak < 0.004:  # near-digital silence: wrong input device or Windows microphone privacy block
+                print("[OpenFlow] Microphone is silent. Check Windows Settings > Privacy > Microphone and the input device.")
+                self.bridge.sig_error.emit("No sound from mic")
+                return
+
             # Refresh dictionary
             self.formatter.set_dictionary(self.db.get_dictionary())
             dict_entries = self.db.get_dictionary()
@@ -566,23 +588,102 @@ def _already_running() -> bool:
     return False
 
 
+class _LogTee:
+    """Mirrors stdout/stderr into ~/.openflow/openflow.log (the installed exe has no console)."""
+
+    encoding = "utf-8"
+
+    def __init__(self, stream, fh):
+        self._stream, self._fh = stream, fh
+
+    def isatty(self):
+        return False
+
+    def write(self, s):
+        try:
+            self._fh.write(s)
+            self._fh.flush()
+        except Exception:
+            pass
+        if self._stream is not None:
+            try:
+                self._stream.write(s)
+            except Exception:
+                pass
+
+    def flush(self):
+        if self._stream is not None:
+            try:
+                self._stream.flush()
+            except Exception:
+                pass
+
+
+def _setup_logging():
+    try:
+        d = os.path.join(os.path.expanduser("~"), ".openflow")
+        os.makedirs(d, exist_ok=True)
+        path = os.path.join(d, "openflow.log")
+        if os.path.exists(path) and os.path.getsize(path) > 1_000_000:
+            os.replace(path, path + ".old")
+        fh = open(path, "a", encoding="utf-8", buffering=1)
+        fh.write(f"\n--- OpenFlow {__version__} started {time.strftime('%Y-%m-%d %H:%M:%S')} ---\n")
+        sys.stdout = _LogTee(sys.stdout, fh)
+        sys.stderr = _LogTee(sys.stderr, fh)
+    except Exception:
+        pass
+
+
+def _acquire_instance_lock():
+    """Atomic single-instance lock (named Windows mutex). Returns (is_first, handle)."""
+    if sys.platform != "win32":
+        return True, None
+    import ctypes
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel32.CreateMutexW.restype = ctypes.c_void_p
+    handle = kernel32.CreateMutexW(None, False, "Local\\OpenFlowSingleInstance")
+    return ctypes.get_last_error() != 183, handle  # 183 = ERROR_ALREADY_EXISTS
+
+
+def _ask_running_instance_to_show() -> bool:
+    """The first copy may still be booting; retry for a while until its socket is up."""
+    for _ in range(12):
+        if _already_running():
+            return True
+        time.sleep(0.25)
+    return False
+
+
 def main():
+    _setup_logging()
     qt_app = QApplication.instance() or QApplication(sys.argv)
-    if _already_running():
-        return
-    app = OpenFlowApp()
+    first, _mutex = _acquire_instance_lock()  # keep _mutex referenced for the process lifetime
+    if not first:
+        if _ask_running_instance_to_show():
+            return
+        print("[OpenFlow] Prior instance mutex detected but unresponsive; continuing startup.")
+
+
+    # listen right away so a second launch during boot can already reach us
+    holder = {}
     server = QLocalServer()
     QLocalServer.removeServer(SINGLE_INSTANCE_KEY)
     server.listen(SINGLE_INSTANCE_KEY)
-    server.newConnection.connect(
-        lambda: (
-            server.nextPendingConnection(),
-            app.floating_pill.show_message("OpenFlow Active · Hold Ctrl+Shift to Speak", duration_ms=3500),
-            app.show_dashboard(),
-        )
-    )
-    app.run()
 
+    def on_second_launch():
+        server.nextPendingConnection()
+        app = holder.get("app")
+        if app is not None:
+            app.floating_pill.show_message("OpenFlow Active \u00b7 Hold Ctrl+Shift to Speak", duration_ms=3500)
+            app.show_dashboard()
+
+    server.newConnection.connect(on_second_launch)
+
+    app = OpenFlowApp()
+    holder["app"] = app
+    if "--background" not in sys.argv:  # opened by hand (not at sign-in): show the dashboard
+        QTimer.singleShot(400, app.show_dashboard)
+    app.run()
 
 
 if __name__ == "__main__":

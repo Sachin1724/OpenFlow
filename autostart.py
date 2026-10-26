@@ -6,6 +6,8 @@ _NAME = "OpenFlow"
 
 
 def _command() -> str:
+    if getattr(sys, "frozen", False):  # installed OpenFlow.exe: start quietly into the tray
+        return f'"{sys.executable}" --background'
     parent = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     py = sys.executable
     pyw = py[:-4] + "w.exe" if py.lower().endswith("python.exe") else py  # no console window

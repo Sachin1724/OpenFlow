@@ -3,7 +3,17 @@ import threading
 import gc
 import numpy as np
 from typing import Tuple, Optional
-import faster_whisper
+
+
+class _LazyFW:
+    """faster_whisper pulls in ctranslate2 (several seconds); import it only when a model loads."""
+
+    def __getattr__(self, name):
+        import faster_whisper as fw
+        return getattr(fw, name)
+
+
+faster_whisper = _LazyFW()
 
 from . import model_manager
 
@@ -23,7 +33,7 @@ class Transcriber:
         self.device = device
         self.compute_type = compute_type
         self.language = language
-        self.model: Optional[faster_whisper.WhisperModel] = None
+        self.model: Optional["faster_whisper.WhisperModel"] = None
         self._current_loaded_name = ""
         self._lock = threading.RLock()  # model swaps must not race transcription
         self.on_status = None           # optional callback(str) for "downloading/ready" messages
@@ -156,16 +166,32 @@ class Transcriber:
             # For Indic languages we leave None so Whisper uses its own language priors
 
         with self._lock:
-            segments, info = self.model.transcribe(
-                audio,
-                beam_size=5,
-                language=whisper_lang,
-                vad_filter=True,
-                vad_parameters=dict(min_silence_duration_ms=300),
-                condition_on_previous_text=False,
-                initial_prompt=initial_prompt,
-            )
-            full_text = " ".join([seg.text.strip() for seg in segments]).strip()
+            try:
+                segments, info = self.model.transcribe(
+                    audio,
+                    beam_size=5,
+                    language=whisper_lang,
+                    vad_filter=True,
+                    vad_parameters=dict(min_silence_duration_ms=300),
+                    condition_on_previous_text=False,
+                    initial_prompt=initial_prompt,
+                )
+                full_text = " ".join([seg.text.strip() for seg in segments]).strip()
+            except ValueError as ve:
+                if "onnxruntime" in str(ve).lower() or "vad" in str(ve).lower():
+                    print(f"[OpenFlow] VAD filter error ({ve}), retrying without VAD filter...")
+                    segments, info = self.model.transcribe(
+                        audio,
+                        beam_size=5,
+                        language=whisper_lang,
+                        vad_filter=False,
+                        condition_on_previous_text=False,
+                        initial_prompt=initial_prompt,
+                    )
+                    full_text = " ".join([seg.text.strip() for seg in segments]).strip()
+                else:
+                    raise
+
 
         latency_ms = int((time.perf_counter() - start_time) * 1000)
         detected_lang = info.language if info else lang

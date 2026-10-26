@@ -439,9 +439,23 @@ class MainWindow(QMainWindow):
 
         c_layout.addLayout(up_layout)
 
+        # one label column so every control starts at the same x
+        for lbl in (m_label, hw_label, mic_label, hk_label, sil_label, tone_label):
+            lbl.setFixedWidth(220)
+            lbl.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
+
         layout.addWidget(card)
         layout.addStretch()
-        return widget
+
+        # the tab is taller than the minimum window; let it scroll instead of clipping
+        from PyQt6.QtWidgets import QScrollArea
+        scroll = QScrollArea(self)
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setStyleSheet("QScrollArea { background: transparent; border: none; }"
+                             "QScrollArea > QWidget > QWidget { background: transparent; }")
+        scroll.setWidget(widget)
+        return scroll
 
     def _save_settings(self):
         model_choice = self.model_combo.currentData()

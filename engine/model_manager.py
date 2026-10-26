@@ -6,9 +6,27 @@ from typing import Callable, Optional
 
 # plain HTTP download so partial files grow on disk and progress can be measured
 os.environ.setdefault("HF_HUB_DISABLE_XET", "1")
+os.environ.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
+os.environ.setdefault("TQDM_DISABLE", "1")
 
-import huggingface_hub
-from faster_whisper.utils import _MODELS
+
+class _Lazy:
+    """Imports huggingface_hub on first use so it stays off the startup path."""
+
+    def __getattr__(self, name):
+        import huggingface_hub as hf
+        return getattr(hf, name)
+
+
+huggingface_hub = _Lazy()
+
+# same table as faster_whisper.utils._MODELS, copied so importing faster_whisper (slow) is not needed
+_MODELS = {
+    f"{size}{suffix}": f"Systran/faster-whisper-{size}{suffix}"
+    for size in ("tiny", "base", "small", "medium")
+    for suffix in ("", ".en")
+}
+_MODELS.update({"large-v2": "Systran/faster-whisper-large-v2", "large-v3": "Systran/faster-whisper-large-v3"})
 
 _PATTERNS = ["config.json", "preprocessor_config.json", "model.bin", "tokenizer.json", "vocabulary.*"]
 

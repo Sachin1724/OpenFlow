@@ -58,7 +58,7 @@ class StateIndicator(QWidget):
             self.phase += 0.09
             self.update()
 
-    def paintEvent(self, event):
+    def paintEvent(self, a0):
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
         c = QRectF(self.rect()).center()
@@ -117,7 +117,7 @@ class WaveformBars(QWidget):
             self.bar_heights[i] = self.bar_heights[i] * 0.55 + self.target_level * mod * 0.45
         self.update()
 
-    def paintEvent(self, event):
+    def paintEvent(self, a0):
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
         p.setPen(Qt.PenStyle.NoPen)
@@ -141,7 +141,7 @@ class MoreButton(QPushButton):
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
 
-    def paintEvent(self, event):
+    def paintEvent(self, a0):
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
         hovered = self.underMouse()
@@ -205,7 +205,7 @@ class AnimatedText(QWidget):
         tw = fm.horizontalAdvance(text)
         return 0.0 if tw <= self.width() else self.width() - tw
 
-    def paintEvent(self, event):
+    def paintEvent(self, a0):
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.TextAntialiasing)
         p.setFont(self._font)
@@ -283,16 +283,16 @@ class ValueRow(QWidget):
     def currentText(self):
         return self._items[self._idx][0] if self._idx >= 0 else ""
 
-    def enterEvent(self, e):
+    def enterEvent(self, event):
         self._hover = True
         self.update()
 
-    def leaveEvent(self, e):
+    def leaveEvent(self, a0):
         self._hover = False
         self.update()
 
-    def mouseReleaseEvent(self, e):
-        if e.button() != Qt.MouseButton.LeftButton or not self._items:
+    def mouseReleaseEvent(self, a0):
+        if a0.button() != Qt.MouseButton.LeftButton or not self._items:
             return
         menu = QMenu(self)
         menu.setWindowFlags(menu.windowFlags() | Qt.WindowType.FramelessWindowHint | Qt.WindowType.NoDropShadowWindowHint)
@@ -313,7 +313,7 @@ class ValueRow(QWidget):
             act.triggered.connect(lambda _=False, i=i: self.setCurrentIndex(i))
         menu.exec(self.mapToGlobal(QPoint(0, self.height() + 2)))
 
-    def paintEvent(self, event):
+    def paintEvent(self, a0):
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
         if self._hover:
@@ -584,7 +584,7 @@ class FloatingPill(QWidget):
             if eff is None:
                 eff = QGraphicsOpacityEffect(w)
                 w.setGraphicsEffect(eff)
-            eff.setOpacity(a)
+            eff.setOpacity(a)  # type: ignore[attr-defined]
 
     def _morph_to(self, target: float):
         geo = self.geometry()
@@ -785,7 +785,7 @@ class FloatingPill(QWidget):
 
     # ---------- painting / dragging ----------
 
-    def paintEvent(self, event):
+    def paintEvent(self, a0):
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
 
@@ -816,12 +816,12 @@ class FloatingPill(QWidget):
             p.setBrush(QColor(255, 255, 255, 40))
             p.drawRect(QRectF(rect.x(), rect.y(), rect.width() * self._dl / 100.0, rect.height()))
 
-    def mousePressEvent(self, event):
-        if event.button() == Qt.MouseButton.LeftButton:
-            self._drag_pos = event.globalPosition().toPoint() - self.frameGeometry().topLeft()
-            event.accept()
+    def mousePressEvent(self, a0):
+        if a0.button() == Qt.MouseButton.LeftButton:
+            self._drag_pos = a0.globalPosition().toPoint() - self.frameGeometry().topLeft()
+            a0.accept()
 
-    def mouseMoveEvent(self, event):
-        if event.buttons() == Qt.MouseButton.LeftButton:
-            self.move(event.globalPosition().toPoint() - self._drag_pos)
-            event.accept()
+    def mouseMoveEvent(self, a0):
+        if a0.buttons() == Qt.MouseButton.LeftButton:
+            self.move(a0.globalPosition().toPoint() - self._drag_pos)
+            a0.accept()

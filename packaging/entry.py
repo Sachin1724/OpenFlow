@@ -2,8 +2,16 @@ import os
 import sys
 import traceback
 
+os.environ.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
+os.environ.setdefault("TQDM_DISABLE", "1")
+os.environ.setdefault("HF_HUB_DISABLE_XET", "1")
+
 def _handle_exception(exc_type, exc_value, exc_tb):
-    """Log any unhandled exception to ~/.openflow/crash.log and display a native Windows dialog."""
+    """Log any fatal unhandled exception to ~/.openflow/crash.log and display a native Windows dialog."""
+    if issubclass(exc_type, (KeyboardInterrupt, SystemExit)):
+        sys.__excepthook__(exc_type, exc_value, exc_tb)
+        return
+
     err_str = "".join(traceback.format_exception(exc_type, exc_value, exc_tb))
     try:
         from pathlib import Path
@@ -29,8 +37,7 @@ def _handle_exception(exc_type, exc_value, exc_tb):
     sys.__excepthook__(exc_type, exc_value, exc_tb)
 
 sys.excepthook = _handle_exception
-if hasattr(sys, "unraisablehook"):
-    sys.unraisablehook = lambda hook_args: _handle_exception(hook_args.exc_type, hook_args.exc_value, hook_args.exc_traceback)
+
 
 # Ensure openflow is importable both in frozen and source mode
 if getattr(sys, "frozen", False):
@@ -48,5 +55,7 @@ else:
 from openflow.main import main
 
 if __name__ == "__main__":
+    import multiprocessing
+    multiprocessing.freeze_support()  # a frozen exe must not re-run the whole app in helper processes
     main()
 

@@ -36,7 +36,9 @@ def _cuda_usable() -> bool:
 def detect() -> Dict[str, Any]:
     """Inspects this PC and recommends device, compute type and model size."""
     gpu = _nvidia_smi()
-    cuda_ok = _cuda_usable()
+    # An NVIDIA driver is enough for the startup choice: importing ctranslate2 to probe CUDA costs
+    # several seconds. If CUDA is not actually usable, the model load falls back to the CPU itself.
+    cuda_ok = bool(gpu)
     cores = os.cpu_count() or 4
     ram_gb = round(psutil.virtual_memory().total / 2**30, 1)
 
