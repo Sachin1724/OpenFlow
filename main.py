@@ -440,7 +440,9 @@ class OpenFlowApp(QObject):
             word_count = len(formatted.split())
 
             # Automatically write text into the target window
-            target_hwnd = self.target_window_info.get("hwnd", 0)
+            target_hwnd = int(self.target_window_info.get("hwnd", 0) or 0)
+            target_app = str(self.target_window_info.get("process", "") or "")
+            target_title = str(self.target_window_info.get("title", "") or "")
             method = self.config.get("injection_method", "clipboard")
             restore_clip = self.config.get("restore_clipboard", True)
 
@@ -459,8 +461,8 @@ class OpenFlowApp(QObject):
             self.db.add_history_entry(
                 raw_text=raw_text,
                 formatted_text=formatted,
-                target_app=self.target_window_info.get("process", ""),
-                target_window=self.target_window_info.get("title", ""),
+                target_app=target_app,
+                target_window=target_title,
                 duration_seconds=duration_sec,
                 word_count=word_count,
                 tone_preset=tone,
