@@ -1,4 +1,44 @@
+# OpenFlow robots.txt
+# Optimized for Google, Bing, DuckDuckGo, and Generative AI Search Engines
+
 User-agent: *
+Allow: /
+
+# Google Search & Gemini
+User-agent: Googlebot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+# OpenAI / ChatGPT
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+# Anthropic / Claude
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+# Perplexity AI
+User-agent: PerplexityBot
+Allow: /
+
+# Apple Intelligence / Siri
+User-agent: Applebot
+Allow: /
+
+# Common Crawl (AI Training & Indexing)
+User-agent: CCBot
+Allow: /
+
+# Microsoft Bing & Copilot
+User-agent: Bingbot
 Allow: /
 
 Sitemap: https://sachin1724.github.io/OpenFlow/sitemap.xml

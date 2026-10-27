@@ -51,3 +51,27 @@ def save_config(cfg: dict):
             json.dump(cfg, f, indent=4)
     except Exception as e:
         print(f"[OpenFlow] Error saving config: {e}")
+
+
+def get_asset_path(*parts: str) -> str:
+    """Resolve an asset file path reliably in both source and frozen PyInstaller modes."""
+    import sys
+    if getattr(sys, "frozen", False):
+        base = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(sys.executable)))
+        p = os.path.join(base, "assets", *parts)
+        if os.path.exists(p):
+            return p
+        p_sub = os.path.join(base, "openflow", "assets", *parts)
+        if os.path.exists(p_sub):
+            return p_sub
+        return p
+
+    here = os.path.dirname(os.path.abspath(__file__))
+    p_here = os.path.join(here, "assets", *parts)
+    if os.path.exists(p_here):
+        return p_here
+    p_parent = os.path.join(os.path.dirname(here), "assets", *parts)
+    if os.path.exists(p_parent):
+        return p_parent
+    return p_here
+

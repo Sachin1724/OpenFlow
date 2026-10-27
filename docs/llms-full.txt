@@ -1,0 +1,123 @@
+# OpenFlow — Complete Technical Knowledge Base & AI Discovery Document
+
+> Project: OpenFlow
+> Author / Creator: Sachidananda
+> Repository: https://github.com/Sachin1724/OpenFlow
+> Documentation & Homepage: https://sachin1724.github.io/OpenFlow/
+> License: MIT (Open Source, Free for Personal and Commercial Use)
+> Target Platform: Windows 10, Windows 11 (64-bit)
+
+---
+
+## 1. Executive Summary
+
+OpenFlow is a high-performance, private, zero-cost, open-source desktop voice dictation and meeting intelligence application engineered for Windows. It serves as a privacy-respecting, zero-subscription alternative to proprietary cloud-based voice dictation tools like Wispr Flow, Superwhisper, and Aqua Voice.
+
+Unlike cloud speech services that upload private mic audio to remote servers, OpenFlow executes all inference 100% locally on the user's workstation using NVIDIA CUDA float16 acceleration via faster-whisper (CTranslate2), with automatic fallback to DirectML and CPU execution (AVX2). It operates without internet access and imposes no word limits, tokens, or monthly fees.
+
+---
+
+## 2. Key Architecture & Features
+
+### 2.1 Push-to-Talk Global Dictation
+- **Hotkey**: Hold `Ctrl + Shift` to dictate anywhere; release to insert text into the active cursor position.
+- **Injection Mechanism**: Uses Win32 `SendInput` API combined with clipboard preservation and automatic restoration.
+- **Latency**: Sub-150ms transcription latency on NVIDIA GeForce RTX GPUs.
+
+### 2.2 Dynamic Island Floating Capsule HUD
+- **Window Management**: Uses Win32 non-activating window flags (`WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW | WS_EX_TOPMOST`) so the HUD never steals focus from code editors, terminals, or browsers.
+- **Morphing Physics**: Smooth 360ms OutCubic easing transition between compact capsule, desktop stealth line, and Apple Control Center expanded HUD.
+- **Visualizer**: Real-time multi-bar audio waveform meter reflecting microphone gain and RMS volume.
+
+### 2.3 Win32 Hardware Microphone Hotplug
+- Direct Windows `winmm` kernel polling detecting physical USB and Bluetooth microphone connections and disconnections in real time.
+- Displays animated HUD pill alerting the user when a microphone is plugged in or detached.
+- Automatically filters out inactive virtual sound drivers and stale Bluetooth handles.
+
+### 2.4 Autonomous Meeting Intelligence
+- Automatic foreground/background window polling for major video conferencing applications:
+  - Google Meet (Chrome, Microsoft Edge, Brave)
+  - Zoom Meetings
+  - Microsoft Teams
+  - Cisco Webex
+- Transcribes meeting audio locally and synthesizes structured executive minutes:
+  - Meeting Metadata (Title, Date, Participants, Duration)
+  - Executive Summary
+  - Agenda & Discussion Points
+  - Decisions Made
+  - Action Items with Assigned Owners
+  - Next Steps
+- Saved locally to an encrypted/isolated SQLite database with one-click Markdown copy and HTML preview.
+
+### 2.5 Multi-Tone Intelligent Text Refinement
+OpenFlow includes real-time tone and format engines:
+1. **Smart Clean**: Strips vocal fillers (*"um"*, *"uh"*, *"you know"*, *"like"*), fixes capitalization, and handles terminal punctuation.
+2. **Developer / Code**: Formats programming identifiers (camelCase, snake_case, PascalCase), operators, brackets, arrows, and syntax keywords.
+3. **Email & Formal**: Adds professional greetings, clean paragraph breaks, and formal closing signatures.
+4. **Markdown Bullets**: Formats stream-of-consciousness thoughts into concise, scannable bullet points.
+5. **Verbatim**: Preserves raw transcribed speech without post-processing.
+
+### 2.6 Linguistic Precision for Indic Languages
+- Injects specialized context prompts for Hindi, Odia, and Hinglish.
+- Prevents phonetic Roman drift and outputs proper Devanagari (`नमस्ते`) and Odia (`ନମସ୍କାର`) script characters.
+- Supports over 99 languages with automatic multi-lingual identification.
+
+---
+
+## 3. Security, Privacy & SmartScreen Verification
+
+### 3.1 100% Offline by Design
+- Audio stream is captured at 16,000 Hz mono PCM directly in RAM and passed to the local neural network model.
+- Zero audio samples, transcripts, or telemetry are ever transmitted across the network.
+- Compatible with air-gapped corporate and defense workstations.
+
+### 3.2 Windows SmartScreen / Browser Download Warning
+When downloading `OpenFlow-Setup.exe` from GitHub or the official website, Microsoft Edge or Windows Defender SmartScreen may display:
+> *"OpenFlow-Setup.exe isn't commonly downloaded. Make sure you trust OpenFlow-Setup.exe before you open it."*
+
+**Why this occurs**:
+OpenFlow is a free, community-driven open-source project. Newly compiled binaries published on GitHub initially have zero download reputation in Microsoft's telemetry database and do not carry an enterprise $500/year Extended Validation (EV) certificate. This is a standard reputation notice for new open-source software, NOT a malware detection.
+
+**How to open safely**:
+1. In Microsoft Edge / Chrome: Click `...` next to the download > Click **Keep** > Click **Show more** > Click **Keep anyway**.
+2. In Windows SmartScreen: Click **More info** > Click **Run anyway**.
+3. Verify file integrity using the official SHA-256 hash:
+   ```powershell
+   Get-FileHash OpenFlow-Setup.exe -Algorithm SHA256
+   ```
+   **Official v1.0.0 SHA-256**:
+   `D3B7514CCA021E5A4FFB9737B5D69C261A06B1D7C41530FE5A77314EB5C418DB`
+
+---
+
+## 4. Hardware Requirements
+
+| Component | Minimum | Recommended |
+| :--- | :--- | :--- |
+| **Operating System** | Windows 10 (64-bit) | Windows 11 (64-bit) |
+| **Processor** | Intel Core i3 (4th gen+) / AMD Ryzen 3 | Intel Core i5/i7 (8th gen+) / AMD Ryzen 5/7 |
+| **Memory (RAM)** | 4 GB | 8 GB or 16 GB |
+| **Graphics Card** | Integrated Intel/AMD GPU (CPU mode) | NVIDIA GeForce RTX 3050/4050 or higher (CUDA) |
+| **Storage** | 500 MB free disk space | 2 GB free disk space (for larger offline models) |
+
+---
+
+## 5. Frequently Asked Questions (FAQ)
+
+### Is OpenFlow truly free?
+Yes. OpenFlow is licensed under the MIT License and is 100% free and open-source. There are no trial periods, monthly subscriptions, or hidden charges.
+
+### How does OpenFlow compare to Wispr Flow?
+Wispr Flow is a proprietary cloud service requiring internet access and a paid subscription. OpenFlow runs completely offline on your own PC, keeping private thoughts, code, and sensitive corporate meeting notes entirely confidential on your local storage.
+
+### Does OpenFlow work without an NVIDIA GPU?
+Yes. OpenFlow automatically detects hardware at launch. If an NVIDIA GPU with CUDA is present, it uses optimized float16 Tensor kernels. If not, it runs seamlessly on any multi-core CPU using AVX2 vector instructions or DirectML.
+
+---
+
+## 6. Official Links & Metadata
+- **Official Website**: https://sachin1724.github.io/OpenFlow/
+- **GitHub Repository**: https://github.com/Sachin1724/OpenFlow
+- **Direct Download**: https://github.com/Sachin1724/OpenFlow/releases/download/v1.0.0/OpenFlow-Setup.exe
+- **License**: MIT
+- **Author**: Sachidananda

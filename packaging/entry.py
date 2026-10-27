@@ -42,8 +42,12 @@ sys.excepthook = _handle_exception
 # Ensure openflow is importable both in frozen and source mode
 if getattr(sys, "frozen", False):
     basedir = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(sys.executable)))
+    # If openflow was populated as an empty namespace package due to an on-disk data folder,
+    # remove it so Python resolves the true package from the PyInstaller PYZ archive.
+    if "openflow" in sys.modules and getattr(sys.modules["openflow"], "__file__", None) is None:
+        del sys.modules["openflow"]
     if basedir not in sys.path:
-        sys.path.insert(0, basedir)
+        sys.path.append(basedir)
 else:
     basedir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     parent = os.path.dirname(basedir)
@@ -52,7 +56,14 @@ else:
     if basedir not in sys.path:
         sys.path.insert(0, basedir)
 
-from openflow.main import main
+try:
+    from openflow.main import main
+except ModuleNotFoundError:
+    import importlib
+    try:
+        main = importlib.import_module("openflow.main").main
+    except ModuleNotFoundError:
+        main = importlib.import_module("main").main
 
 if __name__ == "__main__":
     import multiprocessing

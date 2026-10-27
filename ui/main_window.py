@@ -10,7 +10,7 @@ import pyperclip  # type: ignore[import]
 import os
 import re
 
-from ..config import load_config, save_config
+from ..config import load_config, save_config, get_asset_path
 from ..database import Database
 from ..engine import hardware, model_manager
 from ..engine.audio_recorder import list_microphones
@@ -37,10 +37,9 @@ class MainWindow(QMainWindow):
         self.setMinimumSize(880, 640)
         self.setStyleSheet(main_qss())
 
-        import os
-        icon_path = os.path.join(os.path.dirname(__file__), "..", "assets", "app_icon_square.png")
+        icon_path = get_asset_path("app_icon_square.png")
         if not os.path.exists(icon_path):
-            icon_path = os.path.join(os.path.dirname(__file__), "..", "assets", "logo.jpg")
+            icon_path = get_asset_path("logo.jpg")
         if os.path.exists(icon_path):
             self.setWindowIcon(QIcon(icon_path))
 
@@ -64,10 +63,9 @@ class MainWindow(QMainWindow):
 
         # Logo thumbnail or vector mark
         logo_label = QLabel(self)
-        import os
-        icon_path = os.path.join(os.path.dirname(__file__), "..", "assets", "app_icon_square.png")
+        icon_path = get_asset_path("app_icon_square.png")
         if not os.path.exists(icon_path):
-            icon_path = os.path.join(os.path.dirname(__file__), "..", "assets", "logo.jpg")
+            icon_path = get_asset_path("logo.jpg")
         if os.path.exists(icon_path):
             pix = QPixmap(icon_path).scaled(42, 42, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
             logo_label.setPixmap(pix)
@@ -1012,7 +1010,9 @@ class MainWindow(QMainWindow):
         h_layout.setContentsMargins(18, 18, 18, 18)
         h_layout.setSpacing(16)
 
-        logo_path = os.path.join(os.path.dirname(__file__), "..", "assets", "app_icon_square.png")
+        logo_path = get_asset_path("app_icon_square.png")
+        if not os.path.exists(logo_path):
+            logo_path = get_asset_path("logo.jpg")
         logo_label = QLabel(header_card)
         if os.path.exists(logo_path):
             logo_label.setPixmap(get_squircle_pixmap(logo_path, size=52, radius=12.0))

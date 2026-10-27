@@ -14,7 +14,7 @@ try:
 except Exception:
     pass
 
-from .config import load_config, save_config
+from .config import load_config, save_config, get_asset_path
 from .database import Database
 from .engine.audio_recorder import (
     AudioRecorder, list_microphones, hardware_input_count,
@@ -48,7 +48,9 @@ def create_tray_icon_pixmap() -> QPixmap:
     pixmap = QPixmap(size, size)
     pixmap.fill(Qt.GlobalColor.transparent)
 
-    icon_path = os.path.join(os.path.dirname(__file__), "assets", "app_icon_square.png")
+    icon_path = get_asset_path("app_icon_square.png")
+    if not os.path.exists(icon_path):
+        icon_path = get_asset_path("logo.jpg")
     if os.path.exists(icon_path):
         src = QPixmap(icon_path).scaled(
             size, size,
@@ -100,9 +102,9 @@ class OpenFlowApp(QObject):
         self.app.setQuitOnLastWindowClosed(False)  # type: ignore[attr-defined]
 
         # Set application brand icon globally
-        app_icon_path = os.path.join(os.path.dirname(__file__), "assets", "app_icon_square.png")
+        app_icon_path = get_asset_path("app_icon_square.png")
         if not os.path.exists(app_icon_path):
-            app_icon_path = os.path.join(os.path.dirname(__file__), "assets", "logo.jpg")
+            app_icon_path = get_asset_path("logo.jpg")
         if os.path.exists(app_icon_path):
             self.app.setWindowIcon(QIcon(app_icon_path))
 

@@ -18,6 +18,7 @@ from PyQt6.QtGui import (
 )
 
 
+from ..config import get_asset_path
 from ..engine.audio_recorder import list_microphones
 
 
@@ -36,7 +37,7 @@ def _force_topmost(widget: QWidget):
     except Exception:
         pass
 
-_ASSETS = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "assets")).replace("\\", "/")
+_ASSETS = get_asset_path().replace("\\", "/")
 
 # Black & white palette
 FG = "#ffffff"
@@ -77,7 +78,7 @@ def ui_font_family() -> str:
     """Bundled Inter, so every PC looks the same. Never calls QFontDatabase.families():
     enumerating system fonts takes seconds on machines with many fonts installed."""
     family = ""
-    for f in glob.glob(os.path.join(os.path.dirname(__file__), "..", "assets", "fonts", "*.ttf")):
+    for f in glob.glob(os.path.join(get_asset_path("fonts"), "*.ttf")):
         families = QFontDatabase.applicationFontFamilies(QFontDatabase.addApplicationFont(f))
         family = family or (families[0] if families else "")
     return family or "Segoe UI"
@@ -252,7 +253,7 @@ class MoreButton(QPushButton):
 
 
 
-_ASSETS = os.path.join(os.path.dirname(__file__), "..", "assets").replace("\\", "/")
+_ASSETS = get_asset_path().replace("\\", "/")
 
 
 class AnimatedText(QWidget):
@@ -1051,7 +1052,9 @@ class FloatingPill(QWidget):
         header.setSpacing(10)
 
         # Brand Squircle Logo
-        logo_path = os.path.join(os.path.dirname(__file__), "..", "assets", "app_icon_square.png")
+        logo_path = get_asset_path("app_icon_square.png")
+        if not os.path.exists(logo_path):
+            logo_path = get_asset_path("logo.jpg")
         self.hud_logo = QLabel(self)
         self.hud_logo.setFixedSize(26, 26)
         self.hud_logo.setPixmap(get_squircle_pixmap(logo_path, size=26, radius=6.5))

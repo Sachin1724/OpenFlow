@@ -1,7 +1,8 @@
 import os
 from functools import lru_cache
+from ..config import get_asset_path
 
-_CHECK = os.path.join(os.path.dirname(__file__), "..", "assets", "check.svg").replace("\\", "/")
+_CHECK = get_asset_path("check.svg").replace("\\", "/")
 
 # Black & white minimal theme (Apple HIG: system font, hairlines, generous radii, no accent colours)
 

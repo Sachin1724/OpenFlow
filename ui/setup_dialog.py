@@ -6,6 +6,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QIcon
 
+from ..config import get_asset_path
 from ..engine import hardware, model_manager
 from ..engine.transcriber import resolve_model_name
 from .styles import main_qss, COLORS
@@ -29,9 +30,9 @@ class SetupDialog(QDialog):
         self.setFixedWidth(440)
         self.setStyleSheet(main_qss() + "QDialog { background: #000000; }")
 
-        icon_path = os.path.join(os.path.dirname(__file__), "..", "assets", "app_icon_square.png")
+        icon_path = get_asset_path("app_icon_square.png")
         if not os.path.exists(icon_path):
-            icon_path = os.path.join(os.path.dirname(__file__), "..", "assets", "logo.jpg")
+            icon_path = get_asset_path("logo.jpg")
         if os.path.exists(icon_path):
             self.setWindowIcon(QIcon(icon_path))
 
