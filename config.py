@@ -11,11 +11,12 @@ DEFAULT_CONFIG = {
     "auto_write_on_silence": False,      # When in push_to_talk, release writes immediately
     "silence_duration": 1.1,             # Seconds of silence (for auto_silence mode)
     "realtime_preview": True,            # Live partial text in capsule
-    "tone_preset": "smart_clean",        # smart_clean, developer, email, bullets, verbatim
+    "tone_preset": "auto",               # auto (follows the active app), smart_clean, chat, developer, email, bullets, verbatim
     "injection_method": "clipboard",     # "clipboard" (instant Ctrl+V) or "type" (direct Unicode typing)
     "restore_clipboard": True,           # Restore user clipboard after paste
     "sound_feedback": True,              # Play subtle audio chimes
     "show_floating_pill": True,          # Show floating minimal capsule
+    "hide_capsule_when_idle": False,     # Hide capsule completely when idle (don't show minimized bar on desktop)
     "input_device_index": None,          # None = system default
     "language": "en",
     "setup_done": False,                 # first-run model download completed

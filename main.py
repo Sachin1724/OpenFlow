@@ -1,28 +1,38 @@
 import sys
 import os
+import datetime
 import threading
 import time
 from PyQt6.QtWidgets import QApplication, QSystemTrayIcon, QMenu
-from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot, Qt, QTimer
+from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot, Qt, QTimer, QRectF
 from PyQt6.QtNetwork import QLocalServer, QLocalSocket
-from PyQt6.QtGui import QIcon, QPixmap, QPainter, QColor
+from PyQt6.QtGui import QIcon, QPixmap, QPainter, QColor, QPainterPath, QPen, QBrush
+
+try:
+    import ctypes
+    ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("OpenFlow.VoiceToText.App.1.0")
+except Exception:
+    pass
 
 from .config import load_config, save_config
 from .database import Database
-from .engine.audio_recorder import AudioRecorder
+from .engine.audio_recorder import (
+    AudioRecorder, list_microphones, hardware_input_count,
+    get_live_hardware_microphones, clean_device_name
+)
 from .engine.transcriber import Transcriber
 from .engine.formatter import TextFormatter
 from .engine.injector import WindowInjector
 from .engine.hotkey_manager import GlobalHotkeyManager
 from .engine.sound_effects import play_start_sound, play_stop_sound, play_paste_sound
 from .engine.context_detector import get_active_app_context, build_initial_prompt, AppContext
-from .engine.refiner import LocalRefiner
 from .engine.updater import AppUpdater
-from .ui.floating_pill import FloatingPill, ui_font_family
+from .engine.meeting import MeetingSession, active_meeting_app, format_meeting_notes, transcript_text
+from .ui.floating_pill import FloatingPill, MeetingBar, ui_font_family
 from .ui.main_window import MainWindow
 from .ui.setup_dialog import SetupDialog
 from .autostart import set_autostart
-from .engine import hardware
+from .engine import hardware, model_manager
 from . import __version__
 
 _BOOT_T0 = time.perf_counter()
@@ -34,17 +44,31 @@ def _boot(msg: str):
 
 
 def create_tray_icon_pixmap() -> QPixmap:
-    pixmap = QPixmap(32, 32)
+    size = 32
+    pixmap = QPixmap(size, size)
     pixmap.fill(Qt.GlobalColor.transparent)
+
+    icon_path = os.path.join(os.path.dirname(__file__), "assets", "app_icon_square.png")
+    if os.path.exists(icon_path):
+        src = QPixmap(icon_path).scaled(
+            size, size,
+            Qt.AspectRatioMode.KeepAspectRatio,
+            Qt.TransformationMode.SmoothTransformation
+        )
+        painter = QPainter(pixmap)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        x = (size - src.width()) // 2
+        y = (size - src.height()) // 2
+        painter.drawPixmap(x, y, src)
+        painter.end()
+        return pixmap
+
+    # Fallback vector icon
     painter = QPainter(pixmap)
     painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-
-    # Cyan gradient circle
     painter.setBrush(QColor(255, 255, 255))
     painter.setPen(Qt.PenStyle.NoPen)
     painter.drawEllipse(2, 2, 28, 28)
-
-    # Inner mic capsule
     painter.setBrush(QColor(0, 0, 0))
     painter.drawRoundedRect(12, 8, 8, 12, 4, 4)
     painter.drawRect(15, 20, 2, 4)
@@ -65,6 +89,8 @@ class AppBridge(QObject):
     sig_download = pyqtSignal(int, str)  # (percent, model name)
     sig_update_available = pyqtSignal(str, str, str, str)  # (version, release_url, download_url, notes)
     sig_update_ready = pyqtSignal(str)                     # (installer_path)
+    sig_meeting_line = pyqtSignal(str, str)                # (speaker, text) live caption
+    sig_meeting_saved = pyqtSignal(str)                    # note title, "" when nothing was said
 
 
 class OpenFlowApp(QObject):
@@ -73,7 +99,22 @@ class OpenFlowApp(QObject):
         super().__init__()
         self.app.setQuitOnLastWindowClosed(False)  # type: ignore[attr-defined]
 
+        # Set application brand icon globally
+        app_icon_path = os.path.join(os.path.dirname(__file__), "assets", "app_icon_square.png")
+        if not os.path.exists(app_icon_path):
+            app_icon_path = os.path.join(os.path.dirname(__file__), "assets", "logo.jpg")
+        if os.path.exists(app_icon_path):
+            self.app.setWindowIcon(QIcon(app_icon_path))
+
+        # Sanitize Windows HF model symlinks to eliminate WinError 448 (untrusted mount points)
+        try:
+            model_manager.sanitize_all_cached_models()
+        except Exception:
+            pass
+
         ui_font_family()
+
+
 
         # Config & DB
         self.config = load_config()
@@ -118,19 +159,6 @@ class OpenFlowApp(QObject):
         self.transcriber.on_status = self.bridge.sig_status.emit
         self.transcriber.on_progress = self.bridge.sig_download.emit
 
-        # Local text refiner — auto-selects model tier based on hardware
-        # Runs in background thread; HUD progress shown via existing sig_download signal
-        hw = hardware.detect()
-        self.refiner = LocalRefiner(
-            cuda_ok=hw["cuda_ok"],
-            cpu_cores=hw["cpu_cores"],
-            ram_gb=hw["ram_gb"],
-            vram_gb=hw.get("vram_gb", 0.0),
-            on_status=self.bridge.sig_status.emit,
-            on_progress=self.bridge.sig_download.emit,
-        )
-
-        _boot("refiner created")
         silence_sec = float(self.config.get("silence_duration", 1.1))
         self.audio_recorder = AudioRecorder(
             device_index=self.config.get("input_device_index"),
@@ -152,15 +180,38 @@ class OpenFlowApp(QObject):
         _boot("recorder + hotkey objects created")
         initial_mic = self.audio_recorder.get_current_device_name()
         _boot("microphone queried")
-        self.floating_pill = FloatingPill(current_mic_name=initial_mic, current_language=self.config.get("language", "en"))
+        self._known_mics = {d["name"]: d for d in list_microphones()}
+        self._hw_mic_count = hardware_input_count()
+        self._known_live_mics = set(get_live_hardware_microphones())
+        recents = self.config.get("recent_mics", [])
+        if initial_mic and initial_mic not in recents:
+            recents.insert(0, initial_mic)
+            self.config["recent_mics"] = recents[:5]
+            save_config(self.config)
+
+        curr_model = self.config.get("model_size", "base")
+        self.floating_pill = FloatingPill(
+            current_mic_name=initial_mic,
+            current_language=self.config.get("language", "en"),
+            current_model=curr_model,
+            hide_when_idle=self.config.get("hide_capsule_when_idle", False),
+        )
+        self.floating_pill.populate_mics(recents)
+        self.floating_pill.populate_models(curr_model)
         self.floating_pill.sig_mic_changed.connect(self._on_capsule_mic_changed)
         self.floating_pill.sig_language_changed.connect(self._on_capsule_language_changed)
         self.floating_pill.sig_tone_changed.connect(self._on_capsule_tone_changed)
+        self.floating_pill.sig_model_changed.connect(self._on_capsule_model_changed)
+        self.floating_pill.sig_hide_idle_changed.connect(self._on_capsule_hide_idle_changed)
         self.floating_pill.sig_open_dashboard.connect(self.show_dashboard)
 
         _boot("capsule built")
         self.main_window = MainWindow(self.db, self.config)
+        self.main_window.refresh_devices(initial_mic)
         self.main_window.config_changed.connect(self._on_config_changed)
+        self.main_window.sig_model_switch_requested.connect(self._on_request_switch_model)
+        self.main_window.sig_model_download_requested.connect(self._on_request_download_model)
+        self.main_window.sig_model_delete_requested.connect(self._on_request_delete_model)
         _boot("dashboard built")
 
         # In-App Auto-Updater
@@ -185,12 +236,36 @@ class OpenFlowApp(QObject):
         # Start hotkey listening
         self.hotkey_mgr.start()
         self._reload_transcriber_async()
+        try:
+            self.audio_recorder.open_stream()  # warm mic so the first word is never clipped
+        except Exception as e:
+            print(f"[OpenFlow] Microphone not available yet ({e}); will retry on first dictation")
 
         # Housekeeping: detect sleep/resume, unload model when idle
         self._last_tick = self._last_activity = time.monotonic()
         self._housekeeping = QTimer(self)
         self._housekeeping.timeout.connect(self._housekeep)
         self._housekeeping.start(5000)
+
+        # Dedicated mic hotplug poller (runs every 1500 ms for immediate responsiveness)
+        self._mic_poll_timer = QTimer(self)
+        self._mic_poll_timer.timeout.connect(self._check_mic_hotplug)
+        self._mic_poll_timer.start(1500)
+
+        # Meeting mode: offer to take notes while a call app is using the mic
+        self._meeting = None
+        self._meeting_app = None
+        self._meeting_dismissed = None
+        self._meeting_gone = 0
+        self.meeting_bar = MeetingBar()
+        self.meeting_bar.sig_start.connect(self._start_meeting)
+        self.meeting_bar.sig_stop.connect(self._stop_meeting)
+        self.meeting_bar.sig_dismiss.connect(lambda: setattr(self, "_meeting_dismissed", self._meeting_app))
+        self.bridge.sig_meeting_line.connect(self._on_meeting_line)
+        self.bridge.sig_meeting_saved.connect(self._on_meeting_saved)
+        self._meeting_timer = QTimer(self)
+        self._meeting_timer.timeout.connect(self._check_meeting)
+        self._meeting_timer.start(3000)
 
     def _init_tray(self):
         self.tray = QSystemTrayIcon(self.app)
@@ -204,6 +279,11 @@ class OpenFlowApp(QObject):
         act_expand = menu.addAction("Capsule Settings (Expand HUD)")
         act_expand.triggered.connect(self.floating_pill.expand_to_hud)
 
+        self.act_hide_idle = menu.addAction("Hide Minimized Capsule on Desktop")
+        self.act_hide_idle.setCheckable(True)
+        self.act_hide_idle.setChecked(self.config.get("hide_capsule_when_idle", False))
+        self.act_hide_idle.triggered.connect(self._on_tray_toggle_hide_idle)
+
         act_open = menu.addAction("Show Dashboard")
         act_open.triggered.connect(self.show_dashboard)
 
@@ -216,6 +296,7 @@ class OpenFlowApp(QObject):
         menu.addSeparator()
         tone_menu = menu.addMenu("Formatting Tone")
         for key, label in [
+            ("auto", "Auto (match app)"),
             ("smart_clean", "Smart Clean"),
             ("developer", "Developer / Code"),
             ("email", "Email & Formal"),
@@ -252,12 +333,38 @@ class OpenFlowApp(QObject):
         save_config(self.config)
         self.main_window.refresh_stats()
 
+    def _on_capsule_hide_idle_changed(self, hide: bool):
+        self.config["hide_capsule_when_idle"] = hide
+        save_config(self.config)
+        if hasattr(self, "main_window"):
+            self.main_window.update_hide_capsule_idle_state(hide)
+        if hasattr(self, "act_hide_idle"):
+            self.act_hide_idle.blockSignals(True)
+            self.act_hide_idle.setChecked(hide)
+            self.act_hide_idle.blockSignals(False)
+
+    def _on_tray_toggle_hide_idle(self, checked: bool):
+        self.config["hide_capsule_when_idle"] = checked
+        save_config(self.config)
+        if hasattr(self, "floating_pill"):
+            self.floating_pill.set_hide_when_idle(checked)
+        if hasattr(self, "main_window"):
+            self.main_window.update_hide_capsule_idle_state(checked)
+
     def _on_capsule_mic_changed(self, device_idx):
         self.config["input_device_index"] = device_idx
-        save_config(self.config)
         self.audio_recorder.set_device(device_idx)
         friendly = self.audio_recorder.get_current_device_name()
+        recents = self.config.get("recent_mics", [])
+        if friendly in recents:
+            recents.remove(friendly)
+        recents.insert(0, friendly)
+        self.config["recent_mics"] = recents[:5]
+        save_config(self.config)
         self.floating_pill.update_connected_mic(friendly)
+        self.floating_pill.populate_mics(recents)
+        if hasattr(self, "main_window"):
+            self.main_window.refresh_devices()
         print(f"[OpenFlow] Switched microphone to: {friendly}")
 
     def _on_capsule_language_changed(self, lang_code):
@@ -285,6 +392,62 @@ class OpenFlowApp(QObject):
         save_config(self.config)
         print(f"[OpenFlow] Switched tone to: {tone}")
 
+    def _on_capsule_model_changed(self, model_id: str):
+        self._on_request_switch_model(model_id)
+
+    def _on_request_switch_model(self, model_id: str):
+        self.config["model_size"] = model_id
+        save_config(self.config)
+        self._reload_transcriber_async()
+        if hasattr(self, "main_window"):
+            self.main_window.refresh_models()
+        if hasattr(self, "floating_pill"):
+            self.floating_pill.populate_models(model_id)
+            self.floating_pill.show_message(f"Model: {model_id.title()} Active", duration_ms=3000)
+        print(f"[OpenFlow] Switched active model to: {model_id}")
+
+    def _on_request_download_model(self, model_id: str):
+        def _bg_dl():
+            try:
+                self.bridge.sig_status.emit(f"Downloading {model_id} model...")
+                model_manager.download(
+                    model_id,
+                    on_progress=lambda pct: self.bridge.sig_download.emit(pct, model_id)
+                )
+                # When download completes, automatically make this model active!
+                self.config["model_size"] = model_id
+                save_config(self.config)
+                self._reload_transcriber_async()
+                self.bridge.sig_status.emit(f"Model {model_id} downloaded and active!")
+                if hasattr(self, "main_window"):
+                    self.main_window.refresh_models()
+                if hasattr(self, "floating_pill"):
+                    self.floating_pill.populate_models(model_id)
+                    self.floating_pill.show_message(f"Model {model_id.title()} Ready & Active", duration_ms=4000)
+            except Exception as e:
+                print(f"[OpenFlow] Download {model_id} failed: {e}")
+                self.bridge.sig_status.emit(f"Download failed: {e}")
+                self.bridge.sig_error.emit(f"Download failed: {e}")
+
+        threading.Thread(target=_bg_dl, daemon=True).start()
+
+    def _on_request_delete_model(self, model_id: str):
+        curr = self.config.get("model_size", "base").replace(".en", "").lower()
+        if curr == model_id:
+            fallback = "base" if model_id != "base" else "tiny"
+            self.config["model_size"] = fallback
+            save_config(self.config)
+            self.transcriber.unload()
+            self._reload_transcriber_async()
+        ok = model_manager.delete_model(model_id)
+        if hasattr(self, "main_window"):
+            self.main_window.refresh_models()
+        if hasattr(self, "floating_pill"):
+            self.floating_pill.populate_models(self.config.get("model_size", "base"))
+            self.floating_pill.show_message(f"Model {model_id} Deleted", duration_ms=2500)
+        if ok:
+            self.bridge.sig_status.emit(f"Model {model_id} deleted.")
+
     def _on_config_changed(self, new_cfg: dict):
         self.config = new_cfg
         self.hotkey_mgr.update_config(new_cfg.get("hotkey", "ctrl+shift"), new_cfg.get("trigger_mode", "push_to_talk"))
@@ -293,6 +456,12 @@ class OpenFlowApp(QObject):
         self.audio_recorder.set_auto_silence_duration(float(new_cfg.get("silence_duration", 1.1)))
         self._reload_transcriber_async()
         self.formatter.set_dictionary(self.db.get_dictionary())
+        if hasattr(self, "floating_pill"):
+            self.floating_pill.set_hide_when_idle(new_cfg.get("hide_capsule_when_idle", False))
+        if hasattr(self, "act_hide_idle"):
+            self.act_hide_idle.blockSignals(True)
+            self.act_hide_idle.setChecked(new_cfg.get("hide_capsule_when_idle", False))
+            self.act_hide_idle.blockSignals(False)
 
     IDLE_UNLOAD_SEC = 600
 
@@ -300,13 +469,142 @@ class OpenFlowApp(QObject):
         now = time.monotonic()
         if now - self._last_tick > 30:  # a 5s timer that slept >30s means system sleep/resume
             print("[OpenFlow] Resumed from sleep: restarting hotkey")
+            self.audio_recorder.close_stream()  # the old stream can be dead after sleep; reopened on next use
             self.hotkey_mgr.stop()
             self.hotkey_mgr.start()
         self._last_tick = now
         busy = self._is_processing or self.audio_recorder.is_recording
+        if not busy:
+            self._check_mic_hotplug()
+        self._gpu_tick = getattr(self, "_gpu_tick", 0) + 1
+        if self._gpu_tick % 6 == 0 and not busy and self.config.get("device", "auto") == "auto":
+            threading.Thread(target=self._check_gpu, daemon=True).start()  # every ~30 s
         if not busy and self.transcriber.model is not None and now - self._last_activity > self.IDLE_UNLOAD_SEC:
-            print("[OpenFlow] Idle: unloading model")
+            print("[OpenFlow] Idle: unloading model, releasing microphone")
             self.transcriber.unload()
+            self.audio_recorder.close_stream()
+
+    def _check_meeting(self):
+        app = active_meeting_app()
+        if self._meeting is not None:
+            # The call app lets go of the mic when the call ends; stop after ~12 s without it
+            self._meeting_gone = 0 if app else self._meeting_gone + 1
+            if self._meeting_gone >= 4:
+                self._stop_meeting()
+            return
+        if app == self._meeting_app:
+            return
+        self._meeting_app = app
+        if app and app != self._meeting_dismissed:
+            self.meeting_bar.show_prompt(app, self.floating_pill.geometry())
+        elif not app:
+            self.meeting_bar.hide()
+            self._meeting_dismissed = None
+
+    def _start_meeting(self):
+        # Calls mix languages: English settings switch to auto-detect; translate or a fixed language is kept
+        lang = self.config.get("language", "auto")
+        if lang in ("en", "en-in"):
+            lang = "auto"
+        session = MeetingSession(self.transcriber, lang, self.bridge.sig_meeting_line.emit,
+                                 mic_device=self.audio_recorder.device_index)
+        try:
+            session.start()
+        except Exception as e:
+            print(f"[OpenFlow Meeting] Could not start: {e}")
+            self.floating_pill.show_message("Couldn't start meeting notes")
+            return
+        self._meeting, self._meeting_gone = session, 0
+        self.meeting_bar.show_recording(self.floating_pill.geometry())
+
+    def _stop_meeting(self):
+        session, self._meeting = self._meeting, None
+        if session is None:
+            return
+        app = self._meeting_app or "Meeting"
+        self._meeting_dismissed = app  # don't offer again for the call that just ended
+        self.meeting_bar.finish()
+        self.floating_pill.show_message("Writing meeting notes…", duration_ms=4000)
+
+        def work():
+            lines = session.stop()
+            if not lines:
+                self.bridge.sig_meeting_saved.emit("")
+                return
+            raw = transcript_text(lines)
+            title = f"{app} · {datetime.datetime.now():%d %b %H:%M}"
+            self.db.add_meeting_note(title, app, raw, format_meeting_notes(raw, app), time.time() - session.started)
+            self.bridge.sig_meeting_saved.emit(title)
+
+        threading.Thread(target=work, daemon=True).start()
+
+    def _on_meeting_line(self, who: str, text: str):
+        self._last_activity = time.monotonic()  # keep the model loaded for the whole call
+        self.meeting_bar.add_line(who, text)
+
+    def _on_meeting_saved(self, title: str):
+        self.floating_pill.show_message("Meeting notes saved" if title else "No speech recorded in the meeting")
+        if title and hasattr(self, "main_window"):
+            self.main_window.refresh_meetings()
+
+    def _check_mic_hotplug(self):
+        """Detect microphone connect / disconnect events in real time from Windows kernel and alert via pseudo-capsule."""
+        try:
+            curr_live = set(get_live_hardware_microphones())
+            known_live = getattr(self, "_known_live_mics", None)
+            if known_live is None:
+                self._known_live_mics = curr_live
+                return
+
+            if curr_live != known_live:
+                added = [n for n in curr_live if n not in known_live]
+                removed = [n for n in known_live if n not in curr_live]
+                self._known_live_mics = curr_live
+
+                # Refresh PortAudio so internal device cache is synchronized
+                if not self.audio_recorder.is_recording:
+                    self.audio_recorder.refresh_devices()
+
+                if added:
+                    for name in added:
+                        print(f"[OpenFlow] New microphone connected: {name}")
+                        self.floating_pill.show_mic_event(name, "connected")
+                        recents = self.config.get("recent_mics", [])
+                        if name not in recents:
+                            recents.insert(0, name)
+                            self.config["recent_mics"] = recents[:5]
+                            save_config(self.config)
+                    self.floating_pill.populate_mics(self.config.get("recent_mics", []))
+                    if hasattr(self, "main_window"):
+                        curr_active = self.audio_recorder.get_current_device_name()
+                        self.main_window.refresh_devices(curr_active)
+
+                if removed:
+                    for name in removed:
+                        print(f"[OpenFlow] Microphone unplugged: {name}")
+                        curr_active = self.audio_recorder.get_current_device_name()
+                        if name == curr_active or curr_active not in curr_live:
+                            print("[OpenFlow] Active microphone unplugged; switching to system default.")
+                            self.config["input_device_index"] = None
+                            save_config(self.config)
+                            self.audio_recorder.set_device(None)
+                            new_name = self.audio_recorder.get_current_device_name()
+                            self.floating_pill.show_mic_event(new_name, "switched")
+                            self.floating_pill.update_connected_mic(new_name)
+                        else:
+                            self.floating_pill.show_mic_event(name, "disconnected")
+                    self.floating_pill.populate_mics(self.config.get("recent_mics", []))
+                    if hasattr(self, "main_window"):
+                        curr_active = self.audio_recorder.get_current_device_name()
+                        self.main_window.refresh_devices(curr_active)
+        except Exception as e:
+            print(f"[OpenFlow] Hotplug detection error: {e}")
+
+    def _check_gpu(self):
+        """Follow the GPU being switched on/off while running (nvidia-smi probe, ~0.1 s)."""
+        if hardware.gpu_changed():
+            print(f"[OpenFlow] {hardware.detect()['note']} Reloading the speech model.")
+            self._reload_transcriber_async()
 
     def _toggle_dictation_manual(self):
         if not self.audio_recorder.is_recording:
@@ -315,7 +613,7 @@ class OpenFlowApp(QObject):
             self._stop_and_process()
 
     def _on_hotkey_press(self):
-        mode = self.config.get("trigger_mode", "auto_silence")
+        mode = self.config.get("trigger_mode", "push_to_talk")
         if mode == "push_to_talk":
             self._start_dictating()
         else: # "auto_silence" or "toggle"
@@ -325,8 +623,8 @@ class OpenFlowApp(QObject):
                 self._stop_and_process()
 
     def _on_hotkey_release(self):
-        mode = self.config.get("trigger_mode", "auto_silence")
-        if mode == "push_to_talk" and self.audio_recorder.is_recording:
+        mode = self.config.get("trigger_mode", "push_to_talk")
+        if (mode in ("push_to_talk", "toggle")) and self.audio_recorder.is_recording:
             self._stop_and_process()
 
     def _start_dictating(self):
@@ -425,24 +723,24 @@ class OpenFlowApp(QObject):
                 self.bridge.sig_error.emit("Didn't catch that")
                 return
 
-            # Format speech (clean fillers, dev syntax, email, etc.)
-            tone = self.config.get("tone_preset", "smart_clean")
+            # Format speech (speech-to-writing: self-corrections, fillers, tech casing, context)
+            tone = self.config.get("tone_preset", "auto")
+            context_cat = self._app_context.get("category", "general") if isinstance(self._app_context, dict) else "general"
+            if tone == "auto":
+                tone = self._app_context.get("tone_suggestion", "smart_clean") if isinstance(self._app_context, dict) else "smart_clean"
 
-            # Stage 1: Local SLM refiner — self-corrections, filler removal, punctuation
-            # Falls back to raw_text automatically if LLM is not ready or too slow
-            if self.refiner.is_ready and tone != "verbatim":
-                refined_text = self.refiner.refine(raw_text)
-            else:
-                refined_text = raw_text
-
-            # Stage 2: Regex formatter — developer syntax, email structure, bullet points
-            formatted = self.formatter.format(refined_text, tone_preset=tone, language=detected_lang)
+            formatted = self.formatter.format(
+                raw_text,
+                tone_preset=tone,
+                language=detected_lang,
+                context_category=context_cat,
+            )
             word_count = len(formatted.split())
 
             # Automatically write text into the target window
-            target_hwnd = int(self.target_window_info.get("hwnd", 0) or 0)
-            target_app = str(self.target_window_info.get("process", "") or "")
-            target_title = str(self.target_window_info.get("title", "") or "")
+            target_hwnd = self.target_window_info.get("hwnd", 0) or 0
+            target_app = self.target_window_info.get("process", "") or ""
+            target_title = self.target_window_info.get("title", "") or ""
             method = self.config.get("injection_method", "clipboard")
             restore_clip = self.config.get("restore_clipboard", True)
 
@@ -507,7 +805,9 @@ class OpenFlowApp(QObject):
     @pyqtSlot(str)
     def _handle_ui_error(self, message: str):
         if self.config.get("show_floating_pill", True):
-            self.floating_pill.show_message(message)
+            # Short 850ms notice on empty speech / too short so the capsule doesn't stay lingering
+            duration = 850 if message in ("Didn't catch that", "Too short", "No sound from mic") else 1800
+            self.floating_pill.show_message(message, duration_ms=duration)
 
     @pyqtSlot(float)
     def _handle_ui_amplitude(self, level: float):
@@ -565,7 +865,7 @@ class OpenFlowApp(QObject):
 
     def run(self):
         print("[OpenFlow] Started! Hold Ctrl+Shift anywhere to speak — release to paste.")
-        # Immediately display the floating capsule HUD so user sees OpenFlow is ready
+        self.show_dashboard()
         self.floating_pill.show_message("OpenFlow Ready · Hold Ctrl+Shift to Speak", duration_ms=4500)
         self.tray.showMessage(
             "OpenFlow Ready",
@@ -662,6 +962,7 @@ def main():
     first, _mutex = _acquire_instance_lock()  # keep _mutex referenced for the process lifetime
     if not first:
         if _ask_running_instance_to_show():
+            print("[OpenFlow] OpenFlow is already running in another window/process. Activated existing instance.")
             return
         print("[OpenFlow] Prior instance mutex detected but unresponsive; continuing startup.")
 
@@ -683,7 +984,7 @@ def main():
 
     app = OpenFlowApp()
     holder["app"] = app
-    if "--background" not in sys.argv:  # opened by hand (not at sign-in): show the dashboard
+    if "--background" not in sys.argv:
         QTimer.singleShot(400, app.show_dashboard)
     app.run()
 

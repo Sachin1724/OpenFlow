@@ -1,62 +1,63 @@
 import re
 from typing import List, Dict, Any, Optional
 
-FILLER_WORDS = [
-    r"\b(um+)\b",
-    r"\b(uh+)\b",
-    r"\b(erm+)\b",
-    r"\b(ah+)\b",
-    r"\b(you know)\b",
-    r"\b(like)\b(?=\s+(?:I|we|he|she|they|it|you|um|uh|the|a|this))",
-    r"\b(sort of|kind of)\b",
-    r"\b(basically)\b(?=\s*,?)",
-    r"\b(I mean)\b(?=\s*,?)",
-]
+from .refiner import (
+    SpeechToWritingEngine,
+    resolve_self_corrections,
+    clean_fillers,
+    format_tech_terms,
+    format_currency_and_quantities,
+    format_code_identifiers,
+    SPOKEN_COMMANDS,
+)
 
 
 class TextFormatter:
     def __init__(self, dictionary_entries: Optional[List[Dict[str, Any]]] = None):
         self.dictionary = dictionary_entries or []
+        self.engine = SpeechToWritingEngine()
 
     def set_dictionary(self, entries: List[Dict[str, Any]]):
         self.dictionary = entries
 
-    def format(self, text: str, tone_preset: str = "smart_clean", language: str = "en") -> str:
+    def format(
+        self,
+        text: str,
+        tone_preset: str = "smart_clean",
+        language: str = "en",
+        context_category: str = "general",
+    ) -> str:
         if not text or not text.strip():
             return ""
 
         raw = text.strip()
 
-        # Filler/tone rules are English-only; Whisper already punctuates other languages.
-        if tone_preset == "verbatim" or language != "en":
+        # Verbatim mode: only custom dictionary substitutions, no rewriting
+        if tone_preset == "verbatim":
             return self._apply_dictionary(raw)
 
-        cleaned = raw
+        # For languages other than English, Hinglish, and Indian English,
+        # Whisper handles sentence boundaries; apply self-corrections and custom vocab
+        if language not in ("en", "en-in", "hinglish", "auto"):
+            refined = resolve_self_corrections(raw)
+            return self._apply_dictionary(refined)
 
-        # Step 1: Remove filler words
-        if tone_preset in ["smart_clean", "developer", "email", "bullets"]:
-            for pattern in FILLER_WORDS:
-                cleaned = re.sub(pattern, "", cleaned, flags=re.IGNORECASE)
+        # Full local Speech-to-Writing refinement pipeline
+        refined = self.engine.refine(
+            raw_text=raw,
+            context_category=context_category,
+            tone_preset=tone_preset,
+            language=language,
+            custom_dictionary=self.dictionary,
+        )
 
-            # Clean up residual commas and spaces
-            cleaned = re.sub(r"\s*,\s*,+", ", ", cleaned)
-            cleaned = re.sub(r"^\s*,\s*", "", cleaned)
-            cleaned = re.sub(r"\s+", " ", cleaned).strip()
-
-        # Step 2: Custom vocabulary dictionary replacements
-        cleaned = self._apply_dictionary(cleaned)
-
-        # Step 3: Preset-specific transformation
-        if tone_preset == "developer":
-            cleaned = self._format_developer(cleaned)
-        elif tone_preset == "email":
-            cleaned = self._format_email(cleaned)
+        # Preset-specific layout structures
+        if tone_preset == "email":
+            refined = self._format_email(refined)
         elif tone_preset == "bullets":
-            cleaned = self._format_bullets(cleaned)
-        else:
-            cleaned = self._format_smart_clean(cleaned)
+            refined = self._format_bullets(refined)
 
-        return cleaned
+        return refined
 
     def _apply_dictionary(self, text: str) -> str:
         result = text
@@ -78,7 +79,7 @@ class TextFormatter:
             return ""
 
         # Sentence capitalization
-        sentences = re.split(r"([.?!]\s+)", text)
+        sentences = re.split(r"([.?!]\s+|\n+)", text)
         result = []
         for s in sentences:
             if s and s[0].isalpha():
@@ -130,7 +131,11 @@ class TextFormatter:
 
         s = re.sub(r"\bsnake case ([a-zA-Z0-9]+(?:\s+[a-zA-Z0-9]+){1,4})", _to_snake, s, flags=re.IGNORECASE)
 
-        return self._format_smart_clean(s)
+        out = self._format_smart_clean(s)
+        # Don't capitalize a leading identifier like userName / user_name
+        if re.match(r"^[A-Z][a-z0-9]*(?:[A-Z_]\w*)\.?$", out) and s[:1].islower():
+            out = out[0].lower() + out[1:]
+        return out
 
     def _format_email(self, text: str) -> str:
         s = self._format_smart_clean(text)

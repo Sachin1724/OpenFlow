@@ -1,12 +1,18 @@
+import os
 import threading
-from PyQt6.QtWidgets import QDialog, QVBoxLayout, QLabel, QComboBox, QPushButton, QProgressBar, QCheckBox
+from PyQt6.QtWidgets import (
+    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QComboBox, QPushButton, QProgressBar, QCheckBox
+)
 from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtGui import QIcon
 
 from ..engine import hardware, model_manager
 from ..engine.transcriber import resolve_model_name
-from .styles import MAIN_WINDOW_QSS, COLORS
+from .styles import main_qss, COLORS
+from .floating_pill import get_squircle_pixmap
 
-LANGS = [("en", "English"), ("auto", "Auto Detect"), ("hi", "Hindi"), ("es", "Spanish"), ("fr", "French"),
+LANGS = [("auto", "Auto Detect"), ("en-in", "English (India) / Hinglish"), ("or", "Odia / Odia-English"),
+         ("hi", "Hindi"), ("en", "English (US/UK)"), ("es", "Spanish"), ("fr", "French"),
          ("de", "German"), ("zh", "Chinese"), ("ja", "Japanese"), ("pt", "Portuguese"), ("it", "Italian"),
          ("ar", "Arabic"), ("ru", "Russian"), ("ko", "Korean"), ("nl", "Dutch"), ("tr", "Turkish")]
 
@@ -20,20 +26,44 @@ class SetupDialog(QDialog):
         super().__init__()
         self.config = config
         self.setWindowTitle("OpenFlow Setup")
-        self.setFixedWidth(420)
-        self.setStyleSheet(MAIN_WINDOW_QSS + "QDialog { background: #000000; }")
+        self.setFixedWidth(440)
+        self.setStyleSheet(main_qss() + "QDialog { background: #000000; }")
+
+        icon_path = os.path.join(os.path.dirname(__file__), "..", "assets", "app_icon_square.png")
+        if not os.path.exists(icon_path):
+            icon_path = os.path.join(os.path.dirname(__file__), "..", "assets", "logo.jpg")
+        if os.path.exists(icon_path):
+            self.setWindowIcon(QIcon(icon_path))
 
         lay = QVBoxLayout(self)
         lay.setContentsMargins(28, 28, 28, 24)
-        lay.setSpacing(12)
+        lay.setSpacing(14)
 
-        title = QLabel("Welcome to OpenFlow")
-        title.setStyleSheet("font-size: 22px; font-weight: 400;")
-        sub = QLabel("Choose your language. The speech model downloads once, then everything runs offline.")
-        sub.setWordWrap(True)
-        sub.setStyleSheet(f"color: {COLORS['text_secondary']};")
-        lay.addWidget(title)
-        lay.addWidget(sub)
+        header_row = QHBoxLayout()
+        header_row.setSpacing(14)
+
+        self.logo_label = QLabel(self)
+        if os.path.exists(icon_path):
+            self.logo_label.setPixmap(get_squircle_pixmap(icon_path, size=46, radius=10.0))
+            header_row.addWidget(self.logo_label, 0, Qt.AlignmentFlag.AlignVCenter)
+
+        header_text = QVBoxLayout()
+        header_text.setSpacing(3)
+        title = QLabel("Welcome to OpenFlow", self)
+        title.setStyleSheet("font-size: 22px; font-weight: 500; color: #ffffff;")
+        sub = QLabel("Private, local voice dictation on your device.", self)
+        sub.setStyleSheet(f"color: {COLORS['text_secondary']}; font-size: 13px;")
+        header_text.addWidget(title)
+        header_text.addWidget(sub)
+        header_row.addLayout(header_text)
+        header_row.addStretch()
+        lay.addLayout(header_row)
+
+        desc = QLabel("Choose your language. The speech recognition model downloads once, then everything runs 100% offline.")
+        desc.setWordWrap(True)
+        desc.setStyleSheet(f"color: {COLORS['text_secondary']}; line-height: 1.4;")
+        lay.addWidget(desc)
+
 
         self.lang = QComboBox()
         for code, name in LANGS:

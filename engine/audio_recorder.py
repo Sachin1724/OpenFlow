@@ -1,3 +1,4 @@
+import ctypes
 import time
 import re
 import threading
@@ -13,20 +14,35 @@ PREROLL_SAMPLES = int(SAMPLE_RATE * 0.25)  # 250 ms @ 16 kHz
 
 
 def clean_device_name(raw: str) -> str:
-    """Extract clean friendly name from raw Windows Bluetooth/Audio GUID strings."""
+    """Extract clean friendly name from raw Windows Bluetooth/Audio GUID strings without stripping model names."""
     if not raw:
         return "Microphone"
-    # Match Bluetooth parenthesis name like ;(CMF Buds 2 Plus))
-    m = re.search(r"\(([^()]+)\)", raw)
-    if m and "Realtek" not in raw and "Windows" not in raw:
-        return m.group(1).replace(";", "").strip()
-    # Clean Realtek names
-    raw = re.sub(r"@System32.*?;", "", raw)
-    raw = re.sub(r"\(R\)", "", raw)
-    # Strip long driver suffixes
+    raw = raw.replace("\r", " ").replace("\n", " ")
+    raw = raw.replace("@System32\\drivers\\bthhfenum.sys,#", "").replace("@System32", "")
+    raw = re.sub(r"%\d+\s*Hands-Free( HF Audio)?%0", "", raw)
+    raw = raw.replace(";", "").strip()
+
+    # Specific known brands
     if "Realtek" in raw:
-        return "Realtek Audio Array"
-    return raw.split("(")[0].strip() or raw[:28].strip()
+        return "Realtek Audio"
+    if "NVIDIA Broadcast" in raw:
+        return "NVIDIA Broadcast"
+
+    # If it contains model information in parentheses, e.g.
+    # 'Microphone (EMEET SmartCam C950' or 'Microphone (2- Audio Array AM-C1 Device)'
+    if "(" in raw:
+        inside = raw.split("(", 1)[1].rstrip(")").strip()
+        if inside and len(inside) >= 3 and "Windows" not in inside and "System" not in inside:
+            inside = re.sub(r"\(R\)", "", inside)
+            return inside.strip()
+
+    # Clean generic prefixes like 'Microphone - ' or 'Microphone Array - '
+    for prefix in ["Microphone - ", "Microphone Array - ", "Microphone: ", "Input: "]:
+        if raw.startswith(prefix):
+            raw = raw[len(prefix):].strip()
+
+    raw = re.sub(r"\(R\)", "", raw)
+    return raw.strip() or "Microphone"
 
 
 class AudioRecorder:
@@ -54,11 +70,11 @@ class AudioRecorder:
         self._preroll: np.ndarray = np.zeros(PREROLL_SAMPLES, dtype=np.float32)
         self._preroll_lock = threading.Lock()
 
-        # VAD & Auto-write tracking
+        # VAD & Auto-write tracking: lowered to 0.008 RMS so normal speech reliably triggers VAD
         self._has_spoken = False
         self._last_speech_time = 0.0
         self._last_chunk_emit_time = 0.0
-        self._speech_energy_threshold = 0.04
+        self._speech_energy_threshold = 0.008
         self._silence_triggered = False
 
     @property
@@ -66,7 +82,60 @@ class AudioRecorder:
         return self._is_recording
 
     def set_device(self, device_index: Optional[int]):
-        self.device_index = device_index
+        if device_index != self.device_index:
+            self.device_index = device_index
+            if not self._is_recording:
+                self.close_stream()
+
+    def open_stream(self):
+        """Keep the mic open between dictations: opening takes ~230 ms, which swallowed the first
+        word, and the pre-roll is only real audio while the stream runs."""
+        if self._stream is not None:
+            return
+        with self._preroll_lock:
+            self._preroll = np.zeros(PREROLL_SAMPLES, dtype=np.float32)  # drop audio from a previous session
+        self._stream = sd.InputStream(
+            samplerate=SAMPLE_RATE,
+            channels=1,
+            dtype="float32",
+            device=self.device_index,
+            callback=self._audio_callback,
+            blocksize=1024,
+        )
+        self._stream.start()
+
+    def close_stream(self):
+        """Release the mic (idle, device change); the next dictation reopens it."""
+        if self._stream is not None:
+            try:
+                self._stream.stop()
+                self._stream.close()
+            except Exception:
+                pass
+            self._stream = None
+
+    def refresh_devices(self) -> Optional[int]:
+        """PortAudio lists devices once at startup; restart it so newly plugged mics show up.
+        Indexes shift on restart, so the chosen mic is found again by name. Returns its new index."""
+        raw = None
+        if self.device_index is not None:
+            try:
+                raw = sd.query_devices(self.device_index)["name"]
+            except Exception:
+                pass
+        was_open = self._stream is not None
+        self.close_stream()
+        sd._terminate()
+        sd._initialize()
+        self.device_index = None
+        if raw:
+            for i, d in enumerate(sd.query_devices()):
+                if d["name"] == raw and d["max_input_channels"] > 0:
+                    self.device_index = i
+                    break
+        if was_open:
+            self.open_stream()
+        return self.device_index
 
     def get_current_device_name(self) -> str:
         if self.device_index is None:
@@ -106,9 +175,11 @@ class AudioRecorder:
         with self._lock:
             self._audio_chunks.append(mono_data)
 
-        # RMS calculation
+        # RMS calculation with dynamic non-linear scaling for natural vocal sensitivity
         rms = float(np.sqrt(np.mean(mono_data ** 2)))
-        level = min(1.0, rms * 9.0)
+        # Perceptual loudness: square root expansion ensures quiet/normal speech
+        # (RMS 0.008 to 0.06) clearly animates the waveform (levels 0.35 - 0.85)
+        level = min(1.0, max(0.0, float((rms ** 0.52) * 3.8)))
 
         now = time.time()
 
@@ -124,16 +195,15 @@ class AudioRecorder:
             self._has_spoken = True
             self._last_speech_time = now
 
-        # Periodic real-time streaming preview (every ~0.65s of speech)
-        if self._has_spoken and self.on_stream_chunk and (now - self._last_chunk_emit_time > 0.65):
+        # Periodic real-time streaming preview (every ~0.55s of speech)
+        if self._has_spoken and self.on_stream_chunk and (now - self._last_chunk_emit_time > 0.55):
             self._last_chunk_emit_time = now
             with self._lock:
                 accumulated = np.concatenate(self._audio_chunks, axis=0) if self._audio_chunks else None
-            if accumulated is not None and len(accumulated) > 8000:
-                try:
-                    self.on_stream_chunk(accumulated)
-                except Exception:
-                    pass
+            if accumulated is not None and len(accumulated) > 6000:
+                # Dispatch in background so PortAudio audio stream callback never blocks
+                chunk_cb = self.on_stream_chunk
+                threading.Thread(target=lambda c=accumulated: chunk_cb(c), daemon=True).start()
 
         # Auto-Silence Detection
         if (
@@ -157,28 +227,18 @@ class AudioRecorder:
             self._last_chunk_emit_time = time.time()
 
         try:
-            self._stream = sd.InputStream(
-                samplerate=SAMPLE_RATE,
-                channels=1,
-                dtype="float32",
-                device=self.device_index,
-                callback=self._audio_callback,
-                blocksize=1024,
-            )
-            self._stream.start()
+            self.open_stream()
         except Exception as e:
             self._is_recording = False
             raise RuntimeError(f"Failed to start audio stream: {e}")
 
     def stop_recording(self) -> np.ndarray:
         self._is_recording = False
-        if self._stream is not None:
+        if self.on_amplitude:
             try:
-                self._stream.stop()
-                self._stream.close()
+                self.on_amplitude(0.0)
             except Exception:
                 pass
-            self._stream = None
 
         with self._lock:
             if not self._audio_chunks:
@@ -188,26 +248,104 @@ class AudioRecorder:
             return audio_data
 
 
+def hardware_input_count() -> int:
+    """Live count of capture devices straight from Windows (cheap, unlike PortAudio's cached list)."""
+    try:
+        import ctypes
+        return ctypes.windll.winmm.waveInGetNumDevs()
+    except Exception:
+        return -1
+
+
+def get_live_hardware_microphones() -> List[str]:
+    """Query Windows winmm kernel directly for currently connected active audio input devices."""
+    try:
+        import ctypes
+        from ctypes import wintypes
+        class WAVEINCAPSW(ctypes.Structure):
+            _fields_ = [
+                ('wMid', wintypes.WORD),
+                ('wPid', wintypes.WORD),
+                ('vDriverVersion', wintypes.DWORD),
+                ('szPname', wintypes.WCHAR * 32),
+                ('dwFormats', wintypes.DWORD),
+                ('wChannels', wintypes.WORD),
+                ('wReserved1', wintypes.WORD),
+            ]
+        winmm = ctypes.windll.winmm
+        num_devs = winmm.waveInGetNumDevs()
+        devs = []
+        for i in range(num_devs):
+            caps = WAVEINCAPSW()
+            if winmm.waveInGetDevCapsW(i, ctypes.byref(caps), ctypes.sizeof(caps)) == 0:
+                name = caps.szPname.strip()
+                if name:
+                    cleaned = clean_device_name(name)
+                    if cleaned and cleaned not in devs:
+                        devs.append(cleaned)
+        return devs
+    except Exception:
+        return []
+
+
 def list_microphones() -> List[Dict]:
     devices = []
-    seen_names = set()
+    live_hw = get_live_hardware_microphones()
+
+    def _base_key(name: str) -> str:
+        clean = clean_device_name(name)
+        clean = re.sub(r'^\d+\s*[-]\s*', '', clean)
+        clean = re.sub(r'^\d+\s+', '', clean)
+        clean = re.sub(r'\s+Device$', '', clean, flags=re.I)
+        return clean.strip().lower()
+
     try:
         all_devs = sd.query_devices()
+        candidates = []
         for idx, dev in enumerate(all_devs):
             if dev.get("max_input_channels", 0) > 0:
                 raw_name = dev.get("name", "")
-                friendly = clean_device_name(raw_name)
-                # Skip duplicate names to avoid confusing the user
-                if friendly in seen_names and "Realtek" in raw_name:
+                # Ignore Windows virtual mappers
+                if "sound mapper" in raw_name.lower() or "primary sound" in raw_name.lower():
                     continue
-                seen_names.add(friendly)
-                devices.append({
+                friendly = clean_device_name(raw_name)
+                base = _base_key(friendly)
+
+                # Filter against currently connected live hardware microphones
+                if live_hw:
+                    matched = False
+                    for hw in live_hw:
+                        hw_base = _base_key(hw)
+                        if hw_base in base or base in hw_base or base.startswith(hw_base) or hw_base.startswith(base):
+                            matched = True
+                            break
+                    if not matched:
+                        continue
+
+                candidates.append({
                     "index": idx,
                     "name": friendly,
+                    "base": base,
                     "raw_name": raw_name,
                     "channels": dev.get("max_input_channels"),
-                    "default_samplerate": dev.get("default_samplerate")
+                    "default_samplerate": dev.get("default_samplerate"),
                 })
+
+        # Deduplicate candidates sharing the same base device (e.g. MME vs WASAPI vs DirectSound)
+        # Prefer the entry with the cleaner, more descriptive name
+        for c in candidates:
+            found = False
+            for i, ex in enumerate(devices):
+                b1, b2 = c["base"], ex["base"]
+                if b1 == b2 or b1.startswith(b2) or b2.startswith(b1):
+                    found = True
+                    if len(c["name"]) > len(ex["name"]):
+                        devices[i] = c
+                    break
+            if not found:
+                devices.append(c)
+
     except Exception as e:
         print(f"[OpenFlow] Error querying devices: {e}")
     return devices
+

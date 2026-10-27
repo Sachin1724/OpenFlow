@@ -177,31 +177,35 @@ class WindowInjector:
         # Send pure Ctrl + V
         inputs = (INPUT * 4)()
 
-        # Ctrl Down
+        # Set hardware scancodes for Ctrl+V
         inputs[0].type = INPUT_KEYBOARD
         inputs[0].u.ki.wVk = VK_CONTROL
+        inputs[0].u.ki.wScan = user32.MapVirtualKeyW(VK_CONTROL, 0)
         inputs[0].u.ki.dwFlags = 0
 
         # V Down
         inputs[1].type = INPUT_KEYBOARD
         inputs[1].u.ki.wVk = VK_V
+        inputs[1].u.ki.wScan = user32.MapVirtualKeyW(VK_V, 0)
         inputs[1].u.ki.dwFlags = 0
 
         # V Up
         inputs[2].type = INPUT_KEYBOARD
         inputs[2].u.ki.wVk = VK_V
+        inputs[2].u.ki.wScan = user32.MapVirtualKeyW(VK_V, 0)
         inputs[2].u.ki.dwFlags = KEYEVENTF_KEYUP
 
         # Ctrl Up
         inputs[3].type = INPUT_KEYBOARD
         inputs[3].u.ki.wVk = VK_CONTROL
+        inputs[3].u.ki.wScan = user32.MapVirtualKeyW(VK_CONTROL, 0)
         inputs[3].u.ki.dwFlags = KEYEVENTF_KEYUP
 
         user32.SendInput(4, ctypes.byref(inputs), ctypes.sizeof(INPUT))
 
-        # Allow application to process before restoring clipboard
+        # Allow application to process before restoring clipboard (450ms for slow apps/browsers)
         if restore_clipboard and old_clipboard is not None:
-            time.sleep(0.18)
+            time.sleep(0.45)
             try:
                 pyperclip.copy(old_clipboard)
             except Exception:
@@ -211,19 +215,36 @@ class WindowInjector:
 
     def _type_unicode(self, text: str):
         """Directly sends Unicode characters into the focused control without clipboard."""
+        VK_RETURN = 0x0D
         for char in text:
-            code = ord(char)
+            if char == '\r':
+                continue
             inputs = (INPUT * 2)()
 
-            # Key down
-            inputs[0].type = INPUT_KEYBOARD
-            inputs[0].u.ki.wScan = code
-            inputs[0].u.ki.dwFlags = KEYEVENTF_UNICODE
+            if char == '\n':
+                # Synthesize standard Enter keystroke
+                inputs[0].type = INPUT_KEYBOARD
+                inputs[0].u.ki.wVk = VK_RETURN
+                inputs[0].u.ki.wScan = 0x1C
+                inputs[0].u.ki.dwFlags = 0
 
-            # Key up
-            inputs[1].type = INPUT_KEYBOARD
-            inputs[1].u.ki.wScan = code
-            inputs[1].u.ki.dwFlags = KEYEVENTF_UNICODE | KEYEVENTF_KEYUP
+                inputs[1].type = INPUT_KEYBOARD
+                inputs[1].u.ki.wVk = VK_RETURN
+                inputs[1].u.ki.wScan = 0x1C
+                inputs[1].u.ki.dwFlags = KEYEVENTF_KEYUP
+            else:
+                code = ord(char)
+                # Key down: wVk MUST be 0 when KEYEVENTF_UNICODE is specified
+                inputs[0].type = INPUT_KEYBOARD
+                inputs[0].u.ki.wVk = 0
+                inputs[0].u.ki.wScan = code
+                inputs[0].u.ki.dwFlags = KEYEVENTF_UNICODE
+
+                # Key up
+                inputs[1].type = INPUT_KEYBOARD
+                inputs[1].u.ki.wVk = 0
+                inputs[1].u.ki.wScan = code
+                inputs[1].u.ki.dwFlags = KEYEVENTF_UNICODE | KEYEVENTF_KEYUP
 
             user32.SendInput(2, ctypes.byref(inputs), ctypes.sizeof(INPUT))
-            time.sleep(0.001)
+            time.sleep(0.002)

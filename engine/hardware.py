@@ -44,7 +44,7 @@ def detect() -> Dict[str, Any]:
 
     if cuda_ok:
         vram = gpu.get("vram_gb", 4)
-        model = "medium" if vram >= 10 else "small" if vram >= 6 else "base"
+        model = "distil-large-v3" if vram >= 10 else "small" if vram >= 6 else "base"
         device, compute = "cuda", "float16"
         note = f"{gpu.get('name', 'NVIDIA GPU')} ({vram:g} GB) detected. Using the GPU."
     else:
@@ -63,6 +63,16 @@ def detect() -> Dict[str, Any]:
     }
 
 
+def gpu_changed() -> bool:
+    """Re-probes the NVIDIA driver (GPU switched off/on, eGPU, hybrid-graphics mode change).
+    Returns True and refreshes detect() when GPU availability differs from the cached result."""
+    now = bool(_nvidia_smi())
+    if now == detect()["cuda_ok"]:
+        return False
+    detect.cache_clear()
+    return True
+
+
 def resolve(cfg: dict) -> dict:
     """Turns 'auto' settings into concrete ones. Explicit user choices are left alone."""
     hw = detect()
@@ -73,5 +83,22 @@ def resolve(cfg: dict) -> dict:
         compute = "float16" if device == "cuda" else "int8"
     size = cfg.get("model_size", "auto")
     if size == "auto":
-        size = hw["model_size"]
+        try:
+            from . import model_manager
+            downloaded = model_manager.list_downloaded_models()
+        except Exception:
+            downloaded = []
+
+        if downloaded:
+            # If the recommended hardware model is already cached, use it!
+            if hw["model_size"] in downloaded:
+                size = hw["model_size"]
+            elif "base" in downloaded:
+                size = "base"
+            elif "tiny" in downloaded:
+                size = "tiny"
+            else:
+                size = downloaded[0]
+        else:
+            size = hw["model_size"]
     return {"device": device, "compute_type": compute, "model_size": size, "hw": hw}

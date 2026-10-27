@@ -6,6 +6,9 @@ pynput>=1.7
 pyperclip>=1.8
 huggingface_hub>=0.22
 psutil>=5.9
+sherpa-onnx>=1.12  # Parakeet CPU engine, meeting speaker labels
+PyAudioWPatch>=0.2.12  # meeting mode: record call audio (WASAPI loopback)
+pycaw>=20240210  # meeting mode: see which app is using the mic
 
 # ── Optional: Local text refiner (speech-to-writing SLM) ──────────────────────
 # Install the pre-built CPU-only wheel (works on every machine, no CUDA needed):

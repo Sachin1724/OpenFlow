@@ -6,3 +6,5 @@ dist/
 .vscode/
 pyrefly.toml
 *.zip
+scratch/
+

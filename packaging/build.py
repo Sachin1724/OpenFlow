@@ -19,15 +19,20 @@ pyi.run([
     "--workpath", os.path.join(ROOT, "build"),
     "--specpath", os.path.join(ROOT, "build"),
     "--add-data", os.path.join(ROOT, "assets") + os.pathsep + "openflow/assets",
+    "--add-data", os.path.join(ROOT, "assets") + os.pathsep + "assets",
     "--collect-all", "faster_whisper",
     "--collect-all", "ctranslate2",
     "--collect-all", "sounddevice",
     "--collect-all", "onnxruntime",
+    "--collect-all", "sherpa_onnx",
+    "--collect-all", "pyaudiowpatch",
+    "--collect-all", "pycaw",
+    "--collect-all", "comtypes",
 
     # the dev machine has large unrelated ML packages installed; keep them out of the exe
     *[a for m in ("torch", "torchaudio", "torchvision", "tensorflow", "transformers", "sklearn", "scipy",
                   "pandas", "matplotlib", "IPython", "notebook", "jupyter", "sentence_transformers",
-                  "speechbrain", "librosa", "cv2", "PIL", "tkinter", "pytest", "polars", "pyarrow", "datasets", "numba", "sympy")
+                  "speechbrain", "librosa", "cv2", "PIL", "tkinter", "pytest", "polars", "pyarrow", "datasets", "numba", "sympy", "llama_cpp")
       for a in ("--exclude-module", m)],
     "--hidden-import", "pynput.keyboard._win32",
     "--hidden-import", "pynput.mouse._win32",

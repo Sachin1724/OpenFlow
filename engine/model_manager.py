@@ -1,8 +1,11 @@
+import fnmatch
 import os
 import re
+import shutil
+import stat
 import threading
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Callable, Optional, List, Dict, Any
 
 # plain HTTP download so partial files grow on disk and progress can be measured
 os.environ.setdefault("HF_HUB_DISABLE_XET", "1")
@@ -14,21 +17,99 @@ class _Lazy:
     """Imports huggingface_hub on first use so it stays off the startup path."""
 
     def __getattr__(self, name):
+        if name == "constants":
+            import huggingface_hub.constants as hfc
+            return hfc
         import huggingface_hub as hf
         return getattr(hf, name)
 
 
 huggingface_hub = _Lazy()
 
-# same table as faster_whisper.utils._MODELS, copied so importing faster_whisper (slow) is not needed
+
+# Standard faster-whisper models table
 _MODELS = {
     f"{size}{suffix}": f"Systran/faster-whisper-{size}{suffix}"
     for size in ("tiny", "base", "small", "medium")
     for suffix in ("", ".en")
 }
-_MODELS.update({"large-v2": "Systran/faster-whisper-large-v2", "large-v3": "Systran/faster-whisper-large-v3"})
+_MODELS.update({
+    "distil-large-v3": "Systran/faster-distil-whisper-large-v3",
+    "large-v2": "Systran/faster-whisper-large-v2",
+    "large-v3": "Systran/faster-whisper-large-v3",
+    "parakeet": "csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8",
+})
 
 _PATTERNS = ["config.json", "preprocessor_config.json", "model.bin", "tokenizer.json", "vocabulary.*"]
+_PARAKEET_PATTERNS = ["encoder.int8.onnx", "decoder.int8.onnx", "joiner.int8.onnx", "tokens.txt"]
+
+
+def _patterns(name: str) -> List[str]:
+    return _PARAKEET_PATTERNS if name == "parakeet" else _PATTERNS
+
+
+def _weights_file(name: str) -> str:
+    """The big file whose presence and size proves a download finished."""
+    return "encoder.int8.onnx" if name == "parakeet" else "model.bin"
+
+# Accurate offline known sizes for fallback progress calculation (in bytes)
+_KNOWN_SIZES: Dict[str, int] = {
+    "tiny": 78_203_619,
+    "tiny.en": 78_090_594,
+    "base": 147_882_941,
+    "base.en": 147_769_510,
+    "small": 486_212_372,
+    "small.en": 486_098_798,
+    "medium": 1_530_571_735,
+    "medium.en": 1_530_457_748,
+    "distil-large-v3": 1_510_000_000,
+    "large-v2": 3_090_000_000,
+    "large-v3": 3_090_000_000,
+    "parakeet": 670_478_772,
+}
+
+MODEL_METADATA = [
+    {
+        "id": "base",
+        "name": "Base (Multilingual)",
+        "description": "Recommended: fast & accurate for English, Hinglish & Indian English (~141 MB)",
+        "speed": "Fast (1.2x)",
+        "accuracy": "High",
+        "recommended": True,
+    },
+    {
+        "id": "tiny",
+        "name": "Tiny (Multilingual)",
+        "description": "Ultra-lightweight, minimal memory footprint (~75 MB)",
+        "speed": "Ultra-Fast (3.5x)",
+        "accuracy": "Good",
+        "recommended": False,
+    },
+    {
+        "id": "small",
+        "name": "Small (Multilingual)",
+        "description": "Enhanced vocabulary recognition for heavy accents & mixed code (~464 MB)",
+        "speed": "Moderate (0.8x)",
+        "accuracy": "Very High",
+        "recommended": False,
+    },
+    {
+        "id": "medium",
+        "name": "Medium (Multilingual)",
+        "description": "Maximum transcription fidelity across technical & medical jargon (~1.46 GB)",
+        "speed": "Heavy (0.4x)",
+        "accuracy": "State-of-the-art",
+        "recommended": False,
+    },
+    {
+        "id": "parakeet",
+        "name": "Parakeet V3 (CPU)",
+        "description": "Fast on computers without a GPU. English + 24 European languages; others use Whisper (~640 MB)",
+        "speed": "Fast on CPU",
+        "accuracy": "Very High",
+        "recommended": False,
+    },
+]
 
 
 def _repo(name: str) -> str:
@@ -40,21 +121,224 @@ def _repo(name: str) -> str:
     return repo
 
 
-def cached_path(name: str) -> Optional[str]:
-    """Local model folder if already downloaded, else None."""
+def sanitize_cache_symlinks(model_dir: Path):
+    """
+    On Windows, symlinks in HF cache can trigger:
+    [WinError 448] The path cannot be traversed because it contains an untrusted mount point.
+    Replacing symlinks with standard files prevents Windows NTFS untrusted mount point traversal blocks.
+    """
+    if os.name != "nt":
+        return
     try:
-        path = huggingface_hub.snapshot_download(_repo(name), local_files_only=True, allow_patterns=_PATTERNS)
+        snapshots = model_dir / "snapshots"
+        if not snapshots.is_dir():
+            return
+        for snap in snapshots.iterdir():
+            if snap.is_dir():
+                for item in snap.iterdir():
+                    try:
+                        if item.is_symlink():
+                            target = os.readlink(str(item))
+                            abs_target = os.path.normpath(os.path.join(str(snap), target))
+                            if os.path.isfile(abs_target):
+                                os.remove(str(item))
+                                shutil.copyfile(abs_target, str(item))
+                    except OSError:
+                        pass
     except Exception:
-        return None
-    # an interrupted download leaves the folder without the weights
-    return path if os.path.exists(os.path.join(path, "model.bin")) else None
+        pass
 
 
-def _total_bytes(repo: str) -> int:
-    info = huggingface_hub.HfApi().model_info(repo, files_metadata=True)
-    wanted = ("config.json", "preprocessor_config.json", "model.bin", "tokenizer.json")
-    return sum(f.size or 0 for f in info.siblings
-               if f.rfilename in wanted or f.rfilename.startswith("vocabulary."))
+def sanitize_all_cached_models():
+    """Sanitizes all cached model snapshots on Windows to eliminate untrusted mount points."""
+    if os.name != "nt":
+        return
+    try:
+        hub_cache = Path(huggingface_hub.constants.HF_HUB_CACHE)
+        if not hub_cache.is_dir():
+            return
+        for folder in hub_cache.iterdir():
+            if folder.is_dir() and folder.name.startswith("models--"):
+                sanitize_cache_symlinks(folder)
+    except Exception:
+        pass
+
+
+def get_model_cache_dir(name: str) -> Path:
+    """Return the Path to the Hugging Face hub model cache folder."""
+    repo = _repo(name)
+    hub_cache = Path(huggingface_hub.constants.HF_HUB_CACHE)
+    return hub_cache / ("models--" + repo.replace("/", "--"))
+
+
+def cached_path(name: str) -> Optional[str]:
+    """Local model folder if already completely downloaded, else None."""
+    model_dir = get_model_cache_dir(name)
+    sanitize_cache_symlinks(model_dir)
+
+    try:
+        # First check fast snapshot_download in local-only mode
+        path = huggingface_hub.snapshot_download(_repo(name), local_files_only=True, allow_patterns=_patterns(name))
+        model_bin = os.path.join(path, _weights_file(name))
+        try:
+            if os.path.isfile(model_bin) and os.path.getsize(model_bin) > 5_000_000:
+                return path
+        except OSError:
+            pass
+    except Exception:
+        pass
+
+    # Direct filesystem fallback: inspect snapshots folder
+    try:
+        snapshots_dir = model_dir / "snapshots"
+        if snapshots_dir.is_dir():
+            for snap in snapshots_dir.iterdir():
+                try:
+                    if snap.is_dir():
+                        model_bin = snap / _weights_file(name)
+                        try:
+                            if os.path.isfile(str(model_bin)) and os.path.getsize(str(model_bin)) > 5_000_000:
+                                return str(snap)
+                        except OSError:
+                            pass
+                except OSError:
+                    pass
+    except Exception:
+        pass
+    return None
+
+
+def is_model_downloaded(name: str) -> bool:
+    """True if model weights exist on disk and are non-empty."""
+    try:
+        return cached_path(name) is not None
+    except Exception:
+        return False
+
+
+def list_downloaded_models() -> List[str]:
+    """Returns list of model IDs currently ready in local disk cache."""
+    downloaded: List[str] = []
+    for m in MODEL_METADATA:
+        mid = str(m["id"])
+        if is_model_downloaded(mid):
+            downloaded.append(mid)
+    return downloaded
+
+
+
+def get_model_disk_size(name: str) -> int:
+    """Calculate total bytes occupied on disk by this model repository."""
+    model_dir = get_model_cache_dir(name)
+    if not model_dir.exists():
+        return 0
+    total = 0
+    try:
+        for root, _, files in os.walk(model_dir):
+            for f in files:
+                try:
+                    total += os.path.getsize(os.path.join(root, f))
+                except OSError:
+                    pass
+    except Exception:
+        pass
+    return total
+
+
+def format_size_mb(size_bytes: int) -> str:
+    """Format bytes into friendly MB string."""
+    if size_bytes <= 0:
+        return "0 MB"
+    if size_bytes >= 1024 * 1024 * 1024:
+        return f"{size_bytes / (1024 * 1024 * 1024):.2f} GB"
+    return f"{size_bytes / (1024 * 1024):.1f} MB"
+
+
+def clean_incomplete_downloads(name: Optional[str] = None):
+    """Clean up stale .incomplete or lock files to prevent stuck download loops."""
+    targets = [name] if name else list(_MODELS.keys())
+    for target in targets:
+        try:
+            model_dir = get_model_cache_dir(target)
+            if not model_dir.exists():
+                continue
+            blobs_dir = model_dir / "blobs"
+            if blobs_dir.exists():
+                for f in blobs_dir.iterdir():
+                    if f.name.endswith(".incomplete") or f.name.endswith(".lock"):
+                        try:
+                            f.unlink(missing_ok=True)
+                        except OSError:
+                            pass
+        except Exception:
+            pass
+
+
+def _remove_readonly(func, path, excinfo):
+    """Windows error handler for shutil.rmtree on read-only files."""
+    try:
+        os.chmod(path, stat.S_IWRITE)
+        func(path)
+    except Exception:
+        pass
+
+
+def delete_model(name: str) -> bool:
+    """Safely delete model cache from disk. Returns True if deleted or did not exist."""
+    try:
+        model_dir = get_model_cache_dir(name)
+        if not model_dir.exists():
+            return True
+        shutil.rmtree(str(model_dir), onerror=_remove_readonly)
+        return not model_dir.exists()
+    except Exception as e:
+        print(f"[OpenFlow] Failed to delete model {name}: {e}")
+        return False
+
+
+def list_available_models(active_model: str = "base") -> List[Dict[str, Any]]:
+    """Return model library listing with status, size on disk, and active state."""
+    active_clean = active_model.replace(".en", "").lower()
+    res = []
+    for meta in MODEL_METADATA:
+        m_id = str(meta["id"])
+        is_dl = is_model_downloaded(m_id)
+        disk_bytes = get_model_disk_size(m_id) if is_dl else 0
+        expected_bytes = _KNOWN_SIZES.get(m_id, 0)
+
+        is_active = (active_clean == m_id or active_clean.startswith(m_id))
+
+        res.append({
+            "id": m_id,
+            "name": meta["name"],
+            "description": meta["description"],
+            "speed": meta["speed"],
+            "accuracy": meta["accuracy"],
+            "recommended": meta["recommended"],
+            "is_downloaded": is_dl,
+            "is_active": is_active,
+            "disk_bytes": disk_bytes,
+            "disk_size_str": format_size_mb(disk_bytes if is_dl else expected_bytes),
+            "expected_size_str": format_size_mb(expected_bytes),
+        })
+    return res
+
+
+def _total_bytes(repo: str, model_name: str = "") -> int:
+    """Determine expected total bytes, with reliable offline fallback."""
+    clean_name = model_name.replace(".en", "")
+    known = _KNOWN_SIZES.get(model_name) or _KNOWN_SIZES.get(clean_name)
+    try:
+        info = huggingface_hub.HfApi().model_info(repo, files_metadata=True)
+        api_total = sum(
+            f.size or 0 for f in info.siblings
+            if any(fnmatch.fnmatch(f.rfilename, p) for p in _patterns(model_name))
+        )
+        if api_total > 5_000_000:
+            return api_total
+    except Exception:
+        pass
+    return known or 147_882_941
 
 
 def _blob_bytes(repo: str) -> int:
@@ -66,33 +350,62 @@ def _blob_bytes(repo: str) -> int:
         return 0
 
 
-def download(name: str, on_progress: Optional[Callable[[int], None]] = None) -> str:
-    """Downloads a model, reporting overall percent (0-100). Progress is measured from
-    the cache folder because the hub client no longer exposes per-file byte bars."""
+def download(name: str, on_progress: Optional[Callable[[int], None]] = None, force: bool = False) -> str:
+    """
+    Downloads a model, reporting overall percent (0-100).
+    Automatically cleans corrupted partial files if forced or interrupted.
+    """
     repo = _repo(name)
-    try:
-        total = _total_bytes(repo)
-    except Exception:
-        total = 0
-    base = _blob_bytes(repo)
+    total = _total_bytes(repo, model_name=name)
+
+    if force:
+        clean_incomplete_downloads(name)
+        delete_model(name)
+
+    base = 0 if force else _blob_bytes(repo)
     done_evt = threading.Event()
 
     def poll():
         last = -1
-        while not done_evt.wait(0.25):
-            if total:
-                pct = max(0, min(99, int((_blob_bytes(repo) - base) * 100 / total)))
+        while not done_evt.wait(0.20):
+            if total > 0:
+                current = _blob_bytes(repo)
+                # Ensure monotonic progress
+                pct = max(0, min(99, int((current - base) * 100 / total)))
                 if pct != last and on_progress:
                     last = pct
-                    on_progress(pct)
+                    try:
+                        on_progress(pct)
+                    except Exception:
+                        pass
 
     if on_progress:
-        on_progress(0)
+        try:
+            on_progress(0)
+        except Exception:
+            pass
         threading.Thread(target=poll, daemon=True).start()
+
     try:
-        path = huggingface_hub.snapshot_download(repo, allow_patterns=_PATTERNS)
+        path = huggingface_hub.snapshot_download(
+            repo,
+            allow_patterns=_patterns(name),
+            force_download=force,
+            resume_download=True,
+        )
     finally:
         done_evt.set()
+
+    # Validate that model.bin exists and has valid size
+    verified_path = cached_path(name)
+    if not verified_path:
+        clean_incomplete_downloads(name)
+        raise RuntimeError(f"Model download for {name} finished but weights were not verified.")
+
     if on_progress:
-        on_progress(100)
-    return path
+        try:
+            on_progress(100)
+        except Exception:
+            pass
+
+    return verified_path

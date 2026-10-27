@@ -8,12 +8,19 @@ DB_PATH = DB_DIR / "openflow.db"
 
 
 class Database:
-    def __init__(self, db_path: Optional[Path] = None):
-        self.db_path = db_path or DB_PATH
-        self.db_path.parent.mkdir(parents=True, exist_ok=True)
+    def __init__(self, db_path: Optional[Any] = None):
+        self.db_path = Path(db_path) if db_path else DB_PATH
+        self._mem_conn = None
+        if str(self.db_path) == ":memory:":
+            self._mem_conn = sqlite3.connect(":memory:")
+            self._mem_conn.row_factory = sqlite3.Row
+        else:
+            self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._init_db()
 
     def _get_connection(self) -> sqlite3.Connection:
+        if self._mem_conn is not None:
+            return self._mem_conn
         conn = sqlite3.connect(str(self.db_path))
         conn.row_factory = sqlite3.Row
         return conn
@@ -36,6 +43,17 @@ class Database:
                     model_used TEXT,
                     device_used TEXT,
                     latency_ms INTEGER
+                )
+            """)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS meeting_notes (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    timestamp TEXT NOT NULL,
+                    title TEXT NOT NULL,
+                    app_name TEXT,
+                    raw_transcript TEXT NOT NULL,
+                    formatted_notes TEXT NOT NULL,
+                    duration_seconds REAL
                 )
             """)
             # Custom vocabulary/dictionary replacement table
@@ -114,6 +132,40 @@ class Database:
     def delete_history_entry(self, entry_id: int):
         with self._get_connection() as conn:
             conn.execute("DELETE FROM history WHERE id = ?", (entry_id,))
+            conn.commit()
+
+    def add_meeting_note(self, title: str, app_name: str, raw_transcript: str,
+                         formatted_notes: str, duration_seconds: float) -> int:
+        with self._get_connection() as conn:
+            cur = conn.execute(
+                "INSERT INTO meeting_notes (timestamp, title, app_name, raw_transcript, formatted_notes, duration_seconds)"
+                " VALUES (?, ?, ?, ?, ?, ?)",
+                (datetime.datetime.now().isoformat(), title, app_name, raw_transcript, formatted_notes, duration_seconds))
+            conn.commit()
+            return cur.lastrowid or 0
+
+    def get_meeting_notes(self) -> List[Dict[str, Any]]:
+        with self._get_connection() as conn:
+            rows = conn.execute("SELECT * FROM meeting_notes ORDER BY id DESC").fetchall()
+            return [dict(r) for r in rows]
+
+    def delete_meeting_note(self, note_id: int):
+        with self._get_connection() as conn:
+            conn.execute("DELETE FROM meeting_notes WHERE id = ?", (note_id,))
+            conn.commit()
+
+    def update_meeting_note(self, note_id: int, raw_transcript: str, formatted_notes: str, title: Optional[str] = None):
+        with self._get_connection() as conn:
+            if title:
+                conn.execute(
+                    "UPDATE meeting_notes SET raw_transcript = ?, formatted_notes = ?, title = ? WHERE id = ?",
+                    (raw_transcript, formatted_notes, title, note_id)
+                )
+            else:
+                conn.execute(
+                    "UPDATE meeting_notes SET raw_transcript = ?, formatted_notes = ? WHERE id = ?",
+                    (raw_transcript, formatted_notes, note_id)
+                )
             conn.commit()
 
     def clear_history(self):

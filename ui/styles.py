@@ -1,4 +1,5 @@
 import os
+from functools import lru_cache
 
 _CHECK = os.path.join(os.path.dirname(__file__), "..", "assets", "check.svg").replace("\\", "/")
 
@@ -87,6 +88,50 @@ QPushButton#PrimaryButton {{
 QPushButton#PrimaryButton:hover {{ background-color: rgba(255, 255, 255, 0.86); }}
 QPushButton#PrimaryButton:pressed {{ background-color: rgba(255, 255, 255, 0.70); }}
 
+QPushButton#DangerButton {{
+    background-color: rgba(255, 69, 58, 0.14);
+    color: #ff6961;
+    border: 1px solid rgba(255, 69, 58, 0.28);
+    border-radius: 10px;
+    padding: 6px 14px;
+    font-weight: 500;
+}}
+QPushButton#DangerButton:hover {{
+    background-color: rgba(255, 69, 58, 0.26);
+    color: #ffffff;
+}}
+
+/* Model Status Badges */
+QLabel.ActiveBadge {{
+    background-color: rgba(52, 199, 89, 0.16);
+    color: #32d74b;
+    border: 1px solid rgba(52, 199, 89, 0.35);
+    border-radius: 6px;
+    padding: 3px 8px;
+    font-size: 11px;
+    font-weight: 600;
+}}
+
+QLabel.DownloadedBadge {{
+    background-color: rgba(10, 132, 255, 0.16);
+    color: #0a84ff;
+    border: 1px solid rgba(10, 132, 255, 0.35);
+    border-radius: 6px;
+    padding: 3px 8px;
+    font-size: 11px;
+    font-weight: 600;
+}}
+
+QLabel.NotDownloadedBadge {{
+    background-color: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.45);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 6px;
+    padding: 3px 8px;
+    font-size: 11px;
+    font-weight: 500;
+}}
+
 /* Inputs */
 QLineEdit, QComboBox, QDoubleSpinBox, QSpinBox {{
     background-color: rgba(255, 255, 255, 0.07);
@@ -163,3 +208,11 @@ QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{ height: 0px; }}
 
 QMessageBox {{ background-color: {COLORS["bg_card"]}; }}
 """
+
+
+@lru_cache(maxsize=1)
+def main_qss() -> str:
+    """MAIN_WINDOW_QSS with one resolved font family. A fallback list of uninstalled fonts makes
+    Qt search the font database on every widget polish (~19 s to build the dashboard)."""
+    from .floating_pill import ui_font_family
+    return MAIN_WINDOW_QSS.replace(FONT, f"'{ui_font_family()}'")

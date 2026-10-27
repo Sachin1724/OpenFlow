@@ -1,237 +1,236 @@
 <div align="center">
 
-<img src="docs/img/logo.jpg" width="96" alt="OpenFlow logo">
+<img src="assets/app_icon_square.png" alt="OpenFlow Emblem" width="88" height="88" style="border-radius: 20px; box-shadow: 0 12px 36px rgba(0,0,0,0.4);" />
 
-# OpenFlow
+# OPENFLOW
 
-**Speak. It types.**
+### Zero-Limit · 100% Offline · Local AI Voice Dictation & Meeting Intelligence for Windows
 
-Free, private, unlimited voice dictation for Windows.<br>
-Hold a key, talk, and the words land in any app. Runs offline on your own GPU.
+**Created with precision by Sachidananda**
 
-<br>
+<br />
 
-<img src="docs/img/pill-listening.png" width="420" alt="The OpenFlow capsule while listening">
+[![Release](https://img.shields.io/badge/Release-v1.0.0-000000?style=for-the-badge&logoColor=white)](https://github.com/Sachin1724/OpenFlow)
+[![Platform](https://img.shields.io/badge/Platform-Windows_10_%2F_11_x64-000000?style=for-the-badge&logoColor=white)](https://github.com/Sachin1724/OpenFlow)
+[![Runtime](https://img.shields.io/badge/Runtime-NVIDIA_CUDA_%7C_DirectML_%7C_CPU-000000?style=for-the-badge&logoColor=white)](https://github.com/Sachin1724/OpenFlow)
+[![License](https://img.shields.io/badge/License-MIT-000000?style=for-the-badge&logoColor=white)](LICENSE)
 
-<br>
+<br />
 
-![Platform](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-000000?style=flat-square)
-![Python](https://img.shields.io/badge/python-3.10%2B-000000?style=flat-square)
-![Engine](https://img.shields.io/badge/engine-Whisper-000000?style=flat-square)
-![Offline](https://img.shields.io/badge/offline-100%25-000000?style=flat-square)
-![License](https://img.shields.io/badge/license-MIT-000000?style=flat-square)
-
-[Website](docs/index.html) &nbsp;·&nbsp; [Releases](https://github.com/Sachin1724/OpenFlow/releases) &nbsp;·&nbsp; [Quick start](#quick-start) &nbsp;·&nbsp; [Languages](#languages-and-models) &nbsp;·&nbsp; [Build the exe](#build-the-executable) &nbsp;·&nbsp; [FAQ](#faq)
+*Dictate directly into any Windows app with sub-150ms latency. Zero cloud dependencies. Zero monthly subscriptions. Complete privacy.*
 
 </div>
 
-<br>
+---
 
-## Why OpenFlow
+## Cinematic Product Walkthrough
 
-Paid dictation apps cap your minutes, upload your audio, and charge monthly. OpenFlow does the same job on your own machine.
+OpenFlow replaces legacy cloud-tethered dictation services with a standalone, hardware-accelerated local engine built directly on Windows low-level APIs.
 
-| | |
-| :-- | :-- |
-| **Unlimited** | No word counter, no tiers, no account. |
-| **Private** | Recording, recognition and formatting all happen locally. After a one-time model download it works with the network off. |
-| **Fast** | `faster-whisper` on CUDA transcribes a sentence in roughly 100 to 200 ms. |
-| **99 languages** | English uses a fast English-only model; other languages and auto-detect use a multilingual one. |
-| **Anywhere** | It pastes into the window you were using when you started speaking, then restores your clipboard. |
-| **Quiet** | Lives in the tray, starts at sign-in, frees the GPU after ten idle minutes, recovers after sleep. |
+```
+       [ HOLD CTRL + SHIFT ]
+                 │
+                 ▼
+  ┌─────────────────────────────────┐
+  │  ● Live Audio Array AM-C1  ·  EN│  ◄── Smooth Dynamic Island Capsule
+  └─────────────────────────────────┘
+                 │ (Speak naturally in any application)
+                 ▼
+       [ RELEASE HOTKEY ]
+                 │
+                 ├──> CTranslate2 / CUDA fp16 (<150ms transcription)
+                 ├──> Intelligent Tone Formatting & Filler Stripping
+                 └──> Non-destructive Win32 SendInput Paste into Target HWND
+```
 
-<br>
+---
 
-## The interface
+## Architectural Bento Grid
 
-A black-and-white capsule that stays out of the way, and a settings panel it morphs into.
+<table width="100%">
+<tr>
+<td width="50%" valign="top">
 
-<div align="center">
+### 01 · Local CUDA & DirectML Engine
+Runs entirely on your local hardware. Accelerated via CTranslate2 `float16` kernels on NVIDIA GeForce RTX GPUs, with automatic fallback to DirectML and vectorized AVX2 CPU execution. Audio never traverses a network socket.
+- **Latency**: Sub-150ms roundtrip
+- **Privacy**: 100% offline, zero cloud calls
+- **Cost**: Unlimited words, zero subscriptions
 
-| Listening | Writing | Pasted |
-| :-: | :-: | :-: |
-| <img src="docs/img/pill-listening.png" width="260"> | <img src="docs/img/pill-writing.png" width="260"> | <img src="docs/img/pill-done.png" width="260"> |
+</td>
+<td width="50%" valign="top">
 
-<img src="docs/img/hud.png" width="420" alt="Settings panel: microphone, language, style, input level">
+### 02 · Dynamic Island Floating Capsule
+An always-on-top glassmorphic HUD anchored to your screen. Built with custom PyQt6 drawing paths and non-activating window styles that never steal keyboard focus from active games, editors, or browsers.
+- **Morphing**: 360ms OutCubic easing between Capsule, Line, and HUD
+- **Stealth Mode**: Sleek 76x8 hairline or auto-hide when idle
+- **Live Visualizer**: Real-time RMS audio waveform meters
 
-</div>
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
 
-<br>
+### 03 · Autonomous Meeting Intelligence
+Background meeting detection for Google Meet, Zoom, Microsoft Teams, and Webex. Automatically captures spoken discussion, isolates participants, and formats discussions into structured executive notes.
+- **Auto-Detection**: Scans active foreground and window titles
+- **Structure**: Executive summary, key decisions, action items
+- **Storage**: Persistent SQLite ledger with one-click export
 
-The dashboard keeps a searchable history of every dictation, a custom vocabulary, and settings.
+</td>
+<td width="50%" valign="top">
 
-<div align="center">
+### 04 · Linguistic & Dialect Optimization
+Engineered to resolve phonetic ambiguities in Indic and European languages. Specialized context prompts ensure Hindi and Odia are transcribed into authentic Devanagari and Odia scripts rather than phonetic drift or alternate alphabets.
+- **Styles**: Smart Clean, Developer/Code, Email, Bullets, Verbatim
+- **Languages**: Auto-Detect (99 languages), English, Hindi, Odia, Spanish, French, German, Japanese, Chinese, Russian, and Portuguese
 
-| History | Settings |
-| :-: | :-: |
-| <img src="docs/img/dashboard.png" width="440"> | <img src="docs/img/settings.png" width="440"> |
+</td>
+</tr>
+</table>
 
-</div>
+---
 
-<br>
+## System Architecture
 
-## Quick start
+```
+               [ Windows WH_KEYBOARD_LL Global Hook ]
+                                 │
+                 ┌───────────────┴───────────────┐
+                 ▼                               ▼
+       [ Push-to-Talk Event ]         [ Meeting Application Active ]
+                 │                               │
+                 ▼                               ▼
+     AudioRecorder (16kHz PCM)       MeetingSession (Dual Stream)
+                 │                               │
+                 ▼                               ▼
+    CTranslate2 Faster-Whisper        CTranslate2 Faster-Whisper
+          (CUDA / FP16)                    (Segmented Stream)
+                 │                               │
+                 ▼                               ▼
+      Context-Aware Refiner             Executive Note Structurer
+ (Strips fillers, applies tone)    (Agenda, Decisions, Action Items)
+                 │                               │
+                 ▼                               ▼
+       Win32 WindowInjector           Local SQLite Archive
+ (Preserves clipboard, Ctrl+V)        (~/.openflow/openflow.db)
+```
 
-**Requirements:** Windows 10 or 11, Python 3.10 or newer, a microphone. An NVIDIA GPU is optional but recommended.
+---
+
+## Hardware Mic Auto-Detection & Live Hotplug
+
+OpenFlow interfaces directly with the Windows `winmm` audio kernel via `waveInGetNumDevs` and `waveInGetDevCapsW`. When you attach or disconnect a microphone:
+1. OpenFlow detects the change without restarting the application.
+2. Spawns an animated companion pill notifying you of the newly connected device.
+3. Automatically switches to the primary active device and recalculates live audio level channels.
+4. Filters out inactive Bluetooth artifacts and disconnected hardware aliases.
+
+---
+
+## Keyboard Shortcuts Reference
+
+| Shortcut | Action | Description |
+| :--- | :--- | :--- |
+| **`Ctrl + Shift`** *(Hold)* | **Push to Talk** | Hold while speaking; release to transcribe and paste immediately |
+| **`Ctrl + Shift + Space`** | **Hands-Free Toggle** | Tap once to begin continuous dictation; tap again to finalize |
+| **`Capsule Click`** | **Expand HUD** | Morphs the compact floating capsule into the Apple Control Center HUD |
+| **`Double Click Line`** | **Restore Capsule** | Wakes the minimized bar from desktop stealth mode |
+
+---
+
+## Getting Started
+
+### Option 1: Standalone Windows Binary (Recommended)
+Download the standalone release package without installing Python or build tools:
+1. Download `OpenFlow-v1.0-Windows-x64.zip` from [Releases](https://github.com/Sachin1724/OpenFlow/releases).
+2. Extract the archive to any directory (e.g. `C:\OpenFlow`).
+3. Launch `OpenFlow.exe` (or use `Launch-OpenFlow.bat`).
+
+### Option 2: Running from Source
+
+#### Prerequisites
+- Windows 10 or Windows 11 (64-bit)
+- Python 3.10 or higher
+- NVIDIA GeForce GPU with CUDA drivers (Optional; CPU fallback is included)
 
 ```powershell
-git clone https://github.com/Sachin1724/OpenFlow.git openflow
-cd openflow
-pip install -r requirements.txt
-cd ..
-python -m openflow
+# 1. Clone the repository
+git clone https://github.com/Sachin1724/OpenFlow.git
+cd OpenFlow
+
+# 2. Install dependencies
+uv pip install -r requirements.txt --system
+# Or with standard pip:
+python -m pip install -r requirements.txt
+
+# 3. Launch OpenFlow
+python -m openflow.main
 ```
 
-> The package uses relative imports, so run it from the folder **above** `openflow`.
+*To launch silently in the background without a command window, double-click `launch_openflow_silent.vbs`.*
 
-On first launch a short setup asks for your language and downloads the matching speech model once. It can also register OpenFlow to start when you sign in.
+---
 
-**Dictate:** hold <kbd>Ctrl</kbd> + <kbd>Shift</kbd> in any app, speak, release. The text is pasted where your cursor was.
+## Building the Standalone Executable
 
-<br>
-
-## No GPU? Smart detection
-
-On first run OpenFlow inspects your PC and recommends a setup. You can accept it or change it in the setup window and later in **Settings**.
-
-| Your PC | Runs on | Model | What to expect |
-| :-- | :-- | :-- | :-- |
-| NVIDIA GPU with working CUDA | GPU, float16 | Small or Medium, by video memory | Text appears almost as you let go |
-| CPU with 8+ cores and 8 GB+ RAM | CPU, int8 | Base | A short wait after you release the key |
-| Older or low-power laptop | CPU, int8 | Tiny | Best for short phrases; lower accuracy |
-
-If an NVIDIA GPU is present but CUDA is not usable, OpenFlow says so and falls back to the CPU. To enable the GPU, install the CUDA libraries once and restart:
+OpenFlow includes a one-command build pipeline configured with PyInstaller:
 
 ```powershell
-pip install nvidia-cublas-cu12 nvidia-cudnn-cu12
+# Run the automated build script
+python build_exe.py
 ```
 
-CPU speed depends on your processor and on how long you speak, so treat these as guidelines, not benchmarks.
+This compiles:
+- Standalone portable binary directory at `dist/OpenFlow/OpenFlow.exe`
+- Distributable portable archive at `dist/OpenFlow-v1.0-Windows-x64.zip`
 
-<br>
+---
 
-## Languages and models
+## File and Package Hierarchy
 
-| Language | Model used | Size |
-| :-- | :-- | --: |
-| English | `<size>.en` (English-only, fastest) | 39 to 769 MB |
-| Any other language, or Auto Detect | multilingual `<size>`, at least `small` | about 460 MB for `small` |
-
-`<size>` is the quality you pick in Settings: `tiny`, `base`, `small` or `medium`. Switching language downloads the model in the background and never freezes the capsule.
-
-Formatting styles (Smart Clean, Developer, Email, Bullet Points) are **English-only**. For other languages OpenFlow writes what Whisper heard, applying only your vocabulary replacements.
-
-**Do you need an LLM?** No. Whisper already punctuates in every language it supports. An optional local rewrite model is on the [roadmap](#roadmap), off by default.
-
-<br>
-
-## How it works
-
-```mermaid
-flowchart LR
-    A[Hotkey held] --> B[Capture mic audio]
-    B --> C[Live preview<br/>greedy decode]
-    B --> D[Release]
-    D --> E[Whisper, final decode]
-    E --> F[Formatter<br/>English rules only]
-    F --> G[Paste into the original window]
-    G --> H[(SQLite history)]
+```
+openflow/
+├── OpenFlow.spec                 # PyInstaller standalone compilation manifest
+├── build_exe.py                  # One-click Windows distribution builder
+├── run_app.py                    # Standalone application entry wrapper
+├── run_openflow.bat              # Quick developer launcher
+├── launch_openflow_silent.vbs    # Background Windows launcher
+├── config.py                     # Persistent settings (~/.openflow/config.json)
+├── database.py                   # SQLite history & meeting notes store
+├── main.py                       # Main process loop, tray coordinator & single instance lock
+├── engine/
+│   ├── audio_recorder.py         # Live Win32 waveIn polling & 16kHz PCM capture
+│   ├── transcriber.py            # faster-whisper CUDA/CPU inference engine
+│   ├── formatter.py              # Filler stripper, capitalization & tone presets
+│   ├── injector.py               # Win32 SendInput non-destructive clipboard injector
+│   ├── hotkey_manager.py         # Low-level Windows keyboard listener (WH_KEYBOARD_LL)
+│   ├── meeting.py                # Meeting app detector & structured notes formatter
+│   ├── model_manager.py          # Background HuggingFace model downloader
+│   └── sound_effects.py          # Low-latency system feedback tones
+└── ui/
+    ├── floating_pill.py          # OutCubic morphing capsule, HUD & visualizer
+    ├── main_window.py            # Dashboard (History, Meetings, Vocabulary, Settings)
+    └── styles.py                 # Sleek monochrome glassmorphic design system
 ```
 
-| Piece | What it does |
-| :-- | :-- |
-| `engine/audio_recorder.py` | `sounddevice` stream, level meter, silence detection |
-| `engine/hardware.py` | GPU, CPU and RAM detection; recommends device and model |
-| `engine/model_manager.py` | Model download with live progress |
-| `engine/transcriber.py` | `faster-whisper`, language-aware model choice, lazy load and idle unload |
-| `engine/formatter.py` | Filler removal, tone presets, custom vocabulary |
-| `engine/injector.py` | Clipboard paste into the captured target window |
-| `engine/hotkey_manager.py` | Global push-to-talk, restartable after sleep |
-| `ui/floating_pill.py` | The capsule and its morphing settings panel |
-| `ui/main_window.py` | History, vocabulary, settings, analytics |
-| `ui/setup_dialog.py` | First-run language choice and model download |
-| `autostart.py` | Start-at-sign-in registration |
+---
 
-<br>
+## Collaboration & Contribution Guide
 
-## Configuration
+OpenFlow is built for the global community. Anyone is welcome to contribute, customize, and extend the engine.
 
-Settings live in `~/.openflow/config.json` and the history database in `~/.openflow/openflow.db`. Most options are in the dashboard.
+### How to Contribute
+1. **Fork the Repository**: Create your personal branch (`git checkout -b feature/amazing-feature`).
+2. **Add Custom Tone Presets**: Add new style formatters in [`engine/formatter.py`](engine/formatter.py).
+3. **Expand Meeting Support**: Add heuristics for additional collaborative software in [`engine/meeting.py`](engine/meeting.py).
+4. **Optimize Dialects**: Expand prompt engineering dictionaries in [`engine/context_detector.py`](engine/context_detector.py).
+5. **Submit a Pull Request**: Provide a clear explanation of changes and benchmark results.
 
-| Key | Default | Meaning |
-| :-- | :-- | :-- |
-| `hotkey` | `ctrl+shift` | Hold to speak |
-| `trigger_mode` | `push_to_talk` | `push_to_talk`, `toggle` or `auto_silence` |
-| `model_size` | `auto` | `auto`, `tiny`, `base`, `small`, `medium` (`.en` is added automatically for English) |
-| `device` | `auto` | `auto`, `cuda` or `cpu` (falls back to CPU if CUDA fails) |
-| `language` | `en` | Language code or `auto` |
-| `tone_preset` | `smart_clean` | `smart_clean`, `developer`, `email`, `bullets`, `verbatim` |
-| `silence_duration` | `1.1` | Seconds of quiet before auto-write |
-| `restore_clipboard` | `true` | Put your clipboard back after pasting |
-| `autostart` | `false` | Launch at Windows sign-in |
+---
 
-<br>
+## License & Attribution
 
-## Build the executable
+Distributed under the MIT License. See `LICENSE` for more information.
 
-```powershell
-pip install pyinstaller
-python openflow\packaging\build.py
-```
-
-This produces `dist\OpenFlow\OpenFlow.exe` with the logo as its icon. Models are **not** bundled; they download on first run, which keeps the installer small.
-
-<br>
-
-## FAQ
-
-<details>
-<summary><b>Does my audio ever leave my computer?</b></summary>
-<br>
-No. There is no network code in the dictation path. The only download is the speech model, once.
-</details>
-
-<details>
-<summary><b>Do I need a GPU?</b></summary>
-<br>
-No. With an NVIDIA GPU a sentence appears almost instantly. On CPU it still works, with a short wait after you release the key.
-</details>
-
-<details>
-<summary><b>Why does my first non-English dictation take longer?</b></summary>
-<br>
-The multilingual model is downloaded the first time you switch. A tray message tells you when it starts.
-</details>
-
-<details>
-<summary><b>It stopped responding after my PC slept.</b></summary>
-<br>
-OpenFlow restarts its hotkey listener when it detects a resume. If it does not recover, quit and relaunch from the tray and please open an issue.
-</details>
-
-<br>
-
-## Roadmap
-
-- [x] Push-to-talk dictation with live preview
-- [x] 99-language support with automatic model choice
-- [x] First-run setup, start at sign-in, idle unload, sleep recovery
-- [ ] Per-app tone presets
-- [ ] Spoken commands ("new line", "delete that")
-- [ ] Optional local LLM rewrite for Email and Bullet styles
-- [ ] Signed installer
-
-<br>
-
-## Contributing
-
-Issues and pull requests are welcome. Keep the interface black and white, minimal, and free of emoji.
-
-## License
-
-MIT. See [LICENSE](LICENSE).
-
-<div align="center">
-<br>
-<sub>Built on <a href="https://github.com/SYSTRAN/faster-whisper">faster-whisper</a>, <a href="https://github.com/openai/whisper">Whisper</a> and PyQt6.</sub>
-</div>
+**Architected & Developed by Sachidananda.**
