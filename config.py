@@ -36,9 +36,14 @@ def load_config() -> dict:
     try:
         with open(CONFIG_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
-            merged = DEFAULT_CONFIG.copy()
-            merged.update(data)
-            return merged
+        merged = DEFAULT_CONFIG.copy()
+        merged.update(data)
+        if merged.get("setup_done") and merged.get("model_size") == "auto":
+            # pin once to what is already downloaded so "auto" never fetches a bigger model later
+            from .engine import hardware
+            merged["model_size"] = hardware.resolve(merged)["model_size"]
+            save_config(merged)
+        return merged
     except Exception as e:
         print(f"[OpenFlow] Error loading config: {e}")
         return DEFAULT_CONFIG.copy()

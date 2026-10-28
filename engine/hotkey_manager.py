@@ -126,7 +126,10 @@ class GlobalHotkeyManager:
     def _normalize_key(self, key) -> str:
         if isinstance(key, keyboard.Key):
             return key.name.lower()
-        elif hasattr(key, "char") and key.char:
+        vk = getattr(key, "vk", None)
+        if vk and (0x30 <= vk <= 0x39 or 0x41 <= vk <= 0x5A):  # Ctrl+A arrives as char '\x01'
+            return chr(vk).lower()
+        if hasattr(key, "char") and key.char:
             return key.char.lower()
         return str(key).lower()
 

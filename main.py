@@ -20,7 +20,7 @@ from .engine.audio_recorder import (
     AudioRecorder, list_microphones, hardware_input_count,
     get_live_hardware_microphones, clean_device_name
 )
-from .engine.transcriber import Transcriber
+from .engine.transcriber import Transcriber, engine_model_name
 from .engine.formatter import TextFormatter
 from .engine.injector import WindowInjector
 from .engine.hotkey_manager import GlobalHotkeyManager
@@ -77,6 +77,12 @@ def create_tray_icon_pixmap() -> QPixmap:
     painter.drawRect(12, 23, 8, 2)
     painter.end()
     return pixmap
+
+
+def hotkey_label(cfg: dict) -> str:
+    """'ctrl+shift' -> 'Ctrl+Shift' for user-facing text."""
+    return "+".join(k.upper() if k[:1] == "f" and k[1:].isdigit() else k.capitalize()
+                    for k in cfg.get("hotkey", "ctrl+shift").split("+"))
 
 
 class AppBridge(QObject):
@@ -214,6 +220,9 @@ class OpenFlowApp(QObject):
         self.main_window.sig_model_switch_requested.connect(self._on_request_switch_model)
         self.main_window.sig_model_download_requested.connect(self._on_request_download_model)
         self.main_window.sig_model_delete_requested.connect(self._on_request_delete_model)
+        # pause the global hotkey while the settings box records a new one
+        self.main_window.sig_hotkey_recording.connect(
+            lambda on: self.hotkey_mgr.stop() if on else self.hotkey_mgr.start())
         _boot("dashboard built")
 
         # In-App Auto-Updater
@@ -269,14 +278,17 @@ class OpenFlowApp(QObject):
         self._meeting_timer.timeout.connect(self._check_meeting)
         self._meeting_timer.start(3000)
 
+    def _active_msg(self) -> str:
+        return f"OpenFlow Active · Hold {hotkey_label(self.config)} to Speak"
+
     def _init_tray(self):
         self.tray = QSystemTrayIcon(self.app)
         self.tray.setIcon(QIcon(create_tray_icon_pixmap()))
-        self.tray.setToolTip("OpenFlow — Hold Ctrl+Shift to Speak")
+        self.tray.setToolTip(f"OpenFlow — Hold {hotkey_label(self.config)} to Speak")
 
         menu = QMenu()
         act_hud = menu.addAction("Show Capsule HUD")
-        act_hud.triggered.connect(lambda: self.floating_pill.show_message("OpenFlow Active · Hold Ctrl+Shift to Speak", duration_ms=3500))
+        act_hud.triggered.connect(lambda: self.floating_pill.show_message(self._active_msg(), duration_ms=3500))
 
         act_expand = menu.addAction("Capsule Settings (Expand HUD)")
         act_expand.triggered.connect(self.floating_pill.expand_to_hud)
@@ -320,7 +332,7 @@ class OpenFlowApp(QObject):
 
     def _on_tray_activated(self, reason):
         if reason == QSystemTrayIcon.ActivationReason.Trigger:
-            self.floating_pill.show_message("OpenFlow Active · Hold Ctrl+Shift to Speak", duration_ms=3500)
+            self.floating_pill.show_message(self._active_msg(), duration_ms=3500)
         elif reason == QSystemTrayIcon.ActivationReason.DoubleClick:
             self.show_dashboard()
 
@@ -412,8 +424,9 @@ class OpenFlowApp(QObject):
         def _bg_dl():
             try:
                 self.bridge.sig_status.emit(f"Downloading {model_id} model...")
+                # fetch the variant this language actually loads (base.en for English)
                 model_manager.download(
-                    model_id,
+                    engine_model_name(model_id, self.config.get("language", "en"), self.transcriber.device),
                     on_progress=lambda pct: self.bridge.sig_download.emit(pct, model_id)
                 )
                 # When download completes, automatically make this model active!
@@ -453,6 +466,8 @@ class OpenFlowApp(QObject):
     def _on_config_changed(self, new_cfg: dict):
         self.config = new_cfg
         self.hotkey_mgr.update_config(new_cfg.get("hotkey", "ctrl+shift"), new_cfg.get("trigger_mode", "push_to_talk"))
+        if hasattr(self, "tray"):
+            self.tray.setToolTip(f"OpenFlow — Hold {hotkey_label(new_cfg)} to Speak")
         self.audio_recorder.set_device(new_cfg.get("input_device_index"))
         set_autostart(new_cfg.get("autostart", False))
         self.audio_recorder.set_auto_silence_duration(float(new_cfg.get("silence_duration", 1.1)))
@@ -866,15 +881,9 @@ class OpenFlowApp(QObject):
         self.app.quit()
 
     def run(self):
-        print("[OpenFlow] Started! Hold Ctrl+Shift anywhere to speak — release to paste.")
-        self.show_dashboard()
-        self.floating_pill.show_message("OpenFlow Ready · Hold Ctrl+Shift to Speak", duration_ms=4500)
-        self.tray.showMessage(
-            "OpenFlow Ready",
-            "Hold CTRL + SHIFT anywhere to speak. Release to write instantly!",
-            QSystemTrayIcon.MessageIcon.Information,
-            3500
-        )
+        print(f"[OpenFlow] Started! Hold {hotkey_label(self.config)} anywhere to speak — release to paste.")
+        # the capsule is the app; the dashboard opens only from the tray or the capsule menu
+        self.floating_pill.show_message(f"OpenFlow Ready · Hold {hotkey_label(self.config)} to Speak", duration_ms=4500)
         sys.exit(self.app.exec())
 
 
@@ -979,15 +988,12 @@ def main():
         server.nextPendingConnection()
         app = holder.get("app")
         if app is not None:
-            app.floating_pill.show_message("OpenFlow Active \u00b7 Hold Ctrl+Shift to Speak", duration_ms=3500)
-            app.show_dashboard()
+            app.floating_pill.show_message(app._active_msg(), duration_ms=3500)
 
     server.newConnection.connect(on_second_launch)
 
     app = OpenFlowApp()
     holder["app"] = app
-    if "--background" not in sys.argv:
-        QTimer.singleShot(400, app.show_dashboard)
     app.run()
 
 

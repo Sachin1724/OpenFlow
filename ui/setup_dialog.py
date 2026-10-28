@@ -1,16 +1,16 @@
 import os
 import threading
 from PyQt6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QComboBox, QPushButton, QProgressBar, QCheckBox
+    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QComboBox, QPushButton, QProgressBar
 )
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QIcon
 
 from ..config import get_asset_path
 from ..engine import hardware, model_manager
-from ..engine.transcriber import resolve_model_name
+from ..engine.transcriber import engine_model_name
 from .styles import main_qss, COLORS
-from .floating_pill import get_squircle_pixmap
+from .floating_pill import get_squircle_pixmap, Switch
 
 LANGS = [("auto", "Auto Detect"), ("en-in", "English (India) / Hinglish"), ("or", "Odia / Odia-English"),
          ("hi", "Hindi"), ("en", "English (US/UK)"), ("es", "Spanish"), ("fr", "French"),
@@ -72,15 +72,20 @@ class SetupDialog(QDialog):
         lay.addWidget(self.lang)
 
         self.hw = hardware.detect()
-        hw_note = QLabel("Your PC: " + self.hw["note"])
+        npu = hardware.npu_name()
+        hw_note = QLabel("Your PC: " + self.hw["note"] + (f" {npu} NPU found." if npu else ""))
         hw_note.setWordWrap(True)
         hw_note.setStyleSheet(f"color: {COLORS['text_secondary']}; font-size: 13px;")
         lay.addWidget(hw_note)
 
         self.device = QComboBox()
         self.device.addItem("Run on: Automatic (recommended)", "auto")
+        if npu:
+            self.device.addItem(f"Run on: NPU ({npu}, low power)", "npu")
         self.device.addItem("Run on: GPU (NVIDIA CUDA)", "cuda")
         self.device.addItem("Run on: CPU", "cpu")
+        if npu and not self.hw["cuda_ok"]:  # no NVIDIA GPU: the NPU beats the CPU on speed and battery
+            self.device.setCurrentIndex(1)
         lay.addWidget(self.device)
 
         self.quality = QComboBox()
@@ -90,7 +95,7 @@ class SetupDialog(QDialog):
             self.quality.addItem(label, key)
         lay.addWidget(self.quality)
 
-        self.cb_start = QCheckBox("Start OpenFlow when I sign in")
+        self.cb_start = Switch("Start OpenFlow when I sign in")
         self.cb_start.setChecked(True)
         lay.addWidget(self.cb_start)
 
@@ -122,7 +127,7 @@ class SetupDialog(QDialog):
         code = self.lang.currentData()
         size = self.quality.currentData()
         size = self.hw["model_size"] if size == "auto" else size
-        model = resolve_model_name(size, code)
+        model = engine_model_name(size, code, self.device.currentData())
         self.status.setText(f"Downloading {model} model...")
         threading.Thread(target=self._download, args=(model,), daemon=True).start()
 
@@ -148,7 +153,9 @@ class SetupDialog(QDialog):
             return
         self.config["language"] = self.lang.currentData()
         self.config["device"] = self.device.currentData()
-        self.config["model_size"] = self.quality.currentData()
+        # save the size that was downloaded, never "auto": later boots must not pick a bigger model
+        size = self.quality.currentData()
+        self.config["model_size"] = self.hw["model_size"] if size == "auto" else size
         self.config["compute_type"] = "auto"
         self.config["autostart"] = self.cb_start.isChecked()
         self.config["setup_done"] = True

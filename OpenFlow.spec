@@ -57,7 +57,7 @@ hiddenimports = [
     'openflow.autostart',
 ]
 
-for pkg in ['ctranslate2', 'faster_whisper', 'sounddevice']:
+for pkg in ['ctranslate2', 'faster_whisper', 'sounddevice', 'openvino', 'openvino_genai', 'openvino_tokenizers']:
     try:
         d, b, h = collect_all(pkg)
         datas += d

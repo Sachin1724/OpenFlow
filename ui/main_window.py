@@ -1,12 +1,13 @@
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QTabWidget,
     QPushButton, QTableWidget, QTableWidgetItem, QHeaderView, QLineEdit,
-    QComboBox, QCheckBox, QFrame, QMessageBox, QAbstractItemView, QDoubleSpinBox, QProgressBar,
+    QComboBox, QFrame, QMessageBox, QAbstractItemView, QDoubleSpinBox, QProgressBar,
     QListWidget, QListWidgetItem, QTextBrowser, QSplitter, QFileDialog, QInputDialog
 )
-from PyQt6.QtCore import Qt, pyqtSignal, QTimer, QUrl
-from PyQt6.QtGui import QFont, QIcon, QColor, QPixmap, QDesktopServices
+from PyQt6.QtCore import Qt, pyqtSignal, QTimer, QUrl, QRectF, QPointF
+from PyQt6.QtGui import QFont, QIcon, QColor, QPixmap, QDesktopServices, QPainter, QPen
 import pyperclip  # type: ignore[import]
+import importlib.util
 import os
 import re
 
@@ -16,7 +17,178 @@ from ..engine import hardware, model_manager
 from ..engine.audio_recorder import list_microphones
 from ..engine.meeting import render_meeting_html
 from .styles import main_qss, COLORS
-from .floating_pill import get_squircle_pixmap
+from .floating_pill import get_squircle_pixmap, Switch
+
+
+# Windows virtual-key codes -> names GlobalHotkeyManager understands
+_VK_NAMES = {0x10: "shift", 0xA0: "shift", 0xA1: "shift", 0x11: "ctrl", 0xA2: "ctrl", 0xA3: "ctrl",
+             0x12: "alt", 0xA4: "alt", 0xA5: "alt", 0x20: "space"}
+_MOD_ORDER = ("ctrl", "shift", "alt")
+
+
+def vk_name(vk: int) -> str:
+    """Win32 virtual key -> hotkey token ('' if unsupported)."""
+    if vk in _VK_NAMES:
+        return _VK_NAMES[vk]
+    if 0x70 <= vk <= 0x87:
+        return f"f{vk - 0x6F}"
+    if 0x30 <= vk <= 0x39 or 0x41 <= vk <= 0x5A:
+        return chr(vk).lower()
+    return ""
+
+
+def _is_fkey(k: str) -> bool:
+    return k[:1] == "f" and k[1:].isdigit()
+
+
+def combo_from_keys(keys) -> str:
+    """Orders tokens ctrl+shift+alt+key; '' if the combo would hijack normal typing."""
+    mods = [m for m in _MOD_ORDER if m in keys]
+    rest = sorted(k for k in keys if k not in _MOD_ORDER)
+    if not mods and not (len(rest) == 1 and _is_fkey(rest[0])):
+        return ""  # a bare letter, digit or space would fire while typing
+    return "+".join(mods + rest[:1])
+
+
+def pretty_hotkey(combo: str):
+    return [k.upper() if _is_fkey(k) else k.capitalize() for k in combo.split("+") if k]
+
+
+class _ClearButton(QPushButton):
+    """Round x button, painted so the dashboard's global QPushButton padding can't distort it."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setFixedSize(22, 22)
+
+    def paintEvent(self, a0):
+        p = QPainter(self)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(QColor(255, 255, 255, 80 if self.isDown() else 56 if self.underMouse() else 34))
+        side = min(self.width(), self.height())  # the global QSS min-height can make the widget taller
+        cx, cy, d = self.width() / 2.0, self.height() / 2.0, 3.6
+        p.drawEllipse(QPointF(cx, cy), side / 2.0, side / 2.0)
+        p.setPen(QPen(QColor(255, 255, 255, 220), 1.6, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap))
+        p.drawLine(QPointF(cx - d, cy - d), QPointF(cx + d, cy + d))
+        p.drawLine(QPointF(cx - d, cy + d), QPointF(cx + d, cy - d))
+
+
+class HotkeyRecorder(QFrame):
+    """Rounded key box: shows the shortcut as keycaps; x clears it and records the next key press."""
+    sig_recording = pyqtSignal(bool)  # True while capturing; the global hotkey must pause
+    sig_changed = pyqtSignal(str)
+
+    def __init__(self, hotkey: str, parent=None):
+        super().__init__(parent)
+        self._hotkey = hotkey
+        self._recording = False
+        self._held, self._best = set(), set()
+        self.setObjectName("HotkeyBox")
+        self.setFixedHeight(40)
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        lay = QHBoxLayout(self)
+        lay.setContentsMargins(10, 0, 8, 0)
+        lay.setSpacing(6)
+        self._caps = QHBoxLayout()
+        self._caps.setSpacing(4)
+        lay.addLayout(self._caps)
+        self._hint = QLabel("", self)
+        lay.addWidget(self._hint)
+        lay.addStretch()
+        self._btn = _ClearButton(self)
+        self._btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self._btn.setToolTip("Clear and record a new shortcut")
+        self._btn.clicked.connect(self._on_btn)
+        lay.addWidget(self._btn, 0, Qt.AlignmentFlag.AlignVCenter)
+        self.setStyleSheet("""
+            QFrame#HotkeyBox { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); border-radius: 10px; }
+            QFrame#HotkeyBox[recording="true"] { border: 2px solid #0A84FF; background: rgba(10,132,255,0.08); }
+        """)
+        self._render(pretty_hotkey(hotkey))
+
+    def hotkey(self) -> str:
+        return self._hotkey
+
+    def _render(self, caps, hint: str = "", error: bool = False):
+        while self._caps.count():
+            w = self._caps.takeAt(0).widget()
+            if w:
+                w.deleteLater()
+        for c in caps:
+            cap = QLabel(c, self)
+            cap.setStyleSheet("background: rgba(255,255,255,0.14); color: #ffffff; border-radius: 6px; "
+                              "border-bottom: 2px solid rgba(0,0,0,0.35); padding: 2px 8px; font-size: 12px; font-weight: 600;")
+            self._caps.addWidget(cap, 0, Qt.AlignmentFlag.AlignVCenter)
+        self._hint.setText(hint)
+        self._hint.setStyleSheet(("color: #FF453A;" if error else "color: rgba(235,235,245,0.6);")
+                                 + " font-size: 12px; background: transparent; border: none;")
+
+    def _set_recording(self, on: bool):
+        self._recording = on
+        self.setProperty("recording", "true" if on else "false")
+        self.style().unpolish(self)
+        self.style().polish(self)
+        if on:
+            self._held, self._best = set(), set()
+            self.setFocus()
+            self.grabKeyboard()
+        else:
+            self.releaseKeyboard()
+        self.sig_recording.emit(on)
+
+    def _on_btn(self):
+        if self._recording:
+            self._cancel()
+        else:
+            self._render([], "Press a shortcut…")
+            self._set_recording(True)
+
+    def mousePressEvent(self, a0):
+        if not self._recording:
+            self._on_btn()
+
+    def _cancel(self):
+        self._set_recording(False)
+        self._render(pretty_hotkey(self._hotkey))
+
+    def keyPressEvent(self, a0):
+        if not self._recording:
+            return super().keyPressEvent(a0)
+        if a0.isAutoRepeat():
+            return
+        if a0.key() == Qt.Key.Key_Escape:
+            return self._cancel()
+        name = vk_name(a0.nativeVirtualKey())
+        if name:
+            self._held.add(name)
+            if len(self._held) >= len(self._best):
+                self._best = set(self._held)
+            mods = [m for m in _MOD_ORDER if m in self._best]
+            self._render(pretty_hotkey("+".join(mods + sorted(self._best - set(_MOD_ORDER)))))
+
+    def keyReleaseEvent(self, a0):
+        if not self._recording or a0.isAutoRepeat():
+            return super().keyReleaseEvent(a0)
+        self._held.discard(vk_name(a0.nativeVirtualKey()))
+        if self._held or not self._best:
+            return
+        combo = combo_from_keys(self._best)  # commit once every key is up
+        if not combo:
+            self._best = set()
+            self._render([], "Use Ctrl, Shift, Alt or an F-key", error=True)
+            return
+        self._hotkey = combo
+        self._set_recording(False)
+        self._render(pretty_hotkey(combo))
+        self.sig_changed.emit(combo)
+
+    def focusOutEvent(self, a0):
+        if self._recording:
+            self._cancel()
+        super().focusOutEvent(a0)
 
 
 class MainWindow(QMainWindow):
@@ -26,6 +198,7 @@ class MainWindow(QMainWindow):
     sig_model_switch_requested = pyqtSignal(str)
     sig_model_download_requested = pyqtSignal(str)
     sig_model_delete_requested = pyqtSignal(str)
+    sig_hotkey_recording = pyqtSignal(bool)
 
     def __init__(self, db: Database, config: dict):
         super().__init__()
@@ -92,9 +265,10 @@ class MainWindow(QMainWindow):
         hotkey_badge.setStyleSheet("QFrame#HotkeyBadge { background: rgba(255, 255, 255, 0.08); border-radius: 14px; }")
         badge_layout = QHBoxLayout(hotkey_badge)
         badge_layout.setContentsMargins(8, 4, 8, 4)
-        badge_text = QLabel(f"Hold <b>{self.config.get('hotkey', 'ctrl+shift').upper()}</b> to speak", self)
-        badge_text.setStyleSheet("color: #ffffff; font-size: 12px;")
-        badge_layout.addWidget(badge_text)
+        self.hotkey_badge_text = QLabel(self)
+        self.hotkey_badge_text.setStyleSheet("color: #ffffff; font-size: 12px;")
+        self._update_hotkey_badge()
+        badge_layout.addWidget(self.hotkey_badge_text)
         header_layout.addWidget(hotkey_badge)
 
         main_layout.addLayout(header_layout)
@@ -361,7 +535,7 @@ class MainWindow(QMainWindow):
         self.dict_replace = QLineEdit(self)
         self.dict_replace.setPlaceholderText("Replace with (e.g. 'PyTorch', 'OpenFlow')")
 
-        self.dict_case = QCheckBox("Case sensitive", self)
+        self.dict_case = Switch("Case sensitive", self)
         add_btn = QPushButton("Add Word", self)
         add_btn.setObjectName("PrimaryButton")
         add_btn.clicked.connect(self._add_dictionary_word)
@@ -678,6 +852,8 @@ class MainWindow(QMainWindow):
         hw_label.setStyleSheet("font-weight: 500;")
         self.device_combo = QComboBox(self)
         self.device_combo.addItem("Automatic (recommended)", "auto")
+        if importlib.util.find_spec("openvino_genai"):  # cheap check; the NPU itself is probed on save
+            self.device_combo.addItem("NPU (Intel AI Boost, low power)", "npu")
         self.device_combo.addItem("GPU (NVIDIA CUDA)", "cuda")
         self.device_combo.addItem("CPU", "cpu")
         curr_d = self.config.get("device", "auto")
@@ -729,9 +905,9 @@ class MainWindow(QMainWindow):
         hk_layout = QHBoxLayout()
         hk_label = QLabel("Global Hotkey:", self)
         hk_label.setStyleSheet("font-weight: 500;")
-        self.hotkey_input = QLineEdit(self)
-        self.hotkey_input.setText(self.config.get("hotkey", "ctrl+shift"))
-        self.hotkey_input.setPlaceholderText("e.g. ctrl+shift, f8, alt+space")
+        self.hotkey_input = HotkeyRecorder(self.config.get("hotkey", "ctrl+shift"), self)
+        self.hotkey_input.sig_recording.connect(self.sig_hotkey_recording.emit)
+        self.hotkey_input.sig_changed.connect(self._on_hotkey_recorded)
         hk_layout.addWidget(hk_label)
         hk_layout.addWidget(self.hotkey_input, 1)
         c_layout.addLayout(hk_layout)
@@ -770,27 +946,27 @@ class MainWindow(QMainWindow):
         c_layout.addLayout(tone_layout)
 
         # Real-time and Auto-write Checkboxes
-        self.cb_autowrite = QCheckBox("Write automatically when you pause speaking", self)
+        self.cb_autowrite = Switch("Write automatically when you pause speaking", self)
         self.cb_autowrite.setChecked(self.config.get("auto_write_on_silence", True))
         c_layout.addWidget(self.cb_autowrite)
 
-        self.cb_realtime = QCheckBox("Show live preview of words in the capsule", self)
+        self.cb_realtime = Switch("Show live preview of words in the capsule", self)
         self.cb_realtime.setChecked(self.config.get("realtime_preview", True))
         c_layout.addWidget(self.cb_realtime)
 
-        self.cb_hide_idle = QCheckBox("Hide capsule completely when idle (don't show minimized bar on desktop)", self)
+        self.cb_hide_idle = Switch("Hide capsule completely when idle (don't show minimized bar on desktop)", self)
         self.cb_hide_idle.setChecked(self.config.get("hide_capsule_when_idle", False))
         c_layout.addWidget(self.cb_hide_idle)
 
-        self.cb_sound = QCheckBox("Play sounds on start and finish", self)
+        self.cb_sound = Switch("Play sounds on start and finish", self)
         self.cb_sound.setChecked(self.config.get("sound_feedback", True))
         c_layout.addWidget(self.cb_sound)
 
-        self.cb_restore_clip = QCheckBox("Restore previous clipboard after paste", self)
+        self.cb_restore_clip = Switch("Restore previous clipboard after paste", self)
         self.cb_restore_clip.setChecked(self.config.get("restore_clipboard", True))
         c_layout.addWidget(self.cb_restore_clip)
 
-        self.cb_autostart = QCheckBox("Start OpenFlow when I sign in", self)
+        self.cb_autostart = Switch("Start OpenFlow when I sign in", self)
         self.cb_autostart.setChecked(self.config.get("autostart", False))
         c_layout.addWidget(self.cb_autostart)
 
@@ -852,9 +1028,12 @@ class MainWindow(QMainWindow):
         # English-only fast variants are picked automatically per language at load time
         selected_model_text = model_choice
         device_choice = self.device_combo.currentData()
+        if device_choice == "npu" and not hardware.npu_name():
+            QMessageBox.warning(self, "No NPU found",
+                                "This PC has no Intel NPU that OpenFlow can use. It will keep running on the GPU or CPU.")
         compute_type = "auto" if device_choice == "auto" else ("float16" if device_choice == "cuda" else "int8")
         dev_idx = self.mic_combo.currentData()
-        hotkey = self.hotkey_input.text().strip().lower() or "f8"
+        hotkey = self.hotkey_input.hotkey() or "ctrl+shift"
         tone_preset = self.tone_combo.currentData()
 
         self.config["model_size"] = selected_model_text
@@ -875,6 +1054,17 @@ class MainWindow(QMainWindow):
         save_config(self.config)
         self.config_changed.emit(self.config)
         QMessageBox.information(self, "Saved", "Settings updated.")
+
+    def _update_hotkey_badge(self):
+        keys = " + ".join(pretty_hotkey(self.config.get("hotkey", "ctrl+shift")))
+        self.hotkey_badge_text.setText(f"Hold <b>{keys}</b> to speak")
+
+    def _on_hotkey_recorded(self, combo: str):
+        """A recorded shortcut applies at once; no Save needed."""
+        self.config["hotkey"] = combo
+        save_config(self.config)
+        self._update_hotkey_badge()
+        self.config_changed.emit(self.config)
 
     def update_hide_capsule_idle_state(self, hide: bool):
         if hasattr(self, "cb_hide_idle"):

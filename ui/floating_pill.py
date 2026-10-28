@@ -9,17 +9,18 @@ from PyQt6.QtWidgets import (
     QProgressBar, QFrame, QApplication, QMenu, QSizePolicy, QCheckBox
 )
 from PyQt6.QtCore import (
-    Qt, QTimer, QPoint, QPointF, QRect, QRectF, QPropertyAnimation, QVariantAnimation,
+    Qt, QTimer, QPoint, QPointF, QRect, QRectF, QSize, QPropertyAnimation, QVariantAnimation,
     QEasingCurve, pyqtSignal
 )
 from PyQt6.QtGui import (
     QPainter, QColor, QBrush, QPen, QFont, QFontDatabase, QFontMetricsF, QLinearGradient,
-    QPainterPath, QPolygonF, QPixmap, QIcon
+    QPainterPath, QPolygonF, QPixmap, QIcon, QPalette
 )
 
 
 from ..config import get_asset_path
 from ..engine.audio_recorder import list_microphones
+from ..engine import model_manager
 
 
 def _force_topmost(widget: QWidget):
@@ -45,6 +46,9 @@ FG_DIM = "rgba(255, 255, 255, 0.55)"
 FG_FAINT = "rgba(255, 255, 255, 0.32)"
 HAIRLINE = "rgba(255, 255, 255, 0.10)"
 FILL = "rgba(255, 255, 255, 0.07)"
+ACCENT = "#0A84FF"  # Apple systemBlue (dark)
+GREEN = "#30D158"
+RED = "#FF453A"
 
 
 def get_squircle_pixmap(image_path: str, size: int = 26, radius: float = 6.0) -> QPixmap:
@@ -253,6 +257,75 @@ class MoreButton(QPushButton):
 
 
 
+class Switch(QCheckBox):
+    """iOS-style switch drawn in place of the checkbox; same API as QCheckBox (isChecked, toggled...)."""
+    _TW, _TH = 38, 22
+
+    def __init__(self, text: str = "", parent=None):
+        super().__init__(text, parent)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._pos = 0.0
+        self._anim = QVariantAnimation(self)
+        self._anim.setDuration(220)
+        self._anim.setEasingCurve(QEasingCurve.Type.OutCubic)  # no overshoot
+        self._anim.valueChanged.connect(self._on_tick)
+        self.toggled.connect(self._animate)
+
+    def _on_tick(self, v):
+        self._pos = float(v)
+        self.update()
+
+    def _animate(self, on: bool):
+        self._anim.stop()
+        if not self.isVisible():  # initial state while building the UI: no slide
+            self._pos = 1.0 if on else 0.0
+            return
+        self._anim.setStartValue(self._pos)  # from where the knob is now, so rapid taps reverse smoothly
+        self._anim.setEndValue(1.0 if on else 0.0)
+        self._anim.start()
+
+    def sizeHint(self):
+        fm = self.fontMetrics()
+        w = self._TW + (10 + fm.horizontalAdvance(self.text()) if self.text() else 0)
+        return QSize(w + 2, max(self._TH + 4, fm.height() + 4))
+
+    def minimumSizeHint(self):
+        return self.sizeHint()
+
+    def hitButton(self, pos):
+        return self.rect().contains(pos)
+
+    def paintEvent(self, a0):
+        if self._anim.state() != QVariantAnimation.State.Running:
+            self._pos = 1.0 if self.isChecked() else 0.0  # setChecked under blockSignals
+        t = self._pos
+        p = QPainter(self)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        tw, th = self._TW, self._TH
+        y = (self.height() - th) / 2.0
+        off, on = QColor(120, 120, 128, 82), QColor(ACCENT)
+        track = QColor(
+            round(off.red() + (on.red() - off.red()) * t), round(off.green() + (on.green() - off.green()) * t),
+            round(off.blue() + (on.blue() - off.blue()) * t), round(off.alpha() + (255 - off.alpha()) * t))
+        if not self.isEnabled():
+            track.setAlpha(track.alpha() // 2)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(track)
+        p.drawRoundedRect(QRectF(0, y, tw, th), th / 2.0, th / 2.0)
+        d = th - 4.0
+        x = 2.0 + (tw - d - 4.0) * t
+        p.setBrush(QColor(0, 0, 0, 60))
+        p.drawEllipse(QRectF(x, y + 2.8, d, d))
+        p.setBrush(QColor(255, 255, 255))
+        p.drawEllipse(QRectF(x, y + 2.0, d, d))
+        if self.text():
+            p.setFont(self.font())
+            p.setPen(self.palette().color(QPalette.ColorGroup.Active if self.isEnabled() else QPalette.ColorGroup.Disabled,
+                                          QPalette.ColorRole.WindowText))
+            p.drawText(QRectF(tw + 10, 0, self.width() - tw - 10, self.height()),
+                       Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft, self.text())
+
+
 _ASSETS = get_asset_path().replace("\\", "/")
 
 
@@ -349,6 +422,8 @@ class ValueRow(QWidget):
         self._family = font_family
         self._items = []
         self._idx = -1
+        self._disabled = set()
+        self._pressed = False
         self._hover_alpha = 0.0
         self._val_alpha = 1.0
         self.setFixedHeight(44)
@@ -374,7 +449,14 @@ class ValueRow(QWidget):
 
     def clear(self):
         self._items, self._idx = [], -1
+        self._disabled = set()
         self.update()
+
+    def setItemEnabled(self, i: int, enabled: bool):
+        if enabled:
+            self._disabled.discard(i)
+        else:
+            self._disabled.add(i)
 
     def addItem(self, text, data=None):
         self._items.append((text, data))
@@ -421,7 +503,14 @@ class ValueRow(QWidget):
         self._hover_anim.setEndValue(0.0)
         self._hover_anim.start()
 
+    def mousePressEvent(self, a0):
+        if a0.button() == Qt.MouseButton.LeftButton:
+            self._pressed = True  # feedback on press, not release
+            self.update()
+
     def mouseReleaseEvent(self, a0):
+        self._pressed = False
+        self.update()
         if a0.button() != Qt.MouseButton.LeftButton or not self._items:
             return
 
@@ -439,11 +528,12 @@ class ValueRow(QWidget):
         )
         menu.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         menu.setStyleSheet(f"""
-            QMenu {{ background: rgba(28,28,30,0.97); border: 1px solid rgba(255,255,255,0.12);
-                     border-radius: 12px; padding: 6px; color: #fff; }}
-            QMenu::item {{ padding: 7px 30px 7px 28px; border-radius: 7px; margin: 1px 0; }}
-            QMenu::item:selected {{ background: rgba(255,255,255,0.14); }}
-            QMenu::indicator {{ width: 14px; height: 14px; left: 8px; }}
+            QMenu {{ background: rgba(40,40,42,0.98); border: 1px solid rgba(255,255,255,0.10);
+                     border-radius: 10px; padding: 5px; color: #fff; }}
+            QMenu::item {{ padding: 6px 22px 6px 30px; border-radius: 6px; margin: 0; }}
+            QMenu::item:selected {{ background: {ACCENT}; color: #ffffff; }}
+            QMenu::item:disabled {{ color: rgba(235,235,245,0.30); background: transparent; }}
+            QMenu::indicator {{ width: 14px; height: 14px; left: 9px; }}
             QMenu::indicator:checked {{ image: url({_ASSETS}/check_white.svg); }}
         """)
         menu.setFont(QFont(self._family, 10))
@@ -451,6 +541,7 @@ class ValueRow(QWidget):
             act = menu.addAction(text)
             act.setCheckable(True)
             act.setChecked(i == self._idx)
+            act.setEnabled(i not in self._disabled)
             act.triggered.connect(lambda _=False, i=i: self.setCurrentIndex(i))
 
         # Ensure the menu stays strictly in front of FloatingPill on Windows
@@ -468,8 +559,8 @@ class ValueRow(QWidget):
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
 
         # Smooth animated glass highlight on hover
-        if self._hover_alpha > 0.01:
-            p.fillRect(self.rect(), QColor(255, 255, 255, int(15 * self._hover_alpha)))
+        if self._hover_alpha > 0.01 or self._pressed:
+            p.fillRect(self.rect(), QColor(255, 255, 255, int(12 * self._hover_alpha) + (14 if self._pressed else 0)))
 
         f = QFont(self._family, 10)
         p.setFont(f)
@@ -486,7 +577,7 @@ class ValueRow(QWidget):
 
         fm = QFontMetricsF(f)
         vr = QRectF(112, 0, self.width() - 112 - 34, self.height())
-        val_pen_alpha = int((140 + 75 * self._hover_alpha) * self._val_alpha)
+        val_pen_alpha = int((150 + 50 * self._hover_alpha) * self._val_alpha)
         p.setPen(QColor(255, 255, 255, val_pen_alpha))
         p.drawText(vr, Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignRight,
                    fm.elidedText(self.currentText(), Qt.TextElideMode.ElideRight, vr.width()))
@@ -527,21 +618,19 @@ class AnimatedVectorIcon(QWidget):
             # Live subtle soundwave ring radiating from mic
             pulse = 0.5 + 0.5 * math.sin(self.phase * 2.0)
             halo_r = 7.0 + 3.0 * pulse
-            p.setPen(QPen(QColor(85, 255, 153, int(60 * (1.0 - pulse))), 1.0))
+            p.setPen(QPen(QColor(48, 209, 88, int(70 * (1.0 - pulse))), 1.0))
             p.setBrush(Qt.BrushStyle.NoBrush)
             p.drawEllipse(c, halo_r, halo_r)
 
             # Apple-style vector microphone
             p.setPen(QPen(QColor(255, 255, 255), 1.6, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin))
             p.setBrush(QBrush(QColor(255, 255, 255)))
-            # Mic inner capsule
-            p.drawRoundedRect(QRectF(c.x() - 3.2, c.y() - 6.5, 6.4, 8.5), 3.2, 3.2)
-            # Mic surrounding cup
+            # glyph spans y -7..+7 so it sits on the optical centre of the halo
+            p.drawRoundedRect(QRectF(c.x() - 3.0, c.y() - 7.0, 6.0, 8.5), 3.0, 3.0)
             p.setBrush(Qt.BrushStyle.NoBrush)
-            p.drawArc(QRectF(c.x() - 5.5, c.y() - 4.5, 11.0, 9.5), 180 * 16, 180 * 16)
-            # Mic stem & base
-            p.drawLine(QPointF(c.x(), c.y() + 5.0), QPointF(c.x(), c.y() + 7.8))
-            p.drawLine(QPointF(c.x() - 4.0, c.y() + 7.8), QPointF(c.x() + 4.0, c.y() + 7.8))
+            p.drawArc(QRectF(c.x() - 5.5, c.y() - 4.8, 11.0, 9.3), 180 * 16, 180 * 16)
+            p.drawLine(QPointF(c.x(), c.y() + 4.5), QPointF(c.x(), c.y() + 7.0))
+            p.drawLine(QPointF(c.x() - 3.5, c.y() + 7.0), QPointF(c.x() + 3.5, c.y() + 7.0))
 
         elif self.mode == "switched":
             # Smoothly rotating circular dual-arrows
@@ -549,12 +638,12 @@ class AnimatedVectorIcon(QWidget):
             p.save()
             p.translate(c)
             p.rotate(rot)
-            p.setPen(QPen(QColor(85, 255, 153), 1.6, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap))
+            p.setPen(QPen(QColor(48, 209, 88), 1.6, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap))
             p.setBrush(Qt.BrushStyle.NoBrush)
             r = 6.8
             p.drawArc(QRectF(-r, -r, 2 * r, 2 * r), 25 * 16, 135 * 16)
             p.drawArc(QRectF(-r, -r, 2 * r, 2 * r), 205 * 16, 135 * 16)
-            p.setBrush(QBrush(QColor(85, 255, 153)))
+            p.setBrush(QBrush(QColor(48, 209, 88)))
             # Tip 1 at end of arc 1
             p.drawPolygon(QPolygonF([QPointF(-r + 1.2, -2.5), QPointF(-r - 2.5, -2.5), QPointF(-r - 0.5, 1.2)]))
             # Tip 2 at end of arc 2
@@ -565,7 +654,7 @@ class AnimatedVectorIcon(QWidget):
             # Pulsing coral warning triangle with exclamation glyph
             pulse = 0.5 + 0.5 * math.sin(self.phase * 2.2)
             alpha = int(195 + 60 * pulse)
-            p.setPen(QPen(QColor(255, 95, 95, alpha), 1.6, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin))
+            p.setPen(QPen(QColor(255, 69, 58, alpha), 1.6, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin))
             p.setBrush(Qt.BrushStyle.NoBrush)
             tri = QPolygonF([QPointF(c.x(), c.y() - 7.5), QPointF(c.x() + 8.0, c.y() + 6.5), QPointF(c.x() - 8.0, c.y() + 6.5)])
             p.drawPolygon(tri)
@@ -594,27 +683,31 @@ class MicNotificationPill(QWidget):
         self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
 
-        self.w, self.h = 280, 36
+        self.w, self.h = 300, 40
         self.setFixedSize(self.w, self.h)
         self.font_family = ui_font_family()
         self._target_pos = QPoint()
 
         lay = QHBoxLayout(self)
-        lay.setContentsMargins(12, 0, 12, 0)
+        lay.setContentsMargins(10, 0, 10, 0)
         lay.setSpacing(8)
+        center = Qt.AlignmentFlag.AlignVCenter
 
         self.animated_icon = AnimatedVectorIcon(self)
-        lay.addWidget(self.animated_icon)
+        lay.addWidget(self.animated_icon, 0, center)
 
         self.text_label = QLabel(self)
         self.text_label.setFont(QFont(self.font_family, 9, QFont.Weight.Medium))
         self.text_label.setStyleSheet("color: #ffffff; background: transparent;")
-        lay.addWidget(self.text_label, 1)
+        self.text_label.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
+        lay.addWidget(self.text_label, 1, center)
 
-        self.badge = QLabel("READY", self)
-        self.badge.setFont(QFont(self.font_family, 7, QFont.Weight.Bold))
-        self.badge.setStyleSheet("color: #000000; background: #55ff99; border-radius: 8px; padding: 2px 6px;")
-        lay.addWidget(self.badge)
+        # fixed-height pill, centred: a bare QLabel stretched to the row height and looked misaligned
+        self.badge = QLabel("ACTIVE", self)
+        self.badge.setFont(QFont(self.font_family, 7, QFont.Weight.DemiBold))
+        self.badge.setFixedHeight(18)
+        self.badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        lay.addWidget(self.badge, 0, center)
 
         self.dismiss_timer = QTimer(self)
         self.dismiss_timer.setSingleShot(True)
@@ -623,44 +716,29 @@ class MicNotificationPill(QWidget):
         self.fade_anim = QPropertyAnimation(self, b"windowOpacity")
         self.fade_anim.setDuration(220)
         self.fade_anim.setEasingCurve(QEasingCurve.Type.OutCubic)
+        self.fade_anim.finished.connect(self._on_hidden)
 
         self.slide_anim = QVariantAnimation(self)
         self.slide_anim.setDuration(280)
-        self.slide_anim.setEasingCurve(QEasingCurve.Type.OutBack)
+        self.slide_anim.setEasingCurve(QEasingCurve.Type.OutCubic)  # critically damped: no bounce on a passive banner
         self.slide_anim.valueChanged.connect(self._apply_slide_pos)
 
     def _apply_slide_pos(self, pt):
         self.move(pt)
 
-    def mousePressEvent(self, a0):
-        if a0.button() == Qt.MouseButton.LeftButton:
-            self.sig_clicked.emit()
-            self.hide()
-            a0.accept()
-        else:
-            super().mousePressEvent(a0)
-
     def show_event(self, mic_name: str, status: str = "connected", anchor_rect: QRect = QRect()):
-        is_conn = (status == "connected")
-        is_switch = (status == "switched")
-        if is_switch:
-            self.animated_icon.set_mode("switched")
-            prefix = "Switched to:"
-            self.badge.setText("ACTIVE")
-            self.badge.setStyleSheet("color: #000000; background: #55ff99; border-radius: 8px; padding: 2px 6px;")
-        elif is_conn:
-            self.animated_icon.set_mode("connected")
-            prefix = "Connected:"
-            self.badge.setText("ACTIVE")
-            self.badge.setStyleSheet("color: #000000; background: #55ff99; border-radius: 8px; padding: 2px 6px;")
-        else:
-            self.animated_icon.set_mode("unplugged")
-            prefix = "Unplugged:"
-            self.badge.setText("OFFLINE")
-            self.badge.setStyleSheet("color: #ffffff; background: rgba(255, 80, 80, 0.85); border-radius: 8px; padding: 2px 6px;")
-
-        clean_name = mic_name[:22] + "..." if len(mic_name) > 22 else mic_name
-        self.text_label.setText(f"{prefix} {clean_name}")
+        mode, prefix, badge, rgb = {
+            "switched": ("switched", "Switched to", "ACTIVE", "48,209,88"),
+            "connected": ("connected", "Connected", "ACTIVE", "48,209,88"),
+        }.get(status, ("unplugged", "Unplugged", "OFFLINE", "255,69,58"))
+        self.animated_icon.set_mode(mode)
+        self.badge.setText(badge)
+        self.badge.setStyleSheet(f"color: rgb({rgb}); background: rgba({rgb},0.18); border-radius: 9px; padding: 0 8px;")
+        self.badge.adjustSize()
+        # elide by pixels, not characters, so the text never runs into the badge
+        room = self.w - 20 - self.animated_icon.width() - self.badge.sizeHint().width() - 16
+        fm = self.text_label.fontMetrics()
+        self.text_label.setText(fm.elidedText(f"{prefix}  {mic_name}", Qt.TextElideMode.ElideRight, room))
 
         if not anchor_rect.isNull():
             target_x = anchor_rect.center().x() - self.w // 2
@@ -697,7 +775,6 @@ class MicNotificationPill(QWidget):
         self.fade_anim.stop()
         self.fade_anim.setStartValue(self.windowOpacity())
         self.fade_anim.setEndValue(0.0)
-        self.fade_anim.finished.connect(self._on_hidden)
         self.fade_anim.start()
 
     def _on_hidden(self):
@@ -709,9 +786,10 @@ class MicNotificationPill(QWidget):
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
         rect = QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5)
-        p.setBrush(QBrush(QColor(18, 18, 20, 245)))
-        p.setPen(QPen(QColor(255, 255, 255, 60), 1.0))
-        p.drawRoundedRect(rect, 18.0, 18.0)
+        r = rect.height() / 2.0
+        p.setBrush(QBrush(QColor(28, 28, 30, 245)))
+        p.setPen(QPen(QColor(255, 255, 255, 30), 1.0))
+        p.drawRoundedRect(rect, r, r)
 
     def mousePressEvent(self, a0):
         self.sig_clicked.emit()
@@ -1028,17 +1106,22 @@ class FloatingPill(QWidget):
         self.btn_more.clicked.connect(self.toggle_morph_hud)
         lay.addWidget(self.btn_more, 0, Qt.AlignmentFlag.AlignVCenter)
 
-    def _row(self, title: str, widget: QWidget) -> QWidget:
+    def _row(self, title: str, widget: QWidget, trailing: bool = False) -> QWidget:
+        """iOS settings row; trailing=True pins a compact control (switch) to the right edge."""
         row = QWidget(self)
         row.setFixedHeight(44)
         lay = QHBoxLayout(row)
-        lay.setContentsMargins(14, 0, 12, 0)
+        lay.setContentsMargins(14, 0, 14, 0)
         lay.setSpacing(10)
         lbl = QLabel(title, row)
         lbl.setFont(self._font(10))
-        lbl.setFixedWidth(98)
-        lay.addWidget(lbl)
-        lay.addWidget(widget, 1)
+        if trailing:
+            lay.addWidget(lbl, 1, Qt.AlignmentFlag.AlignVCenter)
+            lay.addWidget(widget, 0, Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignRight)
+        else:
+            lbl.setFixedWidth(98)
+            lay.addWidget(lbl, 0, Qt.AlignmentFlag.AlignVCenter)
+            lay.addWidget(widget, 1, Qt.AlignmentFlag.AlignVCenter)
         return row
 
     def _build_hud(self):
@@ -1061,22 +1144,18 @@ class FloatingPill(QWidget):
         header.addWidget(self.hud_logo, 0, Qt.AlignmentFlag.AlignVCenter)
 
         title = QLabel("OpenFlow", self)
-        title.setFont(self._font(12, QFont.Weight.Medium))
+        title.setFont(self._font(12, QFont.Weight.DemiBold))
         header.addWidget(title, 0, Qt.AlignmentFlag.AlignVCenter)
-
-        badge = QLabel("v1.0", self)
-        badge.setFont(self._font(8, QFont.Weight.Bold))
-        badge.setStyleSheet(f"color: {FG_DIM}; background: {FILL}; border: 1px solid {HAIRLINE}; border-radius: 8px; padding: 2px 6px;")
-        header.addWidget(badge, 0, Qt.AlignmentFlag.AlignVCenter)
 
         header.addStretch()
         self.btn_minimize = QPushButton("Done", self)
         self.btn_minimize.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_minimize.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self.btn_minimize.setFont(self._font(10, QFont.Weight.Medium))
+        self.btn_minimize.setFont(self._font(10, QFont.Weight.DemiBold))
         self.btn_minimize.setStyleSheet(f"""
-            QPushButton {{ background: transparent; color: {FG}; border: none; padding: 4px 8px; border-radius: 6px; }}
-            QPushButton:hover {{ background: rgba(255, 255, 255, 0.10); color: #ffffff; }}
+            QPushButton {{ background: transparent; color: {ACCENT}; border: none; padding: 4px 6px; border-radius: 6px; }}
+            QPushButton:hover {{ background: rgba(10, 132, 255, 0.14); }}
+            QPushButton:pressed {{ background: rgba(10, 132, 255, 0.24); }}
         """)
         self.btn_minimize.clicked.connect(self.collapse_to_capsule)
         header.addWidget(self.btn_minimize, 0, Qt.AlignmentFlag.AlignVCenter)
@@ -1084,7 +1163,7 @@ class FloatingPill(QWidget):
 
         group = QFrame(self)
         group.setObjectName("Group")
-        group.setStyleSheet(f"QFrame#Group {{ background: {FILL}; border-radius: 14px; }}")
+        group.setStyleSheet(f"QFrame#Group {{ background: {FILL}; border-radius: 12px; }}")
         g = QVBoxLayout(group)
         g.setContentsMargins(0, 0, 0, 0)
         g.setSpacing(0)
@@ -1113,33 +1192,12 @@ class FloatingPill(QWidget):
         self.live_level_bar.setFixedHeight(4)
         self.live_level_bar.setStyleSheet(f"""
             QProgressBar {{ background: {HAIRLINE}; border: none; border-radius: 2px; }}
-            QProgressBar::chunk {{ background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #34c759, stop:1 #ffffff); border-radius: 2px; }}
+            QProgressBar::chunk {{ background: {GREEN}; border-radius: 2px; }}
         """)
 
 
-        self.cb_hide_idle_hud = QCheckBox("Hide when idle", self)
-        self.cb_hide_idle_hud.setFont(self._font(10))
-        self.cb_hide_idle_hud.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.cb_hide_idle_hud = Switch("", self)
         self.cb_hide_idle_hud.setChecked(self.hide_when_idle)
-        self.cb_hide_idle_hud.setStyleSheet(f"""
-            QCheckBox {{ color: {FG_DIM}; spacing: 8px; }}
-            QCheckBox:hover {{ color: {FG}; }}
-            QCheckBox::indicator {{
-                width: 16px;
-                height: 16px;
-                border-radius: 4px;
-                border: 1px solid rgba(255, 255, 255, 0.30);
-                background: rgba(255, 255, 255, 0.05);
-            }}
-            QCheckBox::indicator:hover {{
-                border-color: rgba(255, 255, 255, 0.60);
-            }}
-            QCheckBox::indicator:checked {{
-                background: #ffffff;
-                border-color: #ffffff;
-                image: url("{_ASSETS}/check.svg");
-            }}
-        """)
         self.cb_hide_idle_hud.toggled.connect(self._on_hud_hide_idle_toggled)
 
         rows = [
@@ -1147,8 +1205,8 @@ class FloatingPill(QWidget):
             self.lang_combo,
             self.tone_combo,
             self.model_combo,
-            self._row("Desktop", self.cb_hide_idle_hud),
-            self._row("Input", self.live_level_bar),
+            self._row("Hide when idle", self.cb_hide_idle_hud, trailing=True),
+            self._row("Input level", self.live_level_bar),
         ]
         for i, r in enumerate(rows):
             g.addWidget(r)
@@ -1187,7 +1245,7 @@ class FloatingPill(QWidget):
         self.hud_download_bar.setFixedHeight(5)
         self.hud_download_bar.setStyleSheet(f"""
             QProgressBar {{ background: {HAIRLINE}; border: none; border-radius: 2px; }}
-            QProgressBar::chunk {{ background: #55ff99; border-radius: 2px; }}
+            QProgressBar::chunk {{ background: {ACCENT}; border-radius: 2px; }}
         """)
         self.hud_download_text = QLabel("Preparing...", dl_bar_container)
         self.hud_download_text.setFont(self._font(8))
@@ -1207,11 +1265,13 @@ class FloatingPill(QWidget):
         self.btn_update = QPushButton("Update Available · Install", self)
         self.btn_update.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_update.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self.btn_update.setFixedHeight(34)
-        self.btn_update.setFont(self._font(10, QFont.Weight.Medium))
-        self.btn_update.setStyleSheet("""
-            QPushButton { background: rgba(255, 255, 255, 0.16); color: #ffffff; border: 1px solid rgba(255,255,255,0.30); border-radius: 17px; }
-            QPushButton:hover { background: rgba(255, 255, 255, 0.26); }
+        self.btn_update.setFixedHeight(36)
+        self.btn_update.setFont(self._font(10, QFont.Weight.DemiBold))
+        self.btn_update.setStyleSheet(f"""
+            QPushButton {{ background: {ACCENT}; color: #ffffff; border: none; border-radius: 10px; }}
+            QPushButton:hover {{ background: #3395FF; }}
+            QPushButton:pressed {{ background: #0063CC; }}
+            QPushButton:disabled {{ background: rgba(10,132,255,0.45); color: rgba(255,255,255,0.7); }}
         """)
         self.btn_update.hide()
         self.btn_update.clicked.connect(self._on_update_clicked)
@@ -1220,12 +1280,12 @@ class FloatingPill(QWidget):
         self.btn_transfer = QPushButton("Open Dashboard", self)
         self.btn_transfer.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_transfer.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self.btn_transfer.setFixedHeight(38)
-        self.btn_transfer.setFont(self._font(10, QFont.Weight.Medium))
+        self.btn_transfer.setFixedHeight(36)
+        self.btn_transfer.setFont(self._font(10, QFont.Weight.DemiBold))
         self.btn_transfer.setStyleSheet("""
-            QPushButton { background: #ffffff; color: #000000; border: none; border-radius: 19px; }
-            QPushButton:hover { background: rgba(255,255,255,0.86); }
-            QPushButton:pressed { background: rgba(255,255,255,0.70); }
+            QPushButton { background: rgba(255,255,255,0.12); color: #ffffff; border: none; border-radius: 10px; }
+            QPushButton:hover { background: rgba(255,255,255,0.18); }
+            QPushButton:pressed { background: rgba(255,255,255,0.26); }
         """)
         self.btn_transfer.clicked.connect(self._on_transfer_clicked)
         lay.addWidget(self.btn_transfer)
@@ -1440,16 +1500,20 @@ class FloatingPill(QWidget):
         self.model_combo.blockSignals(True)
         self.model_combo.clear()
         models = [
-            ("base", "Base (Balanced · 141 MB)"),
-            ("tiny", "Tiny (Fast · 75 MB)"),
-            ("small", "Small (Accurate · 464 MB)"),
-            ("medium", "Medium (Studio · 1.46 GB)"),
+            ("base", "Base · Balanced", "141 MB"),
+            ("tiny", "Tiny · Fastest", "75 MB"),
+            ("small", "Small · Accurate", "464 MB"),
+            ("medium", "Medium · Best", "1.46 GB"),
         ]
         clean_active = self.current_model.replace(".en", "").lower()
         selected_idx = 0
-        for idx, (m_id, label) in enumerate(models):
-            self.model_combo.addItem(label, m_id)
-            if m_id == clean_active or clean_active.startswith(m_id):
+        for idx, (m_id, label, size) in enumerate(models):
+            active = m_id == clean_active or clean_active.startswith(m_id)
+            downloaded = model_manager.is_ready(m_id)
+            # picking a model never downloads it; downloads happen in the dashboard's Model Library
+            self.model_combo.addItem(label if downloaded or active else f"{label}   \u2193 {size}", m_id)
+            self.model_combo.setItemEnabled(idx, downloaded or active)
+            if active:
                 selected_idx = idx
         self.model_combo.setCurrentIndex(selected_idx)
         self.model_combo.blockSignals(False)

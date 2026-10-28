@@ -4,6 +4,8 @@ import time
 import threading
 import gc
 import numpy as np
+from pathlib import Path
+from types import SimpleNamespace
 from typing import Tuple, Optional
 
 
@@ -48,6 +50,33 @@ faster_whisper = _LazyFW()
 from . import model_manager
 
 
+class _OpenVINOWhisper:
+    """Whisper on the Intel NPU via openvino_genai, shaped like faster_whisper.WhisperModel
+    (transcribe() -> (segments, info)) so the rest of Transcriber stays the same."""
+
+    def __init__(self, model_path: str, device: str = "NPU"):
+        import openvino_genai
+        cache = Path.home() / ".openflow" / "cache" / "openvino"  # NPU compiles once; later loads are fast
+        cache.mkdir(parents=True, exist_ok=True)
+        self._pipe = openvino_genai.WhisperPipeline(model_path, device, CACHE_DIR=str(cache))
+
+    def transcribe(self, audio: np.ndarray, language=None, task="transcribe", initial_prompt=None,
+                   vad_filter=False, **_ignored):
+        if vad_filter:  # same Silero VAD faster-whisper uses; without it silence comes out as "you"
+            from faster_whisper.vad import get_speech_timestamps, VadOptions
+            spans = get_speech_timestamps(audio, VadOptions(min_silence_duration_ms=300))
+            if not spans:
+                return [], SimpleNamespace(language=language or "")
+            audio = np.concatenate([audio[c["start"]:c["end"]] for c in spans])
+        kw = {"task": task}
+        if language:
+            kw["language"] = f"<|{language}|>"
+        if initial_prompt:
+            kw["initial_prompt"] = initial_prompt
+        res = self._pipe.generate(audio.astype(np.float32, copy=False), **kw)
+        return [SimpleNamespace(text=t) for t in res.texts], SimpleNamespace(language=language or "")
+
+
 # Languages NVIDIA Parakeet V3 knows; anything else (Hindi, auto-detect, translate...) goes to Whisper.
 PARAKEET_LANGS = {
     "en", "en-in", "bg", "hr", "cs", "da", "nl", "et", "fi", "fr", "de", "el", "hu", "it",
@@ -67,6 +96,14 @@ def resolve_model_name(base_model: str, language: str) -> str:
     # For en-in, auto, hi, etc., use the multilingual model directly (base, small, medium)
     return clean
 
+
+
+def engine_model_name(base_model: str, language: str, device: str) -> str:
+    """Model files to load: the NPU runs OpenVINO builds of the multilingual weights ("base-ov")."""
+    name = resolve_model_name(base_model, language)
+    if device == "npu" and name != "parakeet":  # Parakeet stays on its CPU engine
+        name = name.replace(".en", "") + "-ov"
+    return name
 
 
 _THREADS = min(8, max(2, (os.cpu_count() or 4) // 2))  # half the cores: fast without starving the PC
@@ -93,6 +130,7 @@ class Transcriber:
         self.language = language
         self.model: Optional["faster_whisper.WhisperModel"] = None
         self._current_loaded_name = ""
+        self._substitute = {}           # wanted model -> downloaded model used instead (no auto-download)
         self._lock = threading.RLock()  # model swaps must not race transcription
         self.on_status = None           # optional callback(str) for "downloading/ready" messages
         self._loaded_device = ""
@@ -104,11 +142,31 @@ class Transcriber:
         with self._lock:
             self._load_model_locked()
 
+    def _target(self, language: str) -> str:
+        return engine_model_name(self.model_size, language, self.device)
+
     def _load_model_locked(self):
-        target_name = resolve_model_name(self.model_size, self.language)
+        target_name = self._target(self.language)
+        target_name = self._substitute.get(target_name, target_name)
         if target_name == self._current_loaded_name and self.model is not None and self._loaded_device == self.device:
             return
         model_path = model_manager.cached_path(target_name)
+        if model_path is None and not target_name.endswith("-ov"):  # NPU was picked explicitly: fetch its build
+            # Only download what the user chose: use the other variant (base <-> base.en) or any
+            # model already on disk; download only when nothing is cached at all (first run).
+            names = model_manager.variants(target_name) + [
+                v for m in model_manager.list_downloaded_models() for v in model_manager.variants(m)]
+            fallback = next((n for n in names if model_manager.cached_path(n)), None)
+            if fallback:
+                wrong_lang = fallback.endswith(".en") and not target_name.endswith(".en")
+                if (wrong_lang or fallback.replace(".en", "") != target_name.replace(".en", "")) and self.on_status:
+                    self.on_status(f"{target_name} not downloaded · using {fallback}. Get it in Model Library")
+                print(f"[OpenFlow] {target_name} not cached; using downloaded {fallback}")
+                self._substitute[target_name] = fallback
+                if fallback == self._current_loaded_name and self.model is not None and self._loaded_device == self.device:
+                    return
+                target_name = fallback
+                model_path = model_manager.cached_path(fallback)
         if model_path is None:  # first use: download with progress
             if self.on_status:
                 self.on_status(f"Downloading {target_name} model")
@@ -134,6 +192,25 @@ class Transcriber:
             self._load_parakeet(model_path)
             return
 
+        if target_name.endswith("-ov"):
+            print(f"[OpenFlow] Loading {target_name} on the NPU (first run compiles, can take a minute)...")
+            try:
+                self.model = _OpenVINOWhisper(model_path, "NPU")
+            except Exception as e:
+                print(f"[OpenFlow] NPU load failed ({e}), falling back to CPU int8...")
+                if self.on_status:
+                    self.on_status("NPU unavailable · using CPU")
+                self.device, self.compute_type = "cpu", "int8"
+                model_manager.active_device = "cpu"
+                self._load_model_locked()
+                return
+            self._current_loaded_name = target_name
+            self._loaded_device = model_manager.active_device = "npu"
+            print(f"[OpenFlow] Model {target_name} loaded and ready on the NPU.")
+            if self.on_status:
+                self.on_status(f"Model {target_name.removesuffix('-ov')} ready (NPU)")
+            return
+
         print(f"[OpenFlow] Loading WhisperModel({target_name}, device={self.device}, compute_type={self.compute_type})...")
         try:
             self.model = faster_whisper.WhisperModel(
@@ -143,7 +220,7 @@ class Transcriber:
                 cpu_threads=_THREADS,
             )
             self._current_loaded_name = target_name
-            self._loaded_device = self.device
+            self._loaded_device = model_manager.active_device = self.device
             print(f"[OpenFlow] Model {target_name} loaded and ready on {self.device}.")
             if self.on_status:
                 self.on_status(f"Model {target_name} ready ({self.device})")
@@ -162,7 +239,7 @@ class Transcriber:
                 model_path = model_manager.download(target_name, cb, force=True)
                 self.model = faster_whisper.WhisperModel(model_path, device="cpu", compute_type="int8", cpu_threads=_THREADS)
             self._current_loaded_name = target_name
-            self._loaded_device = "cpu"
+            self._loaded_device = model_manager.active_device = "cpu"
             print(f"[OpenFlow] CPU Model {target_name} loaded and ready.")
             if self.on_status:
                 self.on_status(f"Model {target_name} ready (CPU)")
@@ -202,6 +279,7 @@ class Transcriber:
 
     def reload(self, model_size: str, device: str = "cuda", compute_type: str = "float16", language: Optional[str] = None):
         self.model_size = model_size
+        self._substitute.clear()  # a model may have been downloaded since
         self.device = device
         self.compute_type = compute_type
         if language:
@@ -269,8 +347,8 @@ class Transcriber:
         whisper_args = _whisper_args(lang)
 
         # Make sure appropriate model is loaded if language changed
-        target_name = resolve_model_name(self.model_size, lang)
-        if target_name != self._current_loaded_name:
+        target_name = self._target(lang)
+        if self._substitute.get(target_name, target_name) != self._current_loaded_name:
             self.language = lang
             self._load_model()
 
@@ -316,10 +394,10 @@ class Transcriber:
                 print(f"[OpenFlow] VAD filter error ({ve}), retrying without VAD filter...")
                 full_text, info = _run(vad=False)
             except RuntimeError as re_err:
-                if self.device != "cuda":
+                if self.device not in ("cuda", "npu"):
                     raise
-                # GPU went away mid-session (switched off, driver reset): finish this one on the CPU.
-                print(f"[OpenFlow] GPU transcription failed ({re_err}), switching to CPU...")
+                # GPU/NPU went away mid-session (switched off, driver reset): finish this one on the CPU.
+                print(f"[OpenFlow] {self.device.upper()} transcription failed ({re_err}), switching to CPU...")
                 self.device, self.compute_type = "cpu", "int8"
                 self._load_model_locked()
                 full_text, info = _run(vad=True)
@@ -354,6 +432,6 @@ class Transcriber:
                 full_text = clean_arabic_script(full_text)
 
         latency_ms = int((time.perf_counter() - start_time) * 1000)
-        detected_lang = "en" if lang == "translate" else (info.language if info else lang)
+        detected_lang = "en" if lang == "translate" else (getattr(info, "language", "") or lang)
 
         return full_text, duration_seconds, latency_ms, detected_lang

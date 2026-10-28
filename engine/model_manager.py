@@ -40,16 +40,25 @@ _MODELS.update({
     "parakeet": "csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8",
 })
 
+# OpenVINO IR builds for the Intel NPU engine ("base-ov" -> OpenVINO/whisper-base-int8-ov)
+_MODELS.update({f"{size}-ov": f"OpenVINO/whisper-{size}-int8-ov" for size in ("tiny", "base", "small", "medium")})
+_MODELS["distil-large-v3-ov"] = "OpenVINO/distil-whisper-large-v3-int8-ov"
+
 _PATTERNS = ["config.json", "preprocessor_config.json", "model.bin", "tokenizer.json", "vocabulary.*"]
+_OV_PATTERNS = ["*.xml", "*.bin", "*.json"]
 _PARAKEET_PATTERNS = ["encoder.int8.onnx", "decoder.int8.onnx", "joiner.int8.onnx", "tokens.txt"]
 
 
 def _patterns(name: str) -> List[str]:
+    if name.endswith("-ov"):
+        return _OV_PATTERNS
     return _PARAKEET_PATTERNS if name == "parakeet" else _PATTERNS
 
 
 def _weights_file(name: str) -> str:
     """The big file whose presence and size proves a download finished."""
+    if name.endswith("-ov"):
+        return "openvino_encoder_model.bin"
     return "encoder.int8.onnx" if name == "parakeet" else "model.bin"
 
 # Accurate offline known sizes for fallback progress calculation (in bytes)
@@ -208,12 +217,38 @@ def cached_path(name: str) -> Optional[str]:
     return None
 
 
+def variants(name: str) -> List[str]:
+    """A library id and its English-only twin ('base' -> ['base', 'base.en']); both count as that model."""
+    clean = name.replace(".en", "")
+    twin = f"{clean}.en"
+    return [clean, twin] if twin in _MODELS else [clean]
+
+
+def any_cached_path(name: str) -> Optional[str]:
+    """Like cached_path, but accepts the other variant of the same size (base <-> base.en)."""
+    for v in sorted(variants(name), key=lambda v: v != name):
+        p = cached_path(v)
+        if p:
+            return p
+    return None
+
+
 def is_model_downloaded(name: str) -> bool:
-    """True if model weights exist on disk and are non-empty."""
+    """True if model weights (either variant) exist on disk and are non-empty."""
     try:
-        return cached_path(name) is not None
+        return any_cached_path(name) is not None
     except Exception:
         return False
+
+
+active_device = "cpu"  # set by Transcriber on load; the NPU engine uses its own "-ov" model builds
+
+
+def is_ready(name: str) -> bool:
+    """Downloaded for the engine that is running now (Model Library and capsule badges)."""
+    if active_device == "npu" and name != "parakeet":
+        return cached_path(name.replace(".en", "") + "-ov") is not None
+    return is_model_downloaded(name)
 
 
 def list_downloaded_models() -> List[str]:
@@ -228,8 +263,11 @@ def list_downloaded_models() -> List[str]:
 
 
 def get_model_disk_size(name: str) -> int:
-    """Calculate total bytes occupied on disk by this model repository."""
-    model_dir = get_model_cache_dir(name)
+    """Calculate total bytes occupied on disk by this model (both variants)."""
+    return sum(_dir_size(get_model_cache_dir(v)) for v in variants(name))
+
+
+def _dir_size(model_dir: Path) -> int:
     if not model_dir.exists():
         return 0
     total = 0
@@ -284,16 +322,19 @@ def _remove_readonly(func, path, excinfo):
 
 
 def delete_model(name: str) -> bool:
-    """Safely delete model cache from disk. Returns True if deleted or did not exist."""
-    try:
-        model_dir = get_model_cache_dir(name)
-        if not model_dir.exists():
-            return True
-        shutil.rmtree(str(model_dir), onerror=_remove_readonly)
-        return not model_dir.exists()
-    except Exception as e:
-        print(f"[OpenFlow] Failed to delete model {name}: {e}")
-        return False
+    """Safely delete model cache (both variants) from disk. Returns True if deleted or did not exist."""
+    ok = True
+    ov = f"{name.replace('.en', '')}-ov"
+    for v in variants(name) + ([ov] if ov in _MODELS else []):  # the NPU build goes with it
+        try:
+            model_dir = get_model_cache_dir(v)
+            if model_dir.exists():
+                shutil.rmtree(str(model_dir), onerror=_remove_readonly)
+                ok = ok and not model_dir.exists()
+        except Exception as e:
+            print(f"[OpenFlow] Failed to delete model {v}: {e}")
+            ok = False
+    return ok
 
 
 def list_available_models(active_model: str = "base") -> List[Dict[str, Any]]:
@@ -302,7 +343,7 @@ def list_available_models(active_model: str = "base") -> List[Dict[str, Any]]:
     res = []
     for meta in MODEL_METADATA:
         m_id = str(meta["id"])
-        is_dl = is_model_downloaded(m_id)
+        is_dl = is_ready(m_id)
         disk_bytes = get_model_disk_size(m_id) if is_dl else 0
         expected_bytes = _KNOWN_SIZES.get(m_id, 0)
 

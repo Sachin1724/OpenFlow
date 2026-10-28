@@ -73,10 +73,32 @@ def gpu_changed() -> bool:
     return True
 
 
+@lru_cache(maxsize=1)
+def npu_name() -> str:
+    """Intel NPU (Core Ultra "AI Boost") usable through OpenVINO, else ''.
+    AMD Ryzen AI and Qualcomm Hexagon need runtimes this x64 build doesn't ship, so they read as ''."""
+    try:
+        import openvino as ov
+        core = ov.Core()
+        if "NPU" in core.available_devices:
+            return str(core.get_property("NPU", "FULL_DEVICE_NAME"))
+    except Exception:
+        pass
+    return ""
+
+
+def _npu_model_cached(size: str) -> bool:
+    from . import model_manager
+    return model_manager.cached_path(size.replace(".en", "") + "-ov") is not None
+
+
 def resolve(cfg: dict) -> dict:
     """Turns 'auto' settings into concrete ones. Explicit user choices are left alone."""
     hw = detect()
     device = cfg.get("device", "auto")
+    if device == "npu" and not npu_name():
+        print("[OpenFlow] NPU selected but no usable Intel NPU found; using automatic device.")
+        device = "auto"
     if device == "auto":
         device, compute = hw["device"], hw["compute_type"]
     else:
@@ -101,4 +123,7 @@ def resolve(cfg: dict) -> dict:
                 size = downloaded[0]
         else:
             size = hw["model_size"]
+    # auto on a PC without NVIDIA: use the NPU, but only when its model build is already downloaded
+    if cfg.get("device", "auto") == "auto" and device == "cpu" and size != "parakeet"             and _npu_model_cached(size) and npu_name():
+        device = "npu"
     return {"device": device, "compute_type": compute, "model_size": size, "hw": hw}
