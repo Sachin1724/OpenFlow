@@ -33,7 +33,7 @@ try:
     from openflow.ui.main_window import MainWindow
     from openflow.ui.setup_dialog import SetupDialog
     from openflow.autostart import set_autostart
-    from openflow.engine import hardware, model_manager, translator
+    from openflow.engine import hardware, model_manager, translator, local_llm
     from openflow import __version__
 except Exception:
     try:
@@ -55,7 +55,7 @@ except Exception:
         from .ui.main_window import MainWindow
         from .ui.setup_dialog import SetupDialog
         from .autostart import set_autostart
-        from .engine import hardware, model_manager, translator
+        from .engine import hardware, model_manager, translator, local_llm
         from . import __version__
     except Exception:
         from config import load_config, save_config, get_asset_path
@@ -76,7 +76,7 @@ except Exception:
         from ui.main_window import MainWindow
         from ui.setup_dialog import SetupDialog
         from autostart import set_autostart
-        from engine import hardware, model_manager, translator
+        from engine import hardware, model_manager, translator, local_llm
         try:
             from __init__ import __version__
         except Exception:
@@ -453,6 +453,55 @@ class OpenFlowApp(QObject):
             print(f"[OpenFlow] Translation model download failed: {e}")
             self.bridge.sig_error.emit("Translation download failed")
 
+    def _download_writer(self):
+        if getattr(self, "_writer_downloading", False):
+            return
+        self._writer_downloading = True
+        try:
+            self.bridge.sig_status.emit("Downloading writing model...")
+            model_manager.download("writer", on_progress=lambda pct: self.bridge.sig_download.emit(pct, "writer"))
+            self.bridge.sig_status.emit("Voice edits ready")
+        except Exception as e:
+            print(f"[OpenFlow] Writing model download failed: {e}")
+            self.bridge.sig_error.emit("Writing model download failed")
+        finally:
+            self._writer_downloading = False
+
+    def _writer(self):
+        """Qwen2.5-1.5B on ctranslate2 when downloaded, else None; loaded on first use."""
+        if getattr(self, "_writer_llm", None) is None:
+            path = model_manager.cached_path("writer")
+            if path is None:
+                return None
+            self._writer_llm = local_llm.LocalLLM(path, threads=min(8, os.cpu_count() or 4))
+        return self._writer_llm
+
+    def _voice_edit(self, raw_text: str) -> bool:
+        """'Make this formal' spoken over selected text: rewrite the selection in place. False = normal dictation."""
+        command = local_llm.edit_command(raw_text) if self.config.get("voice_edits") else None
+        if not command:
+            return False
+        hwnd = self.target_window_info.get("hwnd", 0) or 0
+        selected = self.injector.copy_selection(hwnd)
+        if not selected.strip():  # nothing selected: "make it happen by Monday" is just dictation
+            return False
+        llm = self._writer()
+        if llm is None:
+            self.bridge.sig_error.emit("Writing model still downloading")
+            return True
+        start = time.perf_counter()
+        print(f"[OpenFlow] Voice edit: {command!r} on {len(selected.split())} words")
+        edited = llm.rewrite(selected, command)
+        if not edited:
+            self.bridge.sig_error.emit("Couldn't rewrite that")
+            return True
+        self.injector.inject_text(edited, target_hwnd=hwnd, method="clipboard",
+                                  restore_clipboard=self.config.get("restore_clipboard", True))
+        if self.config.get("sound_feedback", True):
+            play_paste_sound()
+        self.bridge.sig_transcription_complete.emit(edited, len(edited.split()), int((time.perf_counter() - start) * 1000))
+        return True
+
     def _translate_odia(self, text: str) -> str:
         """Odia text -> English with IndicTrans2; loads the model on first use."""
         if getattr(self, "_translator", None) is None:
@@ -549,6 +598,9 @@ class OpenFlowApp(QObject):
         self.audio_recorder.set_auto_silence_duration(float(new_cfg.get("silence_duration", 1.1)))
         self._reload_transcriber_async()
         self.formatter.set_dictionary(self.db.get_dictionary())
+        if new_cfg.get("voice_edits") and not model_manager.cached_path("writer"):
+            # turning Voice edits on is the user asking for the writing model: fetch it once
+            threading.Thread(target=self._download_writer, daemon=True).start()
         if hasattr(self, "floating_pill"):
             self.floating_pill.set_hide_when_idle(new_cfg.get("hide_capsule_when_idle", False))
             if "capsule_style" in new_cfg:
@@ -634,7 +686,7 @@ class OpenFlowApp(QObject):
                 return
             raw = transcript_text(lines)
             title = f"{app} · {datetime.datetime.now():%d %b %H:%M}"
-            self.db.add_meeting_note(title, app, raw, format_meeting_notes(raw, app), time.time() - session.started)
+            self.db.add_meeting_note(title, app, raw, format_meeting_notes(raw, app, llm=self._writer()), time.time() - session.started)
             self.bridge.sig_meeting_saved.emit(title)
 
         threading.Thread(target=work, daemon=True).start()
@@ -847,6 +899,9 @@ class OpenFlowApp(QObject):
 
             if not raw_text.strip():
                 self.bridge.sig_error.emit("Didn't catch that")
+                return
+
+            if self._voice_edit(raw_text):
                 return
 
             if self.config.get("language") == "or-en":

@@ -12,6 +12,7 @@ VK_CONTROL = 0x11
 VK_SHIFT = 0x10
 VK_MENU = 0x12  # Alt
 VK_V = 0x56
+VK_C = 0x43
 KEYEVENTF_KEYUP = 0x0002
 KEYEVENTF_UNICODE = 0x0004
 SW_RESTORE = 9
@@ -174,35 +175,7 @@ class WindowInjector:
             return False
 
         time.sleep(0.03)
-
-        # Send pure Ctrl + V
-        inputs = (INPUT * 4)()
-
-        # Set hardware scancodes for Ctrl+V
-        inputs[0].type = INPUT_KEYBOARD
-        inputs[0].u.ki.wVk = VK_CONTROL
-        inputs[0].u.ki.wScan = user32.MapVirtualKeyW(VK_CONTROL, 0)
-        inputs[0].u.ki.dwFlags = 0
-
-        # V Down
-        inputs[1].type = INPUT_KEYBOARD
-        inputs[1].u.ki.wVk = VK_V
-        inputs[1].u.ki.wScan = user32.MapVirtualKeyW(VK_V, 0)
-        inputs[1].u.ki.dwFlags = 0
-
-        # V Up
-        inputs[2].type = INPUT_KEYBOARD
-        inputs[2].u.ki.wVk = VK_V
-        inputs[2].u.ki.wScan = user32.MapVirtualKeyW(VK_V, 0)
-        inputs[2].u.ki.dwFlags = KEYEVENTF_KEYUP
-
-        # Ctrl Up
-        inputs[3].type = INPUT_KEYBOARD
-        inputs[3].u.ki.wVk = VK_CONTROL
-        inputs[3].u.ki.wScan = user32.MapVirtualKeyW(VK_CONTROL, 0)
-        inputs[3].u.ki.dwFlags = KEYEVENTF_KEYUP
-
-        user32.SendInput(4, ctypes.byref(inputs), ctypes.sizeof(INPUT))
+        self._ctrl(VK_V)
 
         # Allow application to process before restoring clipboard (450ms for slow apps/browsers)
         if restore_clipboard and old_clipboard is not None:
@@ -213,6 +186,43 @@ class WindowInjector:
                 pass
 
         return True
+
+    @staticmethod
+    def _ctrl(vk: int):
+        """Ctrl+<key> as one SendInput call with hardware scancodes."""
+        inputs = (INPUT * 4)()
+        for i, (key, up) in enumerate([(VK_CONTROL, 0), (vk, 0), (vk, KEYEVENTF_KEYUP), (VK_CONTROL, KEYEVENTF_KEYUP)]):
+            inputs[i].type = INPUT_KEYBOARD
+            inputs[i].u.ki.wVk = key
+            inputs[i].u.ki.wScan = user32.MapVirtualKeyW(key, 0)
+            inputs[i].u.ki.dwFlags = up
+        user32.SendInput(4, ctypes.byref(inputs), ctypes.sizeof(INPUT))
+
+    def copy_selection(self, target_hwnd: int = 0) -> str:
+        """Text selected in the target window ('' when nothing is selected); the clipboard is put back."""
+        if target_hwnd:
+            self.force_focus(target_hwnd)
+        self._release_all_modifiers()
+        try:
+            old = pyperclip.paste()
+            pyperclip.copy("")  # empty marker: still empty after Ctrl+C means no selection
+        except Exception:
+            return ""
+        self._ctrl(VK_C)
+        selected = ""
+        for _ in range(10):  # apps answer Ctrl+C within ~50-300 ms
+            time.sleep(0.04)
+            try:
+                selected = pyperclip.paste()
+            except Exception:
+                continue
+            if selected:
+                break
+        try:
+            pyperclip.copy(old)
+        except Exception:
+            pass
+        return selected
 
     def _send_chunk(self, chunk: str):
         """One SendInput call for a whole word, so the app receives it atomically."""

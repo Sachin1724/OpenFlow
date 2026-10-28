@@ -461,7 +461,7 @@ def _ollama(prompt: str) -> Optional[str]:
         return None
 
 
-def format_meeting_notes(transcript: str, app_name: str = "Meeting") -> str:
+def format_meeting_notes(transcript: str, app_name: str = "Meeting", llm=None) -> str:
     """Markdown notes: summary, decisions, action items, then the full transcript with clean separation."""
     prompt = (
         "You are writing meeting notes from a transcript. The transcript may mix languages; write the notes "
@@ -469,7 +469,13 @@ def format_meeting_notes(transcript: str, app_name: str = "Meeting") -> str:
         "## Meeting Summary\n(3-5 sentences)\n## Key Decisions\n(bullets, or 'None recorded')\n"
         "## Action Items\n(- [ ] task — owner if named)\n\nTranscript:\n" + transcript
     )
-    notes = _ollama(prompt)
+    notes = None
+    if llm is not None:  # built-in writing model (engine/local_llm.py)
+        try:
+            notes = llm.chat("You write concise, accurate meeting notes.", prompt, max_tokens=700)
+        except Exception as e:
+            print(f"[OpenFlow] Local notes model failed ({e})")
+    notes = notes or _ollama(prompt)
     if not notes or "## Action Items" not in notes:
         # Keyword rules when no local LLM; clean offline and instant
         body = re.sub(r"^### [^\n]+\n+", "", transcript, flags=re.M)

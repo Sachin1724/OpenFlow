@@ -23,6 +23,7 @@ DEFAULT_CONFIG = {
     "language": "en",
     "setup_done": False,                 # first-run model download completed
     "autostart": False,                  # launch at Windows sign-in
+    "voice_edits": False,                # select text + say "make this formal": local Qwen2.5-1.5B rewrites it
     "font_family": "Poppins",
 }
 

@@ -940,7 +940,7 @@ class MainWindow(QMainWindow):
         )
 
         self.capsule_style_combo = QComboBox(card2)
-        self.capsule_style_combo.addItem("Option A: Compact / Wispr Flow (136 px) — Minimal & Floating Caption Bubble", "compact")
+        self.capsule_style_combo.addItem("Option A: Compact / Wispr Flow (148 px) — Minimal & Floating Speech Bubble", "compact")
         self.capsule_style_combo.addItem("Standard Capsule (360 px) — Full Controls & Action Hints", "standard")
         self.capsule_style_combo.addItem("Option C: Micro Capsule (88 px) — Ultra-Minimal Waveform Only", "micro")
 
@@ -1000,6 +1000,10 @@ class MainWindow(QMainWindow):
         self.cb_sound = Switch("Play audio feedback tones on start and finish", card3)
         self.cb_sound.setChecked(self.config.get("sound_feedback", True))
         c3_layout.addWidget(self.cb_sound)
+
+        self.cb_voice_edits = Switch("Voice edits: select text and say \"make this formal\" (downloads a 1.5 GB writing model once)", card3)
+        self.cb_voice_edits.setChecked(self.config.get("voice_edits", False))
+        c3_layout.addWidget(self.cb_voice_edits)
 
         layout.addWidget(card3)
 
@@ -1178,6 +1182,7 @@ class MainWindow(QMainWindow):
         if hasattr(self, "cb_follow_mouse"):
             self.config["follow_mouse_screen"] = self.cb_follow_mouse.isChecked()
         self.config["sound_feedback"] = self.cb_sound.isChecked()
+        self.config["voice_edits"] = self.cb_voice_edits.isChecked()
         self.config["restore_clipboard"] = self.cb_restore_clip.isChecked()
         self.config["autostart"] = self.cb_autostart.isChecked()
 

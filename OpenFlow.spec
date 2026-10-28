@@ -52,6 +52,7 @@ hiddenimports = [
     'openflow.engine.refiner',
     'openflow.engine.indic_asr',
     'openflow.engine.translator',
+    'openflow.engine.local_llm',
     'sentencepiece',
     'openflow.ui',
     'openflow.ui.floating_pill',
