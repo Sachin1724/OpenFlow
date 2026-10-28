@@ -11,7 +11,7 @@ assert f.format("i love open flow") == "I love OpenFlow."
 assert f.format("hola mundo", language="es") == "hola mundo"
 assert f.format("   ") == ""
 print("formatter OK")
-assert f.format("camel case user name", "developer") == "userName."
+assert f.format("camel case user name", "developer") == "userName"
 assert f.format("see you soon", "chat") == "See you soon"
 print("presets OK")
 

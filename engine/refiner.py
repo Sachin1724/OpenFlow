@@ -224,10 +224,12 @@ def clean_fillers(text: str, is_hinglish: bool = False) -> str:
             cleaned = re.sub(pattern, "", cleaned, flags=re.IGNORECASE)
 
     # Clean residual punctuation artifacts like ", ," or leading commas
-    cleaned = re.sub(r"\s*,\s*,+", ", ", cleaned)
+    cleaned = re.sub(r"[ \t]*,[ \t]*,+", ", ", cleaned)
     cleaned = re.sub(r"^\s*,\s*", "", cleaned)
-    cleaned = re.sub(r"\s+", " ", cleaned).strip()
-    return cleaned
+    cleaned = re.sub(r"[ \t]+", " ", cleaned)
+    cleaned = re.sub(r" ?\n ?", "\n", cleaned)
+    cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
+    return cleaned.strip()
 
 
 def format_tech_terms(text: str) -> str:

@@ -20,9 +20,28 @@ SR = 16000
 
 # Exe-name fragment -> meeting app. Matched against processes that hold a mic open right now,
 # so Teams sitting in the tray all day doesn't count; only a live call does.
-_APPS = [("zoom", "Zoom"), ("teams", "Microsoft Teams"), ("webex", "Webex"),
-         ("ciscocollabhost", "Webex"), ("slack", "Slack Huddle"), ("discord", "Discord")]
-_BROWSERS = ("chrome.exe", "msedge.exe", "firefox.exe", "brave.exe", "opera.exe", "arc.exe")
+_APPS = [
+    ("zoom", "Zoom"),
+    ("teams", "Microsoft Teams"),
+    ("webex", "Webex"),
+    ("ciscocollabhost", "Webex"),
+    ("slack", "Slack Huddle"),
+    ("discord", "Discord"),
+    ("whatsapp", "WhatsApp"),
+    ("skype", "Skype"),
+    ("telegram", "Telegram"),
+    ("gotomeeting", "GoToMeeting"),
+    ("bluejeans", "BlueJeans"),
+    ("ringcentral", "RingCentral"),
+    ("chime", "Amazon Chime"),
+    ("lark", "Lark"),
+    ("feishu", "Feishu"),
+    ("dingtalk", "DingTalk"),
+]
+_BROWSERS = (
+    "chrome.exe", "msedge.exe", "firefox.exe", "brave.exe", "opera.exe", "arc.exe",
+    "vivaldi.exe", "zen.exe", "waterfox.exe", "sidekick.exe"
+)
 # Browser window title -> meeting app (only the active tab's title is visible).
 _WEB = [(re.compile(r"^Meet\b|meet\.google\.com", re.I), "Google Meet"),
         (re.compile(r"\bZoom\b", re.I), "Zoom"),
@@ -86,7 +105,8 @@ def _window_titles(names: set) -> List[str]:
             pid = wintypes.DWORD()
             user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
             try:
-                if psutil.Process(pid.value).name().lower() in names:
+                proc = psutil.Process(pid.value).name().lower()
+                if proc in names or any(n in proc or proc in n for n in names):
                     buf = ctypes.create_unicode_buffer(512)
                     user32.GetWindowTextW(hwnd, buf, 512)
                     if buf.value:
@@ -103,8 +123,15 @@ def active_meeting_app() -> Optional[str]:
     """Name of the meeting app currently active or using a microphone, else None."""
     try:
         # 1. Primary check: processes holding an active audio capture session in Windows
-        me_exe = "python.exe"
-        mic_procs = {p for p in _mic_process_names() if p != me_exe and "openflow" not in p}
+        import sys
+        me_names = {
+            "python.exe", "pythonw.exe", "py.exe", "openflow.exe",
+            os.path.basename(sys.executable).lower(),
+        }
+        mic_procs = {
+            p for p in _mic_process_names()
+            if p not in me_names and "openflow" not in p and "antigravity" not in p
+        }
         browsers = {p for p in mic_procs if p in _BROWSERS}
         titles = _window_titles(browsers) if browsers else []
         for p in mic_procs:
@@ -127,7 +154,7 @@ def active_meeting_app() -> Optional[str]:
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 pass
 
-        for frag, name in [("zoom", "Zoom"), ("teams", "Microsoft Teams"), ("webex", "Webex")]:
+        for frag, name in _APPS:
             matching = [p for p in running_names if frag in p]
             if matching:
                 titles = _window_titles(set(matching))

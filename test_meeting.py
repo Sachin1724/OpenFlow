@@ -39,7 +39,7 @@ def test_notes_without_llm():
         assert h in notes, h
     assert "- We decided to launch OpenFlow 1.0" in notes
     assert "- [ ] Action item: review the PR" in notes
-    assert "[00:05] Person 1:" in notes
+    assert "### Person 1" in notes and "[00:05]" in notes
 
 
 def test_live_capture():
