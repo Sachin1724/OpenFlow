@@ -15,6 +15,7 @@ pyi.run([
     "--name", "OpenFlow",
     "--icon", os.path.join(ROOT, "packaging", "OpenFlow.ico"),
     "--paths", PARENT,
+    "--paths", ROOT,
     "--distpath", os.path.join(ROOT, "dist"),
     "--workpath", os.path.join(ROOT, "build"),
     "--specpath", os.path.join(ROOT, "build"),

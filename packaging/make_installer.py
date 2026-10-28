@@ -58,10 +58,10 @@ def is_source_newer(exe_path: str) -> bool:
     return False
 
 
-def step1_pyinstaller(rebuild: bool = False):
+def step1_pyinstaller(rebuild: bool = True):
     """Build PyInstaller distribution."""
-    needs_rebuild = rebuild or is_source_newer(APP_EXE)
-    if os.path.exists(APP_EXE) and not needs_rebuild:
+    # Always rebuild by default when creating setup installer so stale binaries are never packaged
+    if not rebuild and os.path.exists(APP_EXE) and not is_source_newer(APP_EXE):
         print(f"[1/2] PyInstaller build is up to date at: {APP_EXE}")
         return
 
@@ -101,7 +101,7 @@ def step2_inno_setup():
 
 
 def main():
-    rebuild = "--rebuild" in sys.argv or "-r" in sys.argv
+    rebuild = "--no-rebuild" not in sys.argv
     print("================================================================")
     print("            OpenFlow Windows Installer Builder                  ")
     print("================================================================")

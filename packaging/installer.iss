@@ -3,7 +3,7 @@
 ; Installs per-user to {localappdata}\OpenFlow (no admin UAC elevation required)
 
 #define MyAppName "OpenFlow"
-#define MyAppVersion "1.1.0"
+#define MyAppVersion "1.1.1"
 #define MyAppPublisher "OpenFlow"
 #define MyAppURL "https://sachin1724.github.io/OpenFlow/"
 #define MyAppExeName "OpenFlow.exe"
@@ -28,7 +28,7 @@ SolidCompression=yes
 WizardStyle=modern
 PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=commandline
-CloseApplications=yes
+CloseApplications=force
 CloseApplicationsFilter=*OpenFlow*,*pythonw*
 RestartApplications=no
 DisableDirPage=auto

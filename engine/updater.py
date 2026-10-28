@@ -212,20 +212,22 @@ class AppUpdater(QObject):
 
         try:
             args = [path]
+            # Ensure Inno Setup automatically closes running instances of OpenFlow
+            args.extend(["/CLOSEAPPLICATIONS", "/FORCECLOSEAPPLICATIONS"])
             if silent:
                 # Inno Setup flags for smooth silent update
-                args.extend(["/SILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/CLOSEAPPLICATIONS"])
+                args.extend(["/SILENT", "/SUPPRESSMSGBOXES", "/NORESTART"])
 
             print(f"[OpenFlow Updater] Launching installer: {' '.join(args)}")
             subprocess.Popen(args, close_fds=True, shell=False)
 
-            # Exit the running application
+            # Exit the running application immediately so executable file lock is released
             from PyQt6.QtWidgets import QApplication
             app = QApplication.instance()
             if app:
                 app.quit()
-            else:
-                sys.exit(0)
+            # Force immediate exit so Windows kernel releases the OpenFlow.exe lock
+            os._exit(0)
         except Exception as e:
             print(f"[OpenFlow Updater] Install error: {e}")
             self.sig_error.emit(f"Install error: {str(e)[:40]}")
