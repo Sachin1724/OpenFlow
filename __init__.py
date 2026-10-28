@@ -10,4 +10,4 @@ _os.environ.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
 _os.environ.setdefault("TQDM_DISABLE", "1")
 _os.environ.setdefault("HF_HUB_DISABLE_XET", "1")
 
-__version__ = "1.1.2"
+__version__ = "1.1.3"

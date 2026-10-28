@@ -27,6 +27,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install pyinstaller
           pip install -r requirements.txt
+          cmd /c mklink /J openflow .
 
       - name: Install Inno Setup
         run: |

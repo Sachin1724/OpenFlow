@@ -7,4 +7,6 @@ dist/
 pyrefly.toml
 *.zip
 scratch/
+openflow
+*.egg-info/
 

@@ -1,6 +1,7 @@
 """Builds dist/OpenFlow/OpenFlow.exe. Run from anywhere: python openflow/packaging/build.py"""
 import os
 import sys
+import shutil
 
 sys.setrecursionlimit(10000)  # PyInstaller trips the default limit on faster-whisper's import graph
 
@@ -9,11 +10,29 @@ import PyInstaller.__main__ as pyi
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # .../openflow
 PARENT = os.path.dirname(ROOT)                                        # folder containing the package
 
+# Ensure openflow junction exists so openflow package is always resolvable on Windows
+junction = os.path.join(ROOT, "openflow")
+if not os.path.exists(junction) and sys.platform == "win32":
+    try:
+        import subprocess
+        subprocess.run(["cmd", "/c", "mklink", "/J", "openflow", "."], cwd=ROOT, check=False)
+    except Exception:
+        pass
+
+# Clean previous dist and build before compilation to prevent recursive collection
+for d in [os.path.join(ROOT, "dist"), os.path.join(ROOT, "build")]:
+    if os.path.exists(d):
+        try:
+            shutil.rmtree(d, ignore_errors=True)
+        except Exception:
+            pass
+
 pyi.run([
     os.path.join(ROOT, "packaging", "entry.py"),
     "--noconfirm", "--clean", "--windowed",
     "--name", "OpenFlow",
     "--icon", os.path.join(ROOT, "packaging", "OpenFlow.ico"),
+    "--paths", ROOT,
     "--paths", PARENT,
     "--distpath", os.path.join(ROOT, "dist"),
     "--workpath", os.path.join(ROOT, "build"),
