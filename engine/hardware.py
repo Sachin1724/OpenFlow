@@ -1,7 +1,7 @@
 import os
 import subprocess
 from functools import lru_cache
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 import psutil
 
@@ -135,7 +135,7 @@ def resolve(cfg: dict) -> dict:
     return {"device": device, "compute_type": compute, "model_size": size, "hw": hw}
 
 
-def get_system_stack(cfg: dict = None, transcriber = None) -> Dict[str, Any]:
+def get_system_stack(cfg: Optional[dict] = None, transcriber=None) -> Dict[str, Any]:
     """
     Returns full hardware stack diagnostics detailing GPU, NPU, CPU utilization,
     and active inference backend.

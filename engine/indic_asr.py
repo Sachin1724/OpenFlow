@@ -86,7 +86,8 @@ class IndicCTC:
         if len(audio) < 1600:  # under 0.1 s
             return ""
         x = features(audio)[None].astype(np.float32)
-        logits = self.sess.run(None, {"audio_signal": x, "length": np.array([x.shape[2]], dtype=np.int64)})[0][0]
+        out = self.sess.run(None, {"audio_signal": x, "length": np.array([x.shape[2]], dtype=np.int64)})
+        logits = np.asarray(out[0])[0]
         return ctc_greedy(logits.argmax(-1), self.vocab)
 
 
