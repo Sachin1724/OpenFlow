@@ -383,7 +383,7 @@ const fragment = `<div class="iso of-wrap" data-theme="${theme}"><style>${k.ISO_
 const page = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>How OpenFlow hears Odia</title><style>body{margin:0;background:${theme === "light" ? "#f2f2ef" : "#000"};font:14px/1.6 'General Sans',system-ui,sans-serif}.of-page{width:min(820px,100% - 32px);margin:48px auto}</style></head><body><main class="of-page">${fragment}</main></body></html>`;
 writeFileSync(join(HERE, theme === "light" ? "odia-desk-light.html" : "odia-desk.html"), page);
 
-if (theme === "dark") {
+if (theme === "light") { // the Story section is light, so the page embeds the light build
   const index = join(HERE, "..", "..", "index.html");
   const raw = readFileSync(index, "utf-8");
   const re = /<!-- fig:odia-desk -->[\s\S]*?<!-- \/fig:odia-desk -->/;

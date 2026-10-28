@@ -3,7 +3,7 @@
 ; Installs per-user to {localappdata}\OpenFlow (no admin UAC elevation required)
 
 #define MyAppName "OpenFlow"
-#define MyAppVersion "1.1.5"
+#define MyAppVersion "1.1.6"
 #define MyAppPublisher "OpenFlow"
 #define MyAppURL "https://sachin1724.github.io/OpenFlow/"
 #define MyAppExeName "OpenFlow.exe"

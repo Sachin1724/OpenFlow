@@ -1,3 +1,31 @@
+# OpenFlow v1.1.6 — Standalone Windows Release
+
+### Zero-Limit · 100% Offline · Local AI Voice Dictation & Meeting Intelligence for Windows
+**Architected and Created by Sachidananda**
+
+---
+
+### Highlights in v1.1.6
+- **Apple-Grade Velvety OLED Capsule Aesthetic**:
+  - Re-engineered capsule rendering with continuous subpixel pill geometry (`QPainterPath` with exact $r = \text{height} / 2.0$) and top-to-bottom specular hairline gradient lighting (`QLinearGradient`).
+  - Eliminates all jagged or harsh pixel boundaries on Windows high-DPI displays (125% / 150% / 200%).
+- **Living Siri / Dynamic Island Audio Visualizer**:
+  - Replaced static dots with dual-harmonic traveling sine waveforms across 7 formant-weighted bars.
+  - Continuous ambient traveling wave keeps the waveform fluidly undulating between 4.2 px and 9.7 px during listening.
+  - Non-linear vocal dynamic expansion (lvl^0.35) dynamically lifts middle bars up to 20 px during voice speech.
+- **Dynamic Language Badge & Option A Layout Fixes**:
+  - Dynamically sized language badge (`_update_badge_text`) with proportional padding; fixes letter-clipping on `"EN-IN"`.
+  - Cleanly decoupled text labels from compact and micro layouts to ensure zero phantom widget spacing or overlap.
+- **Jitter-Free Centered Capsule Morphing**:
+  - Geometry interpolation anchored directly to bottom-center during snooze expansion and contraction; eliminates multi-pixel jumps.
+  - Isolated multi-screen mouse tracking animation (`screen_fade_anim`) preventing fade animation collisions across monitors.
+- **Native Odia Voice Dictation & Offline Translation**:
+  - Built-in support for Odia speech dictation and offline Odia-to-English translation.
+- **Local Model Meeting Notes & In-Place Voice Edits**:
+  - Select text and command rewrites locally with built-in Qwen2.5-1.5B-Instruct running on CTranslate2.
+
+---
+
 # OpenFlow v1.1.5 — Standalone Windows Release
 
 ### Zero-Limit · 100% Offline · Local AI Voice Dictation & Meeting Intelligence for Windows
