@@ -1,3 +1,4 @@
+import re
 import time
 import ctypes
 from ctypes import wintypes
@@ -144,8 +145,8 @@ class WindowInjector:
         self._release_all_modifiers()
 
         # 3. Perform text injection
-        if method == "type":
-            self._type_unicode(text)
+        if method in ("type", "typein"):
+            self._type_unicode(text, animate=method == "typein")
         else:
             success = self._paste_clipboard(text, restore_clipboard=restore_clipboard)
             if not success:
@@ -213,38 +214,37 @@ class WindowInjector:
 
         return True
 
-    def _type_unicode(self, text: str):
-        """Directly sends Unicode characters into the focused control without clipboard."""
+    def _send_chunk(self, chunk: str):
+        """One SendInput call for a whole word, so the app receives it atomically."""
         VK_RETURN = 0x0D
-        for char in text:
+        events = []  # (wVk, wScan, flags)
+        for char in chunk:
             if char == '\r':
                 continue
-            inputs = (INPUT * 2)()
+            if char == '\n':  # standard Enter keystroke
+                events += [(VK_RETURN, 0x1C, 0), (VK_RETURN, 0x1C, KEYEVENTF_KEYUP)]
+                continue
+            # wScan holds one UTF-16 unit: emoji and other astral chars go as a surrogate pair.
+            # wVk MUST be 0 when KEYEVENTF_UNICODE is specified.
+            raw = char.encode("utf-16-le")
+            for i in range(0, len(raw), 2):
+                unit = int.from_bytes(raw[i:i + 2], "little")
+                events += [(0, unit, KEYEVENTF_UNICODE), (0, unit, KEYEVENTF_UNICODE | KEYEVENTF_KEYUP)]
+        if not events:
+            return
+        inputs = (INPUT * len(events))()
+        for inp, (vk, scan, flags) in zip(inputs, events):
+            inp.type = INPUT_KEYBOARD
+            inp.u.ki.wVk = vk
+            inp.u.ki.wScan = scan
+            inp.u.ki.dwFlags = flags
+        user32.SendInput(len(events), ctypes.byref(inputs), ctypes.sizeof(INPUT))
 
-            if char == '\n':
-                # Synthesize standard Enter keystroke
-                inputs[0].type = INPUT_KEYBOARD
-                inputs[0].u.ki.wVk = VK_RETURN
-                inputs[0].u.ki.wScan = 0x1C
-                inputs[0].u.ki.dwFlags = 0
-
-                inputs[1].type = INPUT_KEYBOARD
-                inputs[1].u.ki.wVk = VK_RETURN
-                inputs[1].u.ki.wScan = 0x1C
-                inputs[1].u.ki.dwFlags = KEYEVENTF_KEYUP
-            else:
-                code = ord(char)
-                # Key down: wVk MUST be 0 when KEYEVENTF_UNICODE is specified
-                inputs[0].type = INPUT_KEYBOARD
-                inputs[0].u.ki.wVk = 0
-                inputs[0].u.ki.wScan = code
-                inputs[0].u.ki.dwFlags = KEYEVENTF_UNICODE
-
-                # Key up
-                inputs[1].type = INPUT_KEYBOARD
-                inputs[1].u.ki.wVk = 0
-                inputs[1].u.ki.wScan = code
-                inputs[1].u.ki.dwFlags = KEYEVENTF_UNICODE | KEYEVENTF_KEYUP
-
-            user32.SendInput(2, ctypes.byref(inputs), ctypes.sizeof(INPUT))
-            time.sleep(0.002)
+    def _type_unicode(self, text: str, animate: bool = False):
+        """Directly sends Unicode characters into the focused control without clipboard.
+        animate=True writes word by word (ChatGPT-style type-in), capped at ~1 s for any length."""
+        words = re.findall(r"\S+\s*|\s+", text)
+        delay = min(0.035, 1.0 / max(1, len(words))) if animate else 0.002
+        for word in words:
+            self._send_chunk(word)
+            time.sleep(delay)

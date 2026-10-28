@@ -3,7 +3,7 @@
 ; Installs per-user to {localappdata}\OpenFlow (no admin UAC elevation required)
 
 #define MyAppName "OpenFlow"
-#define MyAppVersion "1.1.3"
+#define MyAppVersion "1.1.4"
 #define MyAppPublisher "OpenFlow"
 #define MyAppURL "https://sachin1724.github.io/OpenFlow/"
 #define MyAppExeName "OpenFlow.exe"
@@ -54,6 +54,7 @@ Name: "{userstartup}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDi
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#MyAppName}}"; Flags: nowait postinstall skipifsilent runasoriginaluser; WorkingDir: "{app}"
+Filename: "{app}\{#MyAppExeName}"; Flags: nowait runasoriginaluser; WorkingDir: "{app}"; Check: WizardSilent
 
 
 [UninstallDelete]

@@ -12,6 +12,20 @@ def test_app_detection():
     assert m.app_for("ms-teams.exe", []) == "Microsoft Teams"
     assert m.app_for("Zoom.exe", []) == "Zoom"
     assert m.app_for("notepad.exe", []) is None
+    assert m._is_self("openflow.exe") and not m._is_self("zoom.exe")
+
+
+def test_mic_watch_fires():
+    """Opening our own mic stream rewrites the consent key, which must wake the watcher fast."""
+    import threading
+    import sounddevice as sd
+    fired = threading.Event()
+    m.watch_mic(fired.set)
+    time.sleep(0.3)
+    t0 = time.monotonic()
+    with sd.InputStream(samplerate=m.SR, channels=1):
+        assert fired.wait(3), "mic watcher never fired"
+    print(f"mic watch latency: {(time.monotonic() - t0) * 1000:.0f} ms")
 
 
 def test_segmenter_cuts_at_pause():

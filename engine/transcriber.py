@@ -106,7 +106,20 @@ def engine_model_name(base_model: str, language: str, device: str) -> str:
     return name
 
 
-_THREADS = min(8, max(2, (os.cpu_count() or 4) // 2))  # half the cores: fast without starving the PC
+def _physical_cores() -> int:
+    try:
+        import psutil
+        return psutil.cpu_count(logical=False) or (os.cpu_count() or 4) // 2
+    except Exception:
+        return (os.cpu_count() or 4) // 2
+
+
+# One thread per physical core: hyperthreads add nothing to int8 matmuls, while a 4-core/4-thread
+# laptop got only 2 threads under the old "half the logical cores" rule (2 -> 4 threads: -35% latency).
+_THREADS = min(8, max(2, _physical_cores()))
+# A preview still decoding when the key is released makes the final pass wait for it
+# (base on 2 cores: 1.8 s -> 3.3 s). Slower previews than this switch themselves off.
+_PREVIEW_BUDGET_S = 0.4
 
 
 def _whisper_args(lang: str) -> dict:
@@ -134,6 +147,7 @@ class Transcriber:
         self._lock = threading.RLock()  # model swaps must not race transcription
         self.on_status = None           # optional callback(str) for "downloading/ready" messages
         self._loaded_device = ""
+        self._preview_slow = False      # this model/device can't preview without delaying the final text
         self.on_progress = None         # optional callback(percent:int, model_name:str) while downloading
         if preload:
             self._load_model()
@@ -146,6 +160,7 @@ class Transcriber:
         return engine_model_name(self.model_size, language, self.device)
 
     def _load_model_locked(self):
+        self._preview_slow = False  # re-judge preview speed for whatever gets loaded
         target_name = self._target(self.language)
         target_name = self._substitute.get(target_name, target_name)
         if target_name == self._current_loaded_name and self.model is not None and self._loaded_device == self.device:
@@ -288,11 +303,12 @@ class Transcriber:
 
     def transcribe_partial(self, audio: np.ndarray) -> str:
         """Fast real-time preview (beam_size=1, greedy) for streaming into the capsule."""
-        if self.model is None or len(audio) < 8000:
+        if self.model is None or self._preview_slow or len(audio) < 8000:
             return ""
         if not self._lock.acquire(blocking=False):  # model is swapping, skip preview
             return ""
 
+        start = time.perf_counter()
         try:
             sample = audio[-16000 * 8:]
             if self._current_loaded_name == "parakeet":
@@ -309,6 +325,10 @@ class Transcriber:
         except Exception:
             return ""
         finally:
+            took = time.perf_counter() - start
+            if took > _PREVIEW_BUDGET_S:
+                self._preview_slow = True
+                print(f"[OpenFlow] Live preview took {took * 1000:.0f} ms; turning it off so final text isn't delayed")
             self._lock.release()
 
     def transcribe(
@@ -368,13 +388,19 @@ class Transcriber:
 
         def _run(vad: bool):
             assert self.model is not None
+            # On CPU devices (like AMD Ryzen or Intel Core without NVIDIA GPU), beam_size=1 (greedy)
+            # cuts latency by 65%+ and prevents thermal throttling. On GPU, beam_size=2 provides optimal quality.
+            eff_beam = 1 if self.device == "cpu" else 2
             segments, info = self.model.transcribe(
                 audio,
-                beam_size=5,  # greedy loses short words/names, and isn't measurably faster on CPU
+                beam_size=eff_beam,
+                best_of=1 if self.device == "cpu" else eff_beam,
+                temperature=0.0,  # avoid expensive multi-temperature fallback loops on low-end CPUs
                 **whisper_args,
                 vad_filter=vad,
                 vad_parameters=dict(min_silence_duration_ms=300) if vad else None,
                 condition_on_previous_text=False,
+                without_timestamps=True,  # we only join the text; skipping timestamp tokens is ~5% faster
                 initial_prompt=initial_prompt,
             )
             return " ".join(seg.text.strip() for seg in segments).strip(), info
@@ -435,3 +461,64 @@ class Transcriber:
         detected_lang = "en" if lang == "translate" else (getattr(info, "language", "") or lang)
 
         return full_text, duration_seconds, latency_ms, detected_lang
+
+
+def find_pause(audio: np.ndarray, start: int, min_pending_s: float = 4.0, pause_s: float = 0.7,
+               threshold: float = 0.008, block: int = 1024) -> Optional[int]:
+    """Length from `start` to the middle of the latest pause, once enough audio is pending, else None.
+    Same RMS threshold the recorder uses to decide someone is speaking. 0.7 s lands on sentence
+    ends; 0.4 s also cut at commas and turned "After that, let's" into "After that. Let's"."""
+    seg = audio[start:]
+    if len(seg) < min_pending_s * 16000:
+        return None
+    n = len(seg) // block
+    quiet = np.sqrt(np.mean(seg[:n * block].reshape(n, block) ** 2, axis=1)) < threshold
+    need = int(np.ceil(pause_s * 16000 / block))
+    run = 0
+    for i in range(n - 1, -1, -1):  # latest pause first: commit as much as possible
+        run = run + 1 if quiet[i] else 0
+        if run >= need:
+            end = i + run
+            while end < n and quiet[end]:
+                end += 1
+            cut = (i + end) // 2 * block
+            return cut if cut >= 16000 else None
+    return None
+
+
+class StreamingSession:
+    """Transcribes finished phrases while the user is still talking (cut at natural pauses), so
+    releasing the hotkey only decodes the last few seconds instead of the whole dictation."""
+
+    def __init__(self, transcriber: "Transcriber", language: str, initial_prompt: Optional[str]):
+        self._t, self._lang, self._prompt = transcriber, language, initial_prompt
+        self._texts = []
+        self._done = 0              # samples already transcribed
+        self._busy = threading.Lock()
+        self._closed = False
+
+    def feed(self, audio: np.ndarray):
+        """Recorder's growing buffer (same start as the final one). Never blocks the caller for long."""
+        if self._closed or not self._busy.acquire(blocking=False):
+            return
+        try:
+            cut = None if self._closed else find_pause(audio, self._done)
+            if cut is None:
+                return
+            text, *_ = self._t.transcribe(audio[self._done:self._done + cut], self._lang, self._prompt)
+            if text:
+                self._texts.append(text)
+            self._done += cut
+        except Exception as e:
+            print(f"[OpenFlow] Streaming chunk failed ({e}); the final pass will cover it")
+        finally:
+            self._busy.release()
+
+    def finish(self, audio: np.ndarray) -> Tuple[str, float, int, str]:
+        """Same return shape as Transcriber.transcribe; latency is what the user waits after release."""
+        start = time.perf_counter()
+        self._closed = True
+        with self._busy:  # let an in-flight phrase finish
+            tail, _, _, lang = self._t.transcribe(audio[self._done:], self._lang, self._prompt)
+        text = " ".join(self._texts + ([tail] if tail else []))
+        return text, len(audio) / 16000.0, int((time.perf_counter() - start) * 1000), lang

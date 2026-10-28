@@ -5,6 +5,7 @@ import json
 import os
 import queue
 import re
+import sys
 import threading
 import time
 import urllib.request
@@ -64,13 +65,19 @@ def app_for(process: str, titles: List[str]) -> Optional[str]:
     return None
 
 
+_MIC_KEY = r"Software\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\microphone"
+# Our own process holds the mic for dictation and meeting capture; never mistake it for a call.
+_SELF = {"python.exe", "pythonw.exe", "py.exe", "openflow.exe", os.path.basename(sys.executable).lower()}
+
+
+def _is_self(exe: str) -> bool:
+    return exe in _SELF or "openflow" in exe or "antigravity" in exe
+
+
 def _mic_process_names() -> set:
     """Exe names actively recording from any microphone via Windows CapabilityAccessManager."""
     names = set()
-    roots = [
-        r"Software\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\microphone\NonPackaged",
-        r"Software\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\microphone",
-    ]
+    roots = [_MIC_KEY + r"\NonPackaged", _MIC_KEY]
     import winreg
     for base in roots:
         try:
@@ -98,21 +105,23 @@ def _window_titles(names: set) -> List[str]:
     """Titles of visible top-level windows owned by processes with these exe names."""
     user32 = ctypes.windll.user32
     titles: List[str] = []
+    pid_names: dict = {}  # a browser owns dozens of windows; look each pid up once
 
     @ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
     def cb(hwnd, _):
-        if user32.IsWindowVisible(hwnd):
+        if user32.IsWindowVisible(hwnd) and user32.GetWindowTextLengthW(hwnd):
             pid = wintypes.DWORD()
             user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
-            try:
-                proc = psutil.Process(pid.value).name().lower()
-                if proc in names or any(n in proc or proc in n for n in names):
-                    buf = ctypes.create_unicode_buffer(512)
-                    user32.GetWindowTextW(hwnd, buf, 512)
-                    if buf.value:
-                        titles.append(buf.value)
-            except psutil.Error:
-                pass
+            if pid.value not in pid_names:
+                try:
+                    pid_names[pid.value] = psutil.Process(pid.value).name().lower()
+                except psutil.Error:
+                    pid_names[pid.value] = ""
+            if pid_names[pid.value] in names:
+                buf = ctypes.create_unicode_buffer(512)
+                user32.GetWindowTextW(hwnd, buf, 512)
+                if buf.value:
+                    titles.append(buf.value)
         return True
 
     user32.EnumWindows(cb, 0)
@@ -120,51 +129,47 @@ def _window_titles(names: set) -> List[str]:
 
 
 def active_meeting_app() -> Optional[str]:
-    """Name of the meeting app currently active or using a microphone, else None."""
+    """Name of the meeting app holding a microphone right now, else None.
+
+    Only a live mic counts: an open Teams window or a browser tab titled "Zoom" is not a call,
+    and treating it as one kept meetings from ever auto-stopping. One registry read when no
+    browser is on the mic, plus one window walk when one is."""
     try:
-        # 1. Primary check: processes holding an active audio capture session in Windows
-        import sys
-        me_names = {
-            "python.exe", "pythonw.exe", "py.exe", "openflow.exe",
-            os.path.basename(sys.executable).lower(),
-        }
-        mic_procs = {
-            p for p in _mic_process_names()
-            if p not in me_names and "openflow" not in p and "antigravity" not in p
-        }
+        mic_procs = {p for p in _mic_process_names() if not _is_self(p)}
         browsers = {p for p in mic_procs if p in _BROWSERS}
         titles = _window_titles(browsers) if browsers else []
         for p in mic_procs:
             app = app_for(p, titles)
             if app:
                 return app
-
-        # 2. Window title check across active browser tabs (Google Meet, Zoom Web, Teams Web)
-        all_browser_titles = _window_titles(set(_BROWSERS))
-        for title in all_browser_titles:
-            for pat, name in _WEB:
-                if pat.search(title):
-                    return name
-
-        # 3. Dedicated desktop meeting client check with visible call window
-        running_names = set()
-        for p in psutil.process_iter(['name']):
-            try:
-                running_names.add(p.name().lower())
-            except (psutil.NoSuchProcess, psutil.AccessDenied):
-                pass
-
-        for frag, name in _APPS:
-            matching = [p for p in running_names if frag in p]
-            if matching:
-                titles = _window_titles(set(matching))
-                # Only if there is an active meeting window (not just a background daemon)
-                if any(len(t.strip()) > 0 and "daemon" not in t.lower() for t in titles):
-                    return name
-
     except Exception as e:
         print(f"[OpenFlow Meeting] Detection error: {e}")
     return None
+
+
+def watch_mic(on_change: Callable[[], None]) -> None:
+    """Call on_change whenever any app starts or stops using a microphone.
+
+    Windows rewrites the CapabilityAccessManager key at that moment, so a blocking
+    RegNotifyChangeKeyValue wakes us within milliseconds with no polling. Returns at once;
+    the watch runs on a daemon thread and quietly ends if the key can't be watched."""
+    import winreg
+
+    def run():
+        notify = ctypes.windll.advapi32.RegNotifyChangeKeyValue
+        try:
+            key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, _MIC_KEY)
+        except OSError:
+            return
+        with key:
+            while True:
+                # watch subtree, REG_NOTIFY_CHANGE_LAST_SET, synchronous (blocks until a write)
+                if notify(wintypes.HKEY(key.handle), True, 0x4, None, False) != 0:
+                    return
+                time.sleep(0.15)  # an app writes Start then Stop values; read once they settle
+                on_change()
+
+    threading.Thread(target=run, daemon=True, name="openflow-mic-watch").start()
 
 
 class _Segmenter:

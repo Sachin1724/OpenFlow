@@ -20,14 +20,14 @@ from .engine.audio_recorder import (
     AudioRecorder, list_microphones, hardware_input_count,
     get_live_hardware_microphones, clean_device_name
 )
-from .engine.transcriber import Transcriber, engine_model_name
+from .engine.transcriber import Transcriber, engine_model_name, StreamingSession
 from .engine.formatter import TextFormatter
 from .engine.injector import WindowInjector
 from .engine.hotkey_manager import GlobalHotkeyManager
 from .engine.sound_effects import play_start_sound, play_stop_sound, play_paste_sound
 from .engine.context_detector import get_active_app_context, build_initial_prompt, AppContext
 from .engine.updater import AppUpdater
-from .engine.meeting import MeetingSession, active_meeting_app, format_meeting_notes, transcript_text
+from .engine.meeting import MeetingSession, active_meeting_app, format_meeting_notes, transcript_text, watch_mic
 from .ui.floating_pill import FloatingPill, MeetingBar, ui_font_family
 from .ui.main_window import MainWindow
 from .ui.setup_dialog import SetupDialog
@@ -99,6 +99,7 @@ class AppBridge(QObject):
     sig_update_ready = pyqtSignal(str)                     # (installer_path)
     sig_meeting_line = pyqtSignal(str, str)                # (speaker, text) live caption
     sig_meeting_saved = pyqtSignal(str)                    # note title, "" when nothing was said
+    sig_mic_changed = pyqtSignal()                         # some app started/stopped using a mic
 
 
 class OpenFlowApp(QObject):
@@ -267,13 +268,17 @@ class OpenFlowApp(QObject):
         self._meeting = None
         self._meeting_app = None
         self._meeting_dismissed = None
-        self._meeting_gone = 0
+        self._meeting_gone = None  # monotonic time the call app let go of the mic
         self.meeting_bar = MeetingBar()
         self.meeting_bar.sig_start.connect(self._start_meeting)
         self.meeting_bar.sig_stop.connect(self._stop_meeting)
         self.meeting_bar.sig_dismiss.connect(lambda: setattr(self, "_meeting_dismissed", self._meeting_app))
         self.bridge.sig_meeting_line.connect(self._on_meeting_line)
         self.bridge.sig_meeting_saved.connect(self._on_meeting_saved)
+        # Instant: Windows tells us the moment any app grabs or drops a mic.
+        # The timer is the fallback and drives the end-of-call grace period.
+        self.bridge.sig_mic_changed.connect(self._check_meeting)
+        watch_mic(self.bridge.sig_mic_changed.emit)
         self._meeting_timer = QTimer(self)
         self._meeting_timer.timeout.connect(self._check_meeting)
         self._meeting_timer.start(3000)
@@ -504,9 +509,13 @@ class OpenFlowApp(QObject):
     def _check_meeting(self):
         app = active_meeting_app()
         if self._meeting is not None:
-            # The call app lets go of the mic when the call ends; stop after ~12 s without it
-            self._meeting_gone = 0 if app else self._meeting_gone + 1
-            if self._meeting_gone >= 4:
+            # The call app lets go of the mic when the call ends; stop after 12 s without it
+            # (time-based: mic events make checks arrive at irregular intervals)
+            if app:
+                self._meeting_gone = None
+            elif self._meeting_gone is None:
+                self._meeting_gone = time.monotonic()
+            elif time.monotonic() - self._meeting_gone >= 12:
                 self._stop_meeting()
             return
         if app == self._meeting_app:
@@ -531,7 +540,7 @@ class OpenFlowApp(QObject):
             print(f"[OpenFlow Meeting] Could not start: {e}")
             self.floating_pill.show_message("Couldn't start meeting notes")
             return
-        self._meeting, self._meeting_gone = session, 0
+        self._meeting, self._meeting_gone = session, None
         self.meeting_bar.show_recording(self.floating_pill.geometry())
 
     def _stop_meeting(self):
@@ -659,6 +668,19 @@ class OpenFlowApp(QObject):
         self._app_context = get_active_app_context()
         print(f"[OpenFlow] Context: {self._app_context['category']} | {self._app_context['process']} | '{self._app_context['title'][:60]}'")
 
+        # 1c. Build the vocabulary prompt now so phrases can be transcribed while the user talks
+        lang = self.config.get("language", "auto")
+        dict_entries = self.db.get_dictionary()
+        self.formatter.set_dictionary(dict_entries)
+        initial_prompt = build_initial_prompt(
+            context=self._app_context,
+            custom_vocab=[e["replace_with"] for e in dict_entries],  # preferred spellings
+            language=lang,
+        )
+        if initial_prompt:
+            print(f"[OpenFlow] Prompt ({len(initial_prompt)} chars): {initial_prompt[:80]}...")
+        self._stream_session = StreamingSession(self.transcriber, lang, initial_prompt)
+
         # 2. Pleasant start sound
         if self.config.get("sound_feedback", True):
             play_start_sound()
@@ -674,11 +696,15 @@ class OpenFlowApp(QObject):
 
     def _on_stream_chunk(self, audio_chunk):
         """Called periodically during speech to provide real-time live preview words."""
-        if not self.config.get("realtime_preview", True) or not self.audio_recorder.is_recording:
+        if not self.audio_recorder.is_recording:
             return
-        partial_text = self.transcriber.transcribe_partial(audio_chunk)
-        if partial_text:
-            self.bridge.sig_realtime_text.emit(partial_text)
+        if self.config.get("realtime_preview", True):
+            partial_text = self.transcriber.transcribe_partial(audio_chunk)
+            if partial_text:
+                self.bridge.sig_realtime_text.emit(partial_text)
+        session = getattr(self, "_stream_session", None)
+        if session is not None:
+            session.feed(audio_chunk)  # commit finished phrases so release only decodes the tail
 
     def _on_auto_silence(self):
         """Automatically triggered when user stops speaking for silence_duration."""
@@ -697,11 +723,12 @@ class OpenFlowApp(QObject):
 
         # 2. Stop audio recorder
         audio_data = self.audio_recorder.stop_recording()
+        session, self._stream_session = self._stream_session, None
 
         # 3. Process in worker thread
-        threading.Thread(target=self._process_worker, args=(audio_data,), daemon=True).start()
+        threading.Thread(target=self._process_worker, args=(audio_data, session), daemon=True).start()
 
-    def _process_worker(self, audio_data):
+    def _process_worker(self, audio_data, session):
         try:
             if len(audio_data) < 3000: # Less than 0.2s of audio
                 self.bridge.sig_error.emit("Too short")
@@ -714,27 +741,8 @@ class OpenFlowApp(QObject):
                 self.bridge.sig_error.emit("No sound from mic")
                 return
 
-            # Refresh dictionary
-            self.formatter.set_dictionary(self.db.get_dictionary())
-            dict_entries = self.db.get_dictionary()
-            custom_vocab = [e["replace_with"] for e in dict_entries]  # preferred spellings
-
-            # Build context-aware initial_prompt for vocabulary biasing
-            lang = self.config.get("language", "auto")
-            initial_prompt = build_initial_prompt(
-                context=self._app_context,
-                custom_vocab=custom_vocab,
-                language=lang,
-            )
-            if initial_prompt:
-                print(f"[OpenFlow] Prompt ({len(initial_prompt)} chars): {initial_prompt[:80]}...")
-
-            # Transcribe full audio with Whisper GPU
-            raw_text, duration_sec, latency_ms, detected_lang = self.transcriber.transcribe(
-                audio_data,
-                language=lang,
-                initial_prompt=initial_prompt,
-            )
+            # Phrases spoken before the last pause are already transcribed; decode only the tail
+            raw_text, duration_sec, latency_ms, detected_lang = session.finish(audio_data)
 
             if not raw_text.strip():
                 self.bridge.sig_error.emit("Didn't catch that")

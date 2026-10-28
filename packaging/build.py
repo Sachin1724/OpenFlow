@@ -10,16 +10,14 @@ import PyInstaller.__main__ as pyi
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # .../openflow
 PARENT = os.path.dirname(ROOT)                                        # folder containing the package
 
-# Ensure openflow junction exists so openflow package is always resolvable on Windows
-junction = os.path.join(ROOT, "openflow")
-if not os.path.exists(junction) and sys.platform == "win32":
-    try:
-        import subprocess
-        subprocess.run(["cmd", "/c", "mklink", "/J", "openflow", "."], cwd=ROOT, check=False)
-    except Exception:
-        pass
+# Ensure openflow is installed as an editable package so PyInstaller cleanly resolves it without recursive junctions
+try:
+    import subprocess
+    subprocess.run([sys.executable, "-m", "pip", "install", "-e", ".", "--no-deps"], cwd=ROOT, check=True)
+except Exception as e:
+    print(f"[Build] Note: editable install check: {e}")
 
-# Clean previous dist and build before compilation to prevent recursive collection
+# Clean previous dist and build before compilation to prevent stale artifacts
 for d in [os.path.join(ROOT, "dist"), os.path.join(ROOT, "build")]:
     if os.path.exists(d):
         try:

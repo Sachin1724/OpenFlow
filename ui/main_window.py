@@ -891,6 +891,7 @@ class MainWindow(QMainWindow):
         inj_label.setStyleSheet("font-weight: 500;")
         self.inj_combo = QComboBox(self)
         self.inj_combo.addItem("Instant Paste (Clipboard - Fastest)", "clipboard")
+        self.inj_combo.addItem("Type-In Effect (Word by Word - No Clipboard)", "typein")
         self.inj_combo.addItem("Direct Typewriter (Unicode Emulation - No Clipboard)", "type")
         curr_inj = self.config.get("injection_method", "clipboard")
         for i in range(self.inj_combo.count()):

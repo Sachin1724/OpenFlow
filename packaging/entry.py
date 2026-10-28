@@ -47,7 +47,10 @@ if getattr(sys, "frozen", False):
     if "openflow" in sys.modules and getattr(sys.modules["openflow"], "__file__", None) is None:
         del sys.modules["openflow"]
     if basedir not in sys.path:
-        sys.path.append(basedir)
+        sys.path.insert(0, basedir)
+    pkg_dir = os.path.join(basedir, "openflow")
+    if os.path.isdir(pkg_dir) and pkg_dir not in sys.path:
+        sys.path.insert(0, pkg_dir)
 else:
     basedir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     parent = os.path.dirname(basedir)
@@ -58,12 +61,15 @@ else:
 
 try:
     from openflow.main import main
-except ModuleNotFoundError:
-    import importlib
+except Exception:
     try:
-        main = importlib.import_module("openflow.main").main
-    except ModuleNotFoundError:
-        main = importlib.import_module("main").main
+        from main import main
+    except Exception:
+        import importlib
+        try:
+            main = importlib.import_module("openflow.main").main
+        except Exception:
+            main = importlib.import_module("main").main
 
 if __name__ == "__main__":
     import multiprocessing
