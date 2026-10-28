@@ -27,7 +27,8 @@ jobs:
           python -m pip install --upgrade pip
           pip install pyinstaller
           pip install -r requirements.txt
-          pip install -e . --no-deps
+          pip install . --no-deps
+          cmd /c "if not exist ..\openflow mklink /J ..\openflow ."
 
       - name: Install Inno Setup
         run: |

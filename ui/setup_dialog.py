@@ -6,11 +6,18 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QIcon
 
-from ..config import get_asset_path
-from ..engine import hardware, model_manager
-from ..engine.transcriber import engine_model_name
-from .styles import main_qss, COLORS
-from .floating_pill import get_squircle_pixmap, Switch
+try:
+    from ..config import get_asset_path
+    from ..engine import hardware, model_manager
+    from ..engine.transcriber import engine_model_name
+    from .styles import main_qss, COLORS
+    from .floating_pill import get_squircle_pixmap, Switch
+except (ImportError, ValueError):
+    from config import get_asset_path
+    from engine import hardware, model_manager
+    from engine.transcriber import engine_model_name
+    from ui.styles import main_qss, COLORS
+    from ui.floating_pill import get_squircle_pixmap, Switch
 
 LANGS = [("auto", "Auto Detect"), ("en-in", "English (India) / Hinglish"), ("or", "Odia / Odia-English"),
          ("hi", "Hindi"), ("en", "English (US/UK)"), ("es", "Spanish"), ("fr", "French"),

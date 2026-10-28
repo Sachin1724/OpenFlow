@@ -10,12 +10,22 @@ import PyInstaller.__main__ as pyi
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # .../openflow
 PARENT = os.path.dirname(ROOT)                                        # folder containing the package
 
-# Ensure openflow is installed as an editable package so PyInstaller cleanly resolves it without recursive junctions
+# Ensure openflow is importable as lowercase openflow even when folder is capitalized (e.g. CI runner OpenFlow)
+if sys.platform == "win32":
+    try:
+        import subprocess
+        parent_openflow = os.path.join(PARENT, "openflow")
+        if not os.path.exists(parent_openflow) and ROOT != parent_openflow:
+            subprocess.run(["cmd", "/c", "mklink", "/J", parent_openflow, ROOT], check=False)
+    except Exception:
+        pass
+
+# Ensure openflow is installed as a standard package so PyInstaller cleanly resolves it from site-packages
 try:
     import subprocess
-    subprocess.run([sys.executable, "-m", "pip", "install", "-e", ".", "--no-deps"], cwd=ROOT, check=True)
+    subprocess.run([sys.executable, "-m", "pip", "install", ".", "--no-deps"], cwd=ROOT, check=True)
 except Exception as e:
-    print(f"[Build] Note: editable install check: {e}")
+    print(f"[Build] Note: package install check: {e}")
 
 # Clean previous dist and build before compilation to prevent stale artifacts
 for d in [os.path.join(ROOT, "dist"), os.path.join(ROOT, "build")]:

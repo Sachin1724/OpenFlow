@@ -1,6 +1,7 @@
 import os
 import sys
 import traceback
+import types
 
 os.environ.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
 os.environ.setdefault("TQDM_DISABLE", "1")
@@ -42,10 +43,6 @@ sys.excepthook = _handle_exception
 # Ensure openflow is importable both in frozen and source mode
 if getattr(sys, "frozen", False):
     basedir = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(sys.executable)))
-    # If openflow was populated as an empty namespace package due to an on-disk data folder,
-    # remove it so Python resolves the true package from the PyInstaller PYZ archive.
-    if "openflow" in sys.modules and getattr(sys.modules["openflow"], "__file__", None) is None:
-        del sys.modules["openflow"]
     if basedir not in sys.path:
         sys.path.insert(0, basedir)
     pkg_dir = os.path.join(basedir, "openflow")
@@ -59,20 +56,32 @@ else:
     if basedir not in sys.path:
         sys.path.insert(0, basedir)
 
+main = None
 try:
     from openflow.main import main
-except Exception:
+except Exception as e_pkg:
     try:
         from main import main
-    except Exception:
+    except Exception as e_top:
         import importlib
         try:
             main = importlib.import_module("openflow.main").main
-        except Exception:
-            main = importlib.import_module("main").main
+        except Exception as e_dyn_pkg:
+            try:
+                main = importlib.import_module("main").main
+            except Exception as e_dyn_top:
+                raise RuntimeError(
+                    f"Failed to start OpenFlow: main module could not be loaded.\n"
+                    f"Attempts:\n"
+                    f"  1. 'from openflow.main import main' -> {e_pkg}\n"
+                    f"  2. 'from main import main' -> {e_top}\n"
+                    f"  3. 'importlib.import_module(openflow.main)' -> {e_dyn_pkg}\n"
+                    f"  4. 'importlib.import_module(main)' -> {e_dyn_top}\n"
+                    f"sys.frozen: {getattr(sys, 'frozen', False)}\n"
+                    f"sys.path: {sys.path}"
+                )
 
 if __name__ == "__main__":
     import multiprocessing
-    multiprocessing.freeze_support()  # a frozen exe must not re-run the whole app in helper processes
+    multiprocessing.freeze_support()
     main()
-

@@ -9,7 +9,7 @@ OpenFlow is a high-performance Windows desktop application that enables users to
 - **Platform**: Windows 10 & Windows 11 (64-bit)
 - **License**: MIT License (Open Source)
 - **Repository**: https://github.com/Sachin1724/OpenFlow
-- **Download**: https://github.com/Sachin1724/OpenFlow/releases/download/v1.1.4/OpenFlow-Setup.exe
+- **Download**: https://github.com/Sachin1724/OpenFlow/releases/download/v1.1.5/OpenFlow-Setup.exe
 - **Website**: https://sachin1724.github.io/OpenFlow/
 - **Cost**: 100% Free, zero subscriptions, zero usage quotas
 - **Privacy**: 100% Offline, no external network transmission of audio

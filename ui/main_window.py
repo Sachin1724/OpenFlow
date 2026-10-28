@@ -11,13 +11,22 @@ import importlib.util
 import os
 import re
 
-from ..config import load_config, save_config, get_asset_path
-from ..database import Database
-from ..engine import hardware, model_manager
-from ..engine.audio_recorder import list_microphones
-from ..engine.meeting import render_meeting_html
-from .styles import main_qss, COLORS
-from .floating_pill import get_squircle_pixmap, Switch
+try:
+    from ..config import load_config, save_config, get_asset_path
+    from ..database import Database
+    from ..engine import hardware, model_manager
+    from ..engine.audio_recorder import list_microphones
+    from ..engine.meeting import render_meeting_html
+    from .styles import main_qss, COLORS
+    from .floating_pill import get_squircle_pixmap, Switch
+except (ImportError, ValueError):
+    from config import load_config, save_config, get_asset_path
+    from database import Database
+    from engine import hardware, model_manager
+    from engine.audio_recorder import list_microphones
+    from engine.meeting import render_meeting_html
+    from ui.styles import main_qss, COLORS
+    from ui.floating_pill import get_squircle_pixmap, Switch
 
 
 # Windows virtual-key codes -> names GlobalHotkeyManager understands
@@ -985,7 +994,10 @@ class MainWindow(QMainWindow):
 
         up_layout = QHBoxLayout()
         up_layout.setSpacing(12)
-        from .. import __version__
+        try:
+            from .. import __version__
+        except (ImportError, ValueError):
+            from __init__ import __version__
         self.ver_label = QLabel(f"Version: <b>v{__version__}</b>", self)
         self.ver_label.setStyleSheet(f"color: {COLORS['text_secondary']}; font-size: 13px;")
         up_layout.addWidget(self.ver_label)
@@ -1211,7 +1223,10 @@ class MainWindow(QMainWindow):
 
         title_col = QVBoxLayout()
         title_col.setSpacing(4)
-        from .. import __version__
+        try:
+            from .. import __version__
+        except (ImportError, ValueError):
+            from __init__ import __version__
         app_title = QLabel(f"OpenFlow <span style='font-size: 13px; color: #55ff99; font-weight: normal;'>v{__version__}</span>", header_card)
         app_title.setStyleSheet("font-size: 20px; font-weight: 600; color: #ffffff;")
         app_sub = QLabel("Private, unlimited voice dictation & speech-to-writing system · 100% On-Device AI", header_card)

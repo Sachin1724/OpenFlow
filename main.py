@@ -14,26 +14,51 @@ try:
 except Exception:
     pass
 
-from .config import load_config, save_config, get_asset_path
-from .database import Database
-from .engine.audio_recorder import (
-    AudioRecorder, list_microphones, hardware_input_count,
-    get_live_hardware_microphones, clean_device_name
-)
-from .engine.transcriber import Transcriber, engine_model_name, StreamingSession
-from .engine.formatter import TextFormatter
-from .engine.injector import WindowInjector
-from .engine.hotkey_manager import GlobalHotkeyManager
-from .engine.sound_effects import play_start_sound, play_stop_sound, play_paste_sound
-from .engine.context_detector import get_active_app_context, build_initial_prompt, AppContext
-from .engine.updater import AppUpdater
-from .engine.meeting import MeetingSession, active_meeting_app, format_meeting_notes, transcript_text, watch_mic
-from .ui.floating_pill import FloatingPill, MeetingBar, ui_font_family
-from .ui.main_window import MainWindow
-from .ui.setup_dialog import SetupDialog
-from .autostart import set_autostart
-from .engine import hardware, model_manager
-from . import __version__
+try:
+    from .config import load_config, save_config, get_asset_path
+    from .database import Database
+    from .engine.audio_recorder import (
+        AudioRecorder, list_microphones, hardware_input_count,
+        get_live_hardware_microphones, clean_device_name
+    )
+    from .engine.transcriber import Transcriber, engine_model_name, StreamingSession
+    from .engine.formatter import TextFormatter
+    from .engine.injector import WindowInjector
+    from .engine.hotkey_manager import GlobalHotkeyManager
+    from .engine.sound_effects import play_start_sound, play_stop_sound, play_paste_sound
+    from .engine.context_detector import get_active_app_context, build_initial_prompt, AppContext
+    from .engine.updater import AppUpdater
+    from .engine.meeting import MeetingSession, active_meeting_app, format_meeting_notes, transcript_text, watch_mic
+    from .ui.floating_pill import FloatingPill, MeetingBar, ui_font_family
+    from .ui.main_window import MainWindow
+    from .ui.setup_dialog import SetupDialog
+    from .autostart import set_autostart
+    from .engine import hardware, model_manager
+    from . import __version__
+except (ImportError, ValueError):
+    from config import load_config, save_config, get_asset_path
+    from database import Database
+    from engine.audio_recorder import (
+        AudioRecorder, list_microphones, hardware_input_count,
+        get_live_hardware_microphones, clean_device_name
+    )
+    from engine.transcriber import Transcriber, engine_model_name, StreamingSession
+    from engine.formatter import TextFormatter
+    from engine.injector import WindowInjector
+    from engine.hotkey_manager import GlobalHotkeyManager
+    from engine.sound_effects import play_start_sound, play_stop_sound, play_paste_sound
+    from engine.context_detector import get_active_app_context, build_initial_prompt, AppContext
+    from engine.updater import AppUpdater
+    from engine.meeting import MeetingSession, active_meeting_app, format_meeting_notes, transcript_text, watch_mic
+    from ui.floating_pill import FloatingPill, MeetingBar, ui_font_family
+    from ui.main_window import MainWindow
+    from ui.setup_dialog import SetupDialog
+    from autostart import set_autostart
+    from engine import hardware, model_manager
+    try:
+        from __init__ import __version__
+    except ImportError:
+        __version__ = "1.1.5"
 
 _BOOT_T0 = time.perf_counter()
 

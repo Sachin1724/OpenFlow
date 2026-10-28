@@ -18,9 +18,14 @@ from PyQt6.QtGui import (
 )
 
 
-from ..config import get_asset_path
-from ..engine.audio_recorder import list_microphones
-from ..engine import model_manager
+try:
+    from ..config import get_asset_path
+    from ..engine.audio_recorder import list_microphones
+    from ..engine import model_manager
+except (ImportError, ValueError):
+    from config import get_asset_path
+    from engine.audio_recorder import list_microphones
+    from engine import model_manager
 
 
 def _force_topmost(widget: QWidget):

@@ -1,6 +1,9 @@
 import os
 from functools import lru_cache
-from ..config import get_asset_path
+try:
+    from ..config import get_asset_path
+except (ImportError, ValueError):
+    from config import get_asset_path
 
 _CHECK = get_asset_path("check.svg").replace("\\", "/")
 
