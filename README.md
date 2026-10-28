@@ -10,7 +10,7 @@
 
 <br />
 
-[![Release](https://img.shields.io/badge/Release-v1.1.1-000000?style=for-the-badge&logoColor=white)](https://github.com/Sachin1724/OpenFlow)
+[![Release](https://img.shields.io/badge/Release-v1.1.2-000000?style=for-the-badge&logoColor=white)](https://github.com/Sachin1724/OpenFlow)
 [![Platform](https://img.shields.io/badge/Platform-Windows_10_%2F_11_x64-000000?style=for-the-badge&logoColor=white)](https://github.com/Sachin1724/OpenFlow)
 [![Runtime](https://img.shields.io/badge/Runtime-NVIDIA_CUDA_%7C_NPU_%7C_CPU-000000?style=for-the-badge&logoColor=white)](https://github.com/Sachin1724/OpenFlow)
 [![License](https://img.shields.io/badge/License-MIT-000000?style=for-the-badge&logoColor=white)](LICENSE)
