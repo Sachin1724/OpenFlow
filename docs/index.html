@@ -274,6 +274,46 @@ section { position: relative; }
 .features .after { grid-column: 7 / 13; margin-top: 72px; display: grid; gap: 22px; justify-items: start; }
 .features .after p { font-size: 18px; color: var(--soft); max-width: 36ch; }
 
+/* odia: native speech model, translation, the numbers and the pipeline */
+.odia .grid { align-items: start; row-gap: 72px; }
+.odia .copy { grid-column: 1 / 6; }
+.odia h2 { font-size: var(--step-head); max-width: 14ch; }
+.odia h2 .or { display: block; margin-top: 16px; font-size: .46em; letter-spacing: 0; line-height: 1.25; color: var(--soft); font-weight: 400; }
+.odia .copy p { margin-top: 24px; color: var(--soft); max-width: 36ch; font-size: 18px; }
+.odia .try { grid-column: 7 / 13; background: var(--light); color: var(--light-ink); border-radius: var(--radius); padding: 24px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+.seg { display: inline-flex; padding: 4px; gap: 4px; border-radius: 999px; background: #e5e5ea; justify-self: start; }
+.seg button { border: 0; height: 36px; padding: 0 16px; border-radius: 999px; background: none; color: var(--light-soft); font-weight: 500; font-size: 15px; cursor: pointer; transition: background .3s var(--ease), color .3s; }
+.seg button:hover { color: var(--light-ink); }
+.seg button[aria-pressed="true"] { background: #000; color: #fff; }
+.odia .note-card { min-height: 0; padding: 22px 24px; font-size: 17px; }
+.odia .heard { font-size: 14px; color: var(--light-soft); min-height: 1.5em; margin-bottom: 4px; }
+.odia .heard b { font-weight: 500; color: var(--light-ink); margin-right: 6px; }
+.odia .note-card .body { min-height: 3em; }
+.odia .stats { grid-column: 1 / 7; display: grid; gap: 28px; padding-right: 24px; }
+.odia .stats h3, .odia .pipe h3 { font-size: 24px; font-weight: 500; letter-spacing: -0.02em; }
+.odia .stats > p { color: var(--soft); font-size: 15px; max-width: 48ch; }
+.odia code { font-size: .92em; background: var(--surface-2); padding: 2px 7px; border-radius: 6px; color: var(--ink); }
+.meter { display: grid; gap: 10px; }
+.meter .cap { font-size: 15px; font-weight: 500; }
+.meter .row { display: grid; grid-template-columns: 8.5em 1fr 4.2em; gap: 14px; align-items: center; font-size: 15px; }
+.meter .row span { color: var(--soft); }
+.meter .track { height: 12px; border-radius: 6px; background: var(--surface-2); overflow: hidden; }
+.meter .fill { height: 100%; border-radius: 6px; background: #fff; width: var(--w); transform-origin: left; transition: transform 1.3s var(--ease) .2s; }
+.meter .row.old .fill { background: #636366; }
+.meter .row b { font-weight: 500; text-align: right; font-variant-numeric: tabular-nums; }
+.js .stats:not(.in) .fill { transform: scaleX(0); }
+.odia .pipe { grid-column: 7 / 13; display: grid; gap: 20px; }
+.pipe ol { list-style: none; padding: 0; display: grid; gap: 8px; counter-reset: s; }
+.pipe li { counter-increment: s; background: var(--surface); border-radius: 14px; padding: 18px 20px 18px 62px; position: relative; transition: background .3s, transform .35s var(--ease); }
+.pipe li:hover { background: var(--surface-2); transform: translateX(4px); }
+.pipe li::before { content: counter(s); position: absolute; left: 20px; top: 17px; width: 26px; height: 26px; border-radius: 50%; background: #fff; color: #000; display: grid; place-items: center; font-size: 13px; font-weight: 500; }
+.pipe li.opt::before { background: none; color: #fff; border: 1.5px dashed rgba(255,255,255,.6); }
+.pipe li b { display: block; font-weight: 500; }
+.pipe li span { display: block; margin-top: 4px; color: var(--soft); font-size: 15px; }
+.pipe .src { color: var(--soft); font-size: 14px; }
+.pipe .src a { text-decoration: underline; text-underline-offset: 3px; }
+.pipe .src a:hover { color: var(--ink); }
+
 /* meetings: a call, its captions, then its notes (product interface; data-ui) */
 .meet .grid { align-items: start; row-gap: 56px; }
 .meet .copy { grid-column: 1 / 5; position: sticky; top: 96px; }
@@ -413,6 +453,9 @@ section { position: relative; }
   .features p.statement { grid-column: 1 / -1; font-size: 24px; }
   .slot { width: 1.5em; }
   .meet .copy, .call { grid-column: 1 / -1; position: static; }
+  .odia .copy, .odia .try, .odia .stats, .odia .pipe { grid-column: 1 / -1; padding-right: 0; }
+  .odia .try { padding: 16px; }
+  .meter .row { grid-template-columns: 7.2em 1fr 3.6em; gap: 10px; font-size: 14px; }
   .call { padding: 12px; }
   .who .face { width: 40px; height: 40px; font-size: 16px; margin-bottom: 14px; }
   .who .name { font-size: 14px; left: 8px; bottom: 6px; }
@@ -431,7 +474,7 @@ section { position: relative; }
   .foot .name b { font-size: 22vw; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .btn, .hold, .bar-btn, .faq .q, .who, .slot img, .nav .mark img, .foot .get, .foot .get svg { translate: none !important; scale: none !important; transform: none !important; }
+  .btn, .hold, .bar-btn, .faq .q, .who, .slot img, .pipe li, .meter .fill, .nav .mark img, .foot .get, .foot .get svg { translate: none !important; scale: none !important; transform: none !important; }
   .btn::before { transition: none; }
   html { scroll-behavior: auto; }
   .js .rv, .js .stage .demo { transform: none; transition: opacity .3s; }
@@ -447,6 +490,7 @@ section { position: relative; }
   <nav class="nav" aria-label="Main">
     <a class="mark" href="#top"><img src="img/icon.png" alt="" width="26" height="26">OpenFlow</a>
     <ul>
+      <li><a href="#odia">Odia</a></li>
       <li><a href="#meetings">Meetings</a></li>
       <li><a href="#new">What's new</a></li>
       <li><a href="#hardware">No GPU</a></li>
@@ -496,6 +540,63 @@ section { position: relative; }
   </div>
 </section>
 
+<section class="odia pad" id="odia" aria-labelledby="o-h">
+  <div class="grid">
+    <div class="copy">
+      <h2 id="o-h" class="rv">Speak Odia.<br>Write anywhere.<span class="or" lang="or">ଓଡ଼ିଆରେ କୁହନ୍ତୁ, ଯେକୌଣସି ଆପରେ ଲେଖନ୍ତୁ।</span></h2>
+      <p class="rv" style="--i:1">Whisper has no Odia, so Odia speech used to come out in English letters. OpenFlow now carries a dedicated Odia model from AI4Bharat that writes real Odia script, and a second model that turns your Odia into English before it is pasted.</p>
+      <p class="rv" style="--i:2">Both run on your PC, on an ordinary CPU, with the network off.</p>
+    </div>
+    <div class="try rv" style="--i:1" data-ui id="odiaDemo" aria-label="Try Odia dictation">
+      <div class="seg" role="group" aria-label="Write as">
+        <button type="button" aria-pressed="true" data-mode="or">Odia</button>
+        <button type="button" aria-pressed="false" data-mode="oren">Odia → English</button>
+      </div>
+      <div class="note-card">
+        <div class="title">Leave request</div>
+        <div class="heard" data-heard></div>
+        <div class="body empty" data-note>Hold the button to dictate in Odia.</div>
+      </div>
+      <div class="pill" data-pill></div>
+      <div class="demo-bar">
+        <button class="hold" type="button" data-hold>Hold to speak</button>
+        <span class="hint">Plays a recorded Odia sentence.</span>
+      </div>
+    </div>
+
+    <div class="stats rv" id="odiaStats">
+      <h3>Odia that is actually Odia</h3>
+      <div class="meter" role="img" aria-label="Word error rate: Whisper base 125 percent, OpenFlow Odia 19.7 percent">
+        <div class="cap">Word error rate</div>
+        <div class="row old"><span>Whisper base</span><div class="track"><div class="fill" style="--w:100%"></div></div><b>125%</b></div>
+        <div class="row"><span>OpenFlow Odia</span><div class="track"><div class="fill" style="--w:15.8%"></div></div><b>19.7%</b></div>
+      </div>
+      <div class="meter" role="img" aria-label="Character error rate: Whisper base 116 percent, OpenFlow Odia 5.5 percent">
+        <div class="cap">Character error rate</div>
+        <div class="row old"><span>Whisper base</span><div class="track"><div class="fill" style="--w:92.8%"></div></div><b>116%</b></div>
+        <div class="row"><span>OpenFlow Odia</span><div class="track"><div class="fill" style="--w:4.4%"></div></div><b>5.5%</b></div>
+      </div>
+      <div class="meter" role="img" aria-label="Time per clip on CPU: Whisper base 1.36 seconds, OpenFlow Odia 0.34 seconds">
+        <div class="cap">Time per clip, CPU</div>
+        <div class="row old"><span>Whisper base</span><div class="track"><div class="fill" style="--w:100%"></div></div><b>1.36 s</b></div>
+        <div class="row"><span>OpenFlow Odia</span><div class="track"><div class="fill" style="--w:25%"></div></div><b>0.34 s</b></div>
+      </div>
+      <p>30 clips (349 s) of Google FLEURS Odia; lower is better. Whisper passes 100% because it writes Odia in English letters. Rerun it with <code>python -m openflow.bench_odia</code>.</p>
+    </div>
+
+    <div class="pipe rv" style="--i:1">
+      <h3>How it works</h3>
+      <ol>
+        <li><b>Hold Ctrl+Shift and speak Odia</b><span>Silero voice detection trims the silence. Nothing is uploaded.</span></li>
+        <li><b>IndicConformer hears Odia</b><span>AI4Bharat's 120M-parameter Odia model on ONNX Runtime, quantized to int8: 197 MB, about a third of a second per sentence.</span></li>
+        <li class="opt"><b>IndicTrans2 translates, if you chose English</b><span>AI4Bharat's distilled 200M translation model on CTranslate2, int8: about 100 to 400 ms per sentence.</span></li>
+        <li><b>Pasted into the app you are in</b><span>Word, WhatsApp, a browser form or a government portal, with your clipboard put back.</span></li>
+      </ol>
+      <p class="src">Models by AI4Bharat: <a href="https://huggingface.co/sachinmallick/openflow-odia-asr-int8">OpenFlow Odia ASR</a> (CC-BY-4.0) and <a href="https://github.com/AI4Bharat/IndicTrans2">IndicTrans2</a> (MIT).</p>
+    </div>
+  </div>
+</section>
+
 <section class="meet field-light pad" id="meetings" aria-labelledby="m-h">
   <div class="grid">
     <div class="copy">
@@ -535,8 +636,10 @@ section { position: relative; }
 </section>
 
 <section class="new pad" id="new" aria-labelledby="n-h">
-  <h2 id="n-h" class="rv">New in version 1.1.0</h2>
+  <h2 id="n-h" class="rv">What's new</h2>
   <ul>
+    <li class="rv"><h3>Native Odia dictation.</h3><p>A dedicated AI4Bharat IndicConformer model writes Odia in Odia script, with a word error rate of 19.7% against Whisper's 125%. Pick Odia in the capsule and it is used automatically.</p></li>
+    <li class="rv"><h3>Speak Odia, write English.</h3><p>Choose Odia → English and IndicTrans2 translates on your PC before the text is pasted. The model downloads once, only when you pick it.</p></li>
     <li class="rv"><h3>On-device NPU acceleration.</h3><p>Windows 11 Copilot+ PCs (Intel Core Ultra AI Boost) now run Whisper models on the NPU at under 2 Watts. Dictate and record meetings all day with zero fan spin and virtually no battery drain.</p></li>
     <li class="rv"><h3>Apple-grade capsule HUD.</h3><p>Re-architected dark HUD material with fluid iOS toggle switches, inset grouped cards, and macOS-style popovers with leading accent checks and system typography.</p></li>
     <li class="rv"><h3>Silent capsule-only boot.</h3><p>OpenFlow launches directly into the subtle floating dynamic island capsule without opening the heavy dashboard window. The full dashboard opens on demand from the tray or capsule.</p></li>
@@ -569,7 +672,7 @@ section { position: relative; }
 
 <div class="proof field-light">
   <p>Built on open parts</p>
-  <ul><li>Whisper</li><li>OpenVINO</li><li>Parakeet</li><li>sherpa-onnx</li><li>CTranslate2</li><li>PyQt6</li></ul>
+  <ul><li>Whisper</li><li>IndicConformer</li><li>IndicTrans2</li><li>OpenVINO</li><li>Parakeet</li><li>CTranslate2</li><li>PyQt6</li></ul>
 </div>
 
 <section class="faq field-light pad" id="faq" aria-labelledby="q-h">
@@ -641,7 +744,8 @@ section { position: relative; }
     const d = { pill, txt, badge, busy: () => busy };
     const setTxt = t => { if (txt.textContent === t) return; txt.textContent = t; if (reduce) return; txt.classList.remove('pop'); void txt.offsetWidth; txt.classList.add('pop'); };
     d.setState = (s, t) => { pill.dataset.state = s; if (t != null) setTxt(t); };
-    d.syncLang = () => { badge.textContent = LANGS[state.lang][0]; if (!busy) setTxt('Realtek Microphone'); };
+    const text = opts.text || textFor;
+    d.syncLang = () => { badge.textContent = opts.badge ? opts.badge() : LANGS[state.lang][0]; if (!busy) setTxt('Realtek Microphone'); };
     function animate(ts) {
       const lvl = .55 + .45 * Math.sin(ts / 420);
       bars.forEach((b, i) => { const m = .35 + .65 * Math.sin(ts / 110 + i * 1.25); b.style.height = Math.max(3, 18 * lvl * Math.abs(m)) + 'px'; });
@@ -653,7 +757,7 @@ section { position: relative; }
       d.setState('listening', 'Listening'); chime(660);
       if (!reduce) raf = requestAnimationFrame(animate); else bars.forEach((b, i) => b.style.height = [8, 14, 18, 12, 7][i] + 'px');
       if (opts.onStart) opts.onStart();
-      const words = textFor().split(/\s+/);
+      const words = (opts.heard || text)().split(/\s+/);
       let k = 0;
       while (d.held && k < words.length) {                       // live preview while the key is held
         if (state.preview) setTxt(words.slice(0, ++k).join(' ').slice(-26));
@@ -667,7 +771,7 @@ section { position: relative; }
       stopBars();
       if (heldFor < 450) { d.setState('idle', 'Too short'); await wait(1100); busy = false; d.syncLang(); d.setState('idle'); return; }
       d.setState('writing', 'Writing'); await wait(state.pause ? 650 : 350);
-      const out = textFor(), n = out.split(/\s+/).length;
+      const out = text(), n = out.split(/\s+/).length;
       if (opts.onWrite) await opts.onWrite(out);
       d.setState('done', 'Pasted ' + n + ' words'); chime(880);
       await wait(1700); busy = false; d.setState('idle'); d.syncLang();
@@ -708,6 +812,29 @@ section { position: relative; }
     if (e.code !== 'Space') return;
     hero.querySelector('[data-hold]').classList.remove('live'); heroDemo.stop();
   });
+
+  /* ---- odia: same capsule, Odia speech, Odia or English out ---- */
+  const ODIA = 'ମୁଁ ଆଜି ଅଫିସ ଆସିପାରିବି ନାହିଁ, ମୋର ଜ୍ୱର ହୋଇଛି।';
+  const ODIA_EN = 'I cannot come to the office today, I have a fever.';
+  const odiaRoot = document.getElementById('odiaDemo'), odiaNote = odiaRoot.querySelector('[data-note]'), heard = odiaRoot.querySelector('[data-heard]');
+  let odiaMode = 'or';
+  const odiaDemo = Demo(odiaRoot, {
+    text: () => odiaMode === 'or' ? ODIA : ODIA_EN,
+    heard: () => ODIA,
+    badge: () => odiaMode === 'or' ? 'ODIA' : 'OR\u2192EN',
+    onStart() { odiaNote.classList.remove('empty'); heard.textContent = ''; },
+    async onWrite(out) {
+      if (odiaMode === 'oren') { heard.innerHTML = '<b>Heard</b>'; heard.append(ODIA); }
+      odiaNote.textContent = ''; const c = document.createElement('span'); c.className = 'caret';
+      odiaNote.append(c);
+      for (const ch of out) { c.before(ch); await wait(reduce ? 0 : 22); }
+    },
+  });
+  odiaRoot.querySelectorAll('[data-mode]').forEach(b => b.addEventListener('click', () => {
+    odiaMode = b.dataset.mode;
+    odiaRoot.querySelectorAll('[data-mode]').forEach(x => x.setAttribute('aria-pressed', x === b));
+    if (!odiaDemo.busy()) odiaDemo.syncLang();
+  }));
 
   /* ---- meeting: the call plays once when it comes into view ---- */
   const call = document.getElementById('call');
@@ -760,7 +887,8 @@ section { position: relative; }
     ['Why does Edge or Windows say "isn\'t commonly downloaded"?', 'OpenFlow is a free open-source project. Newly released installers on GitHub initially have zero reputation in Microsoft\'s SmartScreen cloud and don\'t carry a $500/year enterprise certificate. In Edge/Chrome, click ... > Keep > Show more > Keep anyway. In Windows SmartScreen, click More info > Run anyway. It is 100% clean and open-source.'],
     ['How does it compare to Wispr Flow?', 'Wispr Flow charges monthly subscription fees and streams your voice and confidential thoughts to cloud servers. OpenFlow is completely free, runs 100% locally on your own GPU/CPU with sub-150ms latency, and never sends audio anywhere.'],
     ['Can it take meeting notes?', 'Yes. When a call app like Zoom, Teams or Meet is using your mic, OpenFlow offers to take notes. It records your mic and the call audio, captions each person, and saves the notes in the dashboard. If Ollama is installed, a local model writes the summary.'],
-    ['Which meeting languages work?', 'Each line is recognised in the language it is spoken in, so a call can mix English, Hindi, Tamil and more. Odia is not supported by the speech model yet.'],
+    ['Which meeting languages work?', 'Each line is recognised in the language it is spoken in, so a call can mix English, Hindi, Tamil and more. With Odia selected, the Odia model captions the call in Odia script.'],
+    ['Does it understand Odia?', 'Yes. Download the Odia model in the Model Library (about 190 MB) and pick Odia in the capsule. It writes Odia script, not English letters. Pick Odia \u2192 English to have it translated before it is pasted.'],
     ['Is it really free?', 'Yes. No subscription, no word limit, no account. It runs on your computer, so there is no server bill to pass on.'],
     ['Does my audio leave my PC?', 'No. Recording, recognition and formatting all happen locally. After the one-time model download it works with the network off.'],
     ['Which languages work?', 'About 99. English uses a fast English-only model. Other languages use a larger multilingual one, around 460 MB, fetched on first use.'],
