@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>OpenFlow — Free, Private &amp; Unlimited Local Voice Dictation for Windows | Wispr Flow Alternative</title>
-<meta name="description" content="Free, private, zero-limit local AI voice dictation and meeting intelligence for Windows. 100% offline, GPU-accelerated (sub-150ms latency), push-to-talk anywhere.">
-<meta name="keywords" content="voice dictation, speech to text, wispr flow alternative, free voice dictation, local ai, push to talk, windows dictation, faster whisper, offline speech to text, whisper ai, cuda transcription, meeting notes ai, open source voice typing, ctranslate2">
+<meta name="description" content="Free, private, zero-limit local AI voice dictation and meeting intelligence for Windows. 100% offline, GPU & NPU-accelerated (sub-150ms latency), push-to-talk anywhere.">
+<meta name="keywords" content="voice dictation, speech to text, wispr flow alternative, free voice dictation, local ai, push to talk, windows dictation, npu voice typing, copilot+ pc, intel ai boost, faster whisper, offline speech to text, whisper ai, cuda transcription, meeting notes ai, open source voice typing, ctranslate2, openvino">
 <meta name="author" content="Sachidananda">
 <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
 <link rel="canonical" href="https://sachin1724.github.io/OpenFlow/">
@@ -18,14 +18,14 @@
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://sachin1724.github.io/OpenFlow/">
 <meta property="og:title" content="OpenFlow — Free, Private &amp; Unlimited Local Voice Dictation for Windows">
-<meta property="og:description" content="Hold Ctrl+Shift, speak, and text appears anywhere in real time. 100% private, zero-limit local AI dictation running locally on your PC. Sub-150ms latency.">
+<meta property="og:description" content="Hold Ctrl+Shift, speak, and text appears anywhere in real time. 100% private, zero-limit local AI dictation running on your GPU or NPU. Sub-150ms latency.">
 <meta property="og:image" content="https://sachin1724.github.io/OpenFlow/img/icon.png">
 
 <!-- Twitter -->
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:url" content="https://sachin1724.github.io/OpenFlow/">
 <meta name="twitter:title" content="OpenFlow — Free, Private &amp; Unlimited Local Voice Dictation for Windows">
-<meta name="twitter:description" content="Hold Ctrl+Shift, speak, and text appears anywhere in real time. 100% private, zero-limit local AI dictation running on your GPU.">
+<meta name="twitter:description" content="Hold Ctrl+Shift, speak, and text appears anywhere in real time. 100% private, zero-limit local AI dictation running on your GPU or NPU.">
 <meta name="twitter:image" content="https://sachin1724.github.io/OpenFlow/img/icon.png">
 
 <!-- Google / Search Engine Schema JSON-LD -->
@@ -44,11 +44,11 @@
         "price": "0",
         "priceCurrency": "USD"
       },
-      "description": "Free, private, zero-limit local AI voice dictation and meeting intelligence for Windows. 100% offline, GPU-accelerated with sub-150ms latency.",
+      "description": "Free, private, zero-limit local AI voice dictation and meeting intelligence for Windows. 100% offline, GPU & NPU-accelerated with sub-150ms latency.",
       "url": "https://sachin1724.github.io/OpenFlow/",
-      "downloadUrl": "https://github.com/Sachin1724/OpenFlow/releases/download/v1.0.0/OpenFlow-Setup.exe",
+      "downloadUrl": "https://github.com/Sachin1724/OpenFlow/releases/download/v1.1.0/OpenFlow-Setup.exe",
       "fileSize": "94.7 MB",
-      "softwareVersion": "1.0.0",
+      "softwareVersion": "1.1.0",
       "codeRepository": "https://github.com/Sachin1724/OpenFlow",
       "license": "https://opensource.org/licenses/MIT",
       "author": {
@@ -535,13 +535,13 @@ section { position: relative; }
 </section>
 
 <section class="new pad" id="new" aria-labelledby="n-h">
-  <h2 id="n-h" class="rv">New in this version</h2>
+  <h2 id="n-h" class="rv">New in version 1.1.0</h2>
   <ul>
-    <li class="rv"><h3>Speak any language, paste English.</h3><p>Pick &ldquo;Any language &rarr; English&rdquo; and talk in Hindi, Spanish or Japanese. What lands in the app is English. Try it in the demo at the top.</p></li>
-    <li class="rv"><h3>Fast without a graphics card.</h3><p>The new Parakeet model runs on an ordinary CPU and turns a sentence into text in about a third of a second. English and 24 European languages.</p></li>
-    <li class="rv"><h3>Hindi stays in Devanagari.</h3><p>The speech model often mistakes Hindi for Urdu and writes it in the wrong script. OpenFlow now notices and writes it again in Devanagari.</p></li>
-    <li class="rv"><h3>The capsule stays on top.</h3><p>Full-screen apps and call windows no longer bury it. It shows above everything, and still never takes focus from what you are typing in.</p></li>
-    <li class="rv"><h3>Plug in a mic, use it.</h3><p>A new USB or Bluetooth microphone shows up within two seconds. Unplug the one you were using and OpenFlow moves to the default.</p></li>
+    <li class="rv"><h3>On-device NPU acceleration.</h3><p>Windows 11 Copilot+ PCs (Intel Core Ultra AI Boost) now run Whisper models on the NPU at under 2 Watts. Dictate and record meetings all day with zero fan spin and virtually no battery drain.</p></li>
+    <li class="rv"><h3>Apple-grade capsule HUD.</h3><p>Re-architected dark HUD material with fluid iOS toggle switches, inset grouped cards, and macOS-style popovers with leading accent checks and system typography.</p></li>
+    <li class="rv"><h3>Silent capsule-only boot.</h3><p>OpenFlow launches directly into the subtle floating dynamic island capsule without opening the heavy dashboard window. The full dashboard opens on demand from the tray or capsule.</p></li>
+    <li class="rv"><h3>Press-to-record hotkey box.</h3><p>Set custom hotkeys by simply clicking and pressing your keys. Automatically pauses global listeners during recording to prevent shortcut capture collisions.</p></li>
+    <li class="rv"><h3>Deterministic model downloads.</h3><p>Zero unsolicited background downloads. OpenFlow strictly downloads only the exact variant you select, and transparently substitutes cached local models.</p></li>
   </ul>
 </section>
 
@@ -559,17 +559,17 @@ section { position: relative; }
 </section>
 
 <section class="hw pad" id="hardware" aria-labelledby="hw-h">
-  <h2 id="hw-h" class="rv">No GPU? Still fast.</h2>
+  <h2 id="hw-h" class="rv">GPU or NPU? Instant either way.</h2>
   <div class="cols">
-    <div class="col3 lit rv"><h3>NVIDIA graphics card</h3><p><b>Whisper on the GPU</b>Text appears almost as you let go. 99 languages.</p></div>
-    <div class="col3 rv" style="--i:1"><h3>Any modern laptop</h3><p><b>Parakeet on the CPU</b>About a third of a second per sentence. English and 24 European languages.</p></div>
-    <div class="col3 rv" style="--i:2"><h3>Older or low-power PC</h3><p><b>Whisper Tiny or Base</b>Best for short phrases. Every language, a little less accurate.</p></div>
+    <div class="col3 lit rv"><h3>NVIDIA graphics card</h3><p><b>Whisper on CUDA GPU</b>Text appears almost as you let go. Sub-150ms latency across 99 languages.</p></div>
+    <div class="col3 rv" style="--i:1"><h3>Windows 11 Copilot+ PC</h3><p><b>Whisper on the NPU</b>Sub-2W power draw via Intel AI Boost &amp; OpenVINO. All-day battery life with zero fan noise.</p></div>
+    <div class="col3 rv" style="--i:2"><h3>Any laptop or PC</h3><p><b>Parakeet &amp; CPU INT8</b>A third of a second per sentence with Parakeet, or AVX2-vectorized Whisper on any CPU.</p></div>
   </div>
 </section>
 
 <div class="proof field-light">
   <p>Built on open parts</p>
-  <ul><li>Whisper</li><li>Parakeet</li><li>sherpa-onnx</li><li>CTranslate2</li><li>PyQt6</li></ul>
+  <ul><li>Whisper</li><li>OpenVINO</li><li>Parakeet</li><li>sherpa-onnx</li><li>CTranslate2</li><li>PyQt6</li></ul>
 </div>
 
 <section class="faq field-light pad" id="faq" aria-labelledby="q-h">
@@ -764,7 +764,8 @@ section { position: relative; }
     ['Is it really free?', 'Yes. No subscription, no word limit, no account. It runs on your computer, so there is no server bill to pass on.'],
     ['Does my audio leave my PC?', 'No. Recording, recognition and formatting all happen locally. After the one-time model download it works with the network off.'],
     ['Which languages work?', 'About 99. English uses a fast English-only model. Other languages use a larger multilingual one, around 460 MB, fetched on first use.'],
-    ['Do I need a graphics card?', 'No. With the Parakeet model an ordinary CPU is fast for English and European languages. A GPU is fastest for everything else.'],
+    ['Does OpenFlow support Copilot+ PCs with an NPU?', 'Yes. OpenFlow natively detects Intel AI Boost and Copilot+ NPUs via OpenVINO. It executes Whisper models directly on the dedicated neural processor at under 2 Watts, so you can dictate and record meetings all day on battery without spinning up laptop fans.'],
+    ['Do I need a graphics card?', 'No. If your PC has an NPU (Intel Core Ultra), OpenFlow uses it at sub-2W power. With the Parakeet model an ordinary CPU is fast for English and European languages. An NVIDIA GPU runs fastest for everything else.'],
     ['My NVIDIA card is not used. Why?', 'The CUDA libraries are missing. Run pip install nvidia-cublas-cu12 nvidia-cudnn-cu12 once, then restart OpenFlow.'],
     ['Will it work in any app?', 'Nearly all. OpenFlow pastes into the window you were using when you started speaking, then restores your clipboard.'],
     ['What happens when I leave it idle?', 'After ten minutes it frees the GPU and reloads on the next hotkey press. It also recovers by itself after your PC wakes from sleep.'],

@@ -9,21 +9,22 @@ OpenFlow is a high-performance Windows desktop application that enables users to
 - **Platform**: Windows 10 & Windows 11 (64-bit)
 - **License**: MIT License (Open Source)
 - **Repository**: https://github.com/Sachin1724/OpenFlow
-- **Download**: https://github.com/Sachin1724/OpenFlow/releases/download/v1.0.0/OpenFlow-Setup.exe
+- **Download**: https://github.com/Sachin1724/OpenFlow/releases/download/v1.1.0/OpenFlow-Setup.exe
 - **Website**: https://sachin1724.github.io/OpenFlow/
 - **Cost**: 100% Free, zero subscriptions, zero usage quotas
 - **Privacy**: 100% Offline, no external network transmission of audio
 
 ## Core Capabilities
 - **Push-to-Talk Global Hotkey**: Hold `Ctrl + Shift` to speak in any application; release to automatically transcribe and paste formatted text directly into the active cursor position via Win32 SendInput.
-- **Dynamic Island Floating Capsule HUD**: Translucent glassmorphic overlay anchored to the screen with real-time audio waveform visualizers, live level meters, and smooth 360ms OutCubic easing morphing.
+- **On-Device NPU Acceleration**: Sub-2W execution for Windows 11 Copilot+ PCs (Intel AI Boost / OpenVINO), enabling silent, all-day voice dictation without battery drain.
+- **Dynamic Island Floating Capsule HUD**: Translucent Apple-grade dark HUD with iOS-style spring toggle switches, live audio visualizers, and silent boot into capsule mode.
 - **Autonomous Meeting Mode**: Background window detection for Google Meet, Zoom, Microsoft Teams, and Cisco Webex. Automatically captures meeting dialogue and formats structured executive notes (Agenda, Discussion, Decisions, Action Items) into local SQLite storage.
 - **Win32 Live Hardware Microphone Hotplug**: Real-time Windows kernel polling detecting device attachment/removal, with companion notification pill and instant audio channel switching.
 - **Multi-Tone Text Refiner**: Intelligent punctuation and filler-word removal with dedicated presets for Smart Clean, Developer/Code voice syntax, Email & Formal, Markdown Bullets, and Verbatim speech.
 - **Multilingual Support**: Supports 99+ languages with specialized context prompt injection for Indic dialects (Hindi in Devanagari script, Odia, Hinglish).
 
 ## Technical Architecture
-- **Inference Engine**: CTranslate2 `float16` Whisper kernels via faster-whisper
+- **Inference Engine**: CTranslate2 `float16` Whisper kernels (NVIDIA CUDA) + OpenVINO INT8 (Windows Copilot+ NPU) + Sherpa-ONNX Parakeet (CPU)
 - **Audio Capture**: Windows winmm kernel polling + 16kHz PCM stream capture via sounddevice
 - **Input Injection**: Windows low-level keyboard hooks (WH_KEYBOARD_LL) + Win32 SendInput with clipboard restoration
 - **UI Framework**: PyQt6 with custom vector animations and non-activating window flags
