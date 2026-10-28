@@ -38,6 +38,10 @@ _MODELS.update({
     "large-v2": "Systran/faster-whisper-large-v2",
     "large-v3": "Systran/faster-whisper-large-v3",
     "parakeet": "csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8",
+    # AI4Bharat IndicConformer (CC-BY-4.0), sulabhkatiyar's ONNX export with MatMuls quantized to int8
+    "odia": "sachinmallick/openflow-odia-asr-int8",
+    # AI4Bharat IndicTrans2 Indic->En distilled 200M, CTranslate2 build (MIT); not a speech model
+    "odia-en": "adalat-ai/ct2-rotary-indictrans2-indic-en-dist-200M",
 })
 
 # OpenVINO IR builds for the Intel NPU engine ("base-ov" -> OpenVINO/whisper-base-int8-ov)
@@ -47,11 +51,18 @@ _MODELS["distil-large-v3-ov"] = "OpenVINO/distil-whisper-large-v3-int8-ov"
 _PATTERNS = ["config.json", "preprocessor_config.json", "model.bin", "tokenizer.json", "vocabulary.*"]
 _OV_PATTERNS = ["*.xml", "*.bin", "*.json"]
 _PARAKEET_PATTERNS = ["encoder.int8.onnx", "decoder.int8.onnx", "joiner.int8.onnx", "tokens.txt"]
+_ODIA_PATTERNS = ["or/model.onnx", "or/vocab.json"]
+TRANSLATOR_DIR = "indic-en-200m-ct2/ctranslate2_model"
+_TRANSLATOR_PATTERNS = [TRANSLATOR_DIR + "/*", TRANSLATOR_DIR + "/vocab/*"]
 
 
 def _patterns(name: str) -> List[str]:
     if name.endswith("-ov"):
         return _OV_PATTERNS
+    if name == "odia":
+        return _ODIA_PATTERNS
+    if name == "odia-en":
+        return _TRANSLATOR_PATTERNS
     return _PARAKEET_PATTERNS if name == "parakeet" else _PATTERNS
 
 
@@ -59,6 +70,10 @@ def _weights_file(name: str) -> str:
     """The big file whose presence and size proves a download finished."""
     if name.endswith("-ov"):
         return "openvino_encoder_model.bin"
+    if name == "odia":
+        return "or/model.onnx"
+    if name == "odia-en":
+        return TRANSLATOR_DIR + "/model.bin"
     return "encoder.int8.onnx" if name == "parakeet" else "model.bin"
 
 # Accurate offline known sizes for fallback progress calculation (in bytes)
@@ -75,6 +90,8 @@ _KNOWN_SIZES: Dict[str, int] = {
     "large-v2": 3_090_000_000,
     "large-v3": 3_090_000_000,
     "parakeet": 670_478_772,
+    "odia": 197_090_303,
+    "odia-en": 856_259_538,
 }
 
 MODEL_METADATA = [
@@ -116,6 +133,14 @@ MODEL_METADATA = [
         "description": "Fast on computers without a GPU. English + 24 European languages; others use Whisper (~640 MB)",
         "speed": "Fast on CPU",
         "accuracy": "Very High",
+        "recommended": False,
+    },
+    {
+        "id": "odia",
+        "name": "Odia (AI4Bharat IndicConformer)",
+        "description": "Native Odia speech-to-text in Odia script. Used when the language is Odia; others use Whisper (~190 MB)",
+        "speed": "Fast",
+        "accuracy": "High (Odia)",
         "recommended": False,
     },
 ]
@@ -246,7 +271,7 @@ active_device = "cpu"  # set by Transcriber on load; the NPU engine uses its own
 
 def is_ready(name: str) -> bool:
     """Downloaded for the engine that is running now (Model Library and capsule badges)."""
-    if active_device == "npu" and name != "parakeet":
+    if active_device == "npu" and name not in ("parakeet", "odia"):
         return cached_path(name.replace(".en", "") + "-ov") is not None
     return is_model_downloaded(name)
 

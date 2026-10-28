@@ -84,10 +84,16 @@ PARAKEET_LANGS = {
 }
 
 
+# Settings that mean Odia speech; the "odia" model runs AI4Bharat IndicConformer for these.
+ODIA_LANGS = {"or", "odia", "or-en"}  # "or-en": speak Odia, main.py translates the text to English
+
+
 def resolve_model_name(base_model: str, language: str) -> str:
     """English (US/UK) -> fast .en model. Indian English, multilingual, auto, or regional -> multilingual model."""
     if base_model == "parakeet":
         return "parakeet" if language in PARAKEET_LANGS else "base"
+    if base_model == "odia":
+        return "odia" if language in ODIA_LANGS else "base"
     clean = base_model.replace(".en", "")
     if clean.startswith("distil"):  # distilled models are English-only
         return clean if language == "en" else "medium"
@@ -101,7 +107,7 @@ def resolve_model_name(base_model: str, language: str) -> str:
 def engine_model_name(base_model: str, language: str, device: str) -> str:
     """Model files to load: the NPU runs OpenVINO builds of the multilingual weights ("base-ov")."""
     name = resolve_model_name(base_model, language)
-    if device == "npu" and name != "parakeet":  # Parakeet stays on its CPU engine
+    if device == "npu" and name not in ("parakeet", "odia"):  # ONNX engines stay on the CPU
         name = name.replace(".en", "") + "-ov"
     return name
 
@@ -126,7 +132,7 @@ def _whisper_args(lang: str) -> dict:
     """Maps an OpenFlow language setting to faster-whisper language/task arguments."""
     if lang == "translate":  # speak any language, get English text
         return {"language": None, "task": "translate"}
-    if lang in ("auto", "", "or", "odia"):  # Odia runs via auto-detect + prompt biasing since Whisper has no 'or' token
+    if lang in ("auto", "") or lang in ODIA_LANGS:  # Odia runs via auto-detect + prompt biasing since Whisper has no 'or' token
         return {"language": None, "task": "transcribe"}
     return {"language": "en" if lang == "en-in" else lang, "task": "transcribe"}
 
@@ -148,13 +154,21 @@ class Transcriber:
         self.on_status = None           # optional callback(str) for "downloading/ready" messages
         self._loaded_device = ""
         self._preview_slow = False      # this model/device can't preview without delaying the final text
+        self._slow_preview_streak = 0
         self.on_progress = None         # optional callback(percent:int, model_name:str) while downloading
+        self.is_loading = False
         if preload:
             self._load_model()
 
     def _load_model(self):
-        with self._lock:
-            self._load_model_locked()
+        if getattr(self, "is_loading", False):
+            return
+        self.is_loading = True
+        try:
+            with self._lock:
+                self._load_model_locked()
+        finally:
+            self.is_loading = False
 
     def _target(self, language: str) -> str:
         return engine_model_name(self.model_size, language, self.device)
@@ -205,6 +219,16 @@ class Transcriber:
 
         if target_name == "parakeet":
             self._load_parakeet(model_path)
+            return
+
+        if target_name == "odia":
+            from .indic_asr import IndicCTC
+            self.model = IndicCTC(os.path.join(model_path, "or"), threads=_THREADS)
+            self._current_loaded_name = "odia"
+            self._loaded_device = self.device
+            print("[OpenFlow] Odia IndicConformer loaded and ready.")
+            if self.on_status:
+                self.on_status("Model odia ready")
             return
 
         if target_name.endswith("-ov"):
@@ -280,6 +304,8 @@ class Transcriber:
 
     def _parakeet_text(self, audio: np.ndarray) -> str:
         assert self.model is not None
+        if self._current_loaded_name == "odia":
+            return self.model.text(audio)
         stream = self.model.create_stream()
         stream.accept_waveform(16000, audio)
         self.model.decode_stream(stream)
@@ -301,6 +327,10 @@ class Transcriber:
             self.language = language
         self._load_model()
 
+    def reset_preview_budget(self):
+        """Called at start of dictation so cold chunks or previous utterances don't permanently mute preview."""
+        self._preview_slow = False
+
     def transcribe_partial(self, audio: np.ndarray) -> str:
         """Fast real-time preview (beam_size=1, greedy) for streaming into the capsule."""
         if self.model is None or self._preview_slow or len(audio) < 8000:
@@ -310,8 +340,9 @@ class Transcriber:
 
         start = time.perf_counter()
         try:
-            sample = audio[-16000 * 8:]
-            if self._current_loaded_name == "parakeet":
+            # Slicing the last 3.0 seconds (48,000 samples) instead of 8s keeps decode latency under 80ms
+            sample = audio[-16000 * 3:]
+            if self._current_loaded_name in ("parakeet", "odia"):
                 return self._parakeet_text(sample)
             segments, _ = self.model.transcribe(
                 sample,
@@ -376,7 +407,7 @@ class Transcriber:
         if initial_prompt is None:
             if lang in ("en", "en-in"):
                 initial_prompt = "Indian English and Hinglish dictation in natural Latin/Roman script. Use standard punctuation."
-            elif lang in ("auto", "", "or", "odia"):
+            elif lang in ("auto", "") or lang in ODIA_LANGS:
                 initial_prompt = (
                     "Indian English, Hinglish, Hindi, and Odia speech. "
                     "Accurately transcribe Hindi and Odia phrases in clean Latin/Roman script or Devanagari. "
@@ -405,7 +436,7 @@ class Transcriber:
             )
             return " ".join(seg.text.strip() for seg in segments).strip(), info
 
-        if self._current_loaded_name == "parakeet":
+        if self._current_loaded_name in ("parakeet", "odia"):
             with self._lock:
                 full_text = self._parakeet_text(audio)
             latency_ms = int((time.perf_counter() - start_time) * 1000)
@@ -443,7 +474,7 @@ class Transcriber:
                 (info and getattr(info, "language", "") in ("ur", "ar", "fa", "ps", "sd")) or
                 contains_arabic_script(full_text)
             )
-            if is_urdu_hallucination and lang in ("auto", "", "en-in", "en", "hi", "or", "odia"):
+            if is_urdu_hallucination and (lang in ("auto", "", "en-in", "en", "hi") or lang in ODIA_LANGS):
                 det = getattr(info, "language", "unknown") if info else "unknown"
                 print(f"[OpenFlow] Detected Urdu/Arabic script or misclassified language ('{det}'). Re-transcribing as Indic speech...")
                 whisper_args = _whisper_args("hi" if lang == "hi" else "en")

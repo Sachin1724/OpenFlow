@@ -14,7 +14,7 @@ from PyQt6.QtCore import (
 )
 from PyQt6.QtGui import (
     QPainter, QColor, QBrush, QPen, QFont, QFontDatabase, QFontMetricsF, QLinearGradient,
-    QPainterPath, QPolygonF, QPixmap, QIcon, QPalette
+    QPainterPath, QPolygonF, QPixmap, QIcon, QPalette, QCursor, QGuiApplication
 )
 
 
@@ -169,71 +169,102 @@ class StateIndicator(QWidget):
 
 
 class WaveformBars(QWidget):
-    """Five responsive rounded bars reacting dynamically to real-time audio."""
-
-    def __init__(self, parent=None, num_bars=5):
+    """
+    Apple Dynamic Island / Siri style fluid audio visualizer.
+    Features living traveling sine waves with formant weighting across 7 bars,
+    responsive to both resting ambient silence and active voice dynamics.
+    """
+    def __init__(self, parent=None, num_bars=7):
         super().__init__(parent)
         self.num_bars = num_bars
-        self.bar_weights = [0.65, 0.92, 1.0, 0.88, 0.60]
-        self.bar_heights = [0.18] * num_bars
         self.target_level = 0.0
+        self._current_level = 0.0
         self.phase = 0.0
-        self.setFixedSize(42, 20)
+        self.setFixedSize(44, 18)
+
+        # Formant center weights (highest in middle, tapered at sides)
+        self.bar_weights = [0.38, 0.68, 0.95, 1.0, 0.95, 0.68, 0.38]
+        self.bar_heights = [3.5] * num_bars
+
         self.timer = QTimer(self)
         self.timer.timeout.connect(self._tick)
         self.timer.start(16)  # 60 FPS fluid rendering
 
+    def set_bar_count(self, count: int):
+        self.num_bars = count
+        if count == 7:
+            self.bar_weights = [0.38, 0.68, 0.95, 1.0, 0.95, 0.68, 0.38]
+        else:
+            self.bar_weights = [0.50, 0.85, 1.0, 0.85, 0.50]
+        self.bar_heights = [3.5] * count
+        self.update()
+
     def set_level(self, level: float):
-        # Instant level registration with no artificial floor
+        # Audio level registration with high sensitivity
         self.target_level = max(0.0, min(1.0, level))
 
     def reset(self):
         self.target_level = 0.0
+        self._current_level = 0.0
 
     def _tick(self):
         if not self.isVisible():
             return
-        self.phase += 0.28
-        lvl = self.target_level
-        is_speech = lvl > 0.04
+
+        # Advance traveling phase continuously for living wave
+        self.phase += 0.14
+
+        # Smooth input loudness level
+        if self.target_level > self._current_level:
+            self._current_level += (self.target_level - self._current_level) * 0.45
+        else:
+            self._current_level += (self.target_level - self._current_level) * 0.18
+
+        lvl = self._current_level
+        max_h = float(self.height() - 2)  # up to 16px
+        min_h = 3.2
 
         for i in range(self.num_bars):
-            if is_speech:
-                # Organic vocal envelope modulation (always strictly positive: 0.68 to 1.18)
-                mod = 0.70 + 0.30 * math.sin(self.phase * 1.6 + i * 1.35)
-                # Dynamic height based on formant sensitivity
-                target = min(1.0, lvl * self.bar_weights[i] * mod * 1.35)
-            else:
-                # Subtle resting pulse (breathing animation while listening to ambient silence)
-                target = 0.14 + 0.06 * math.sin(self.phase * 0.9 + i * 1.1)
+            # Traveling harmonic waves across the bars
+            wave1 = math.sin(self.phase * 2.8 - i * 0.95)
+            wave2 = math.cos(self.phase * 1.7 + i * 0.7)
+            combined_wave = 0.5 + 0.5 * (0.7 * wave1 + 0.3 * wave2)
 
-            current = self.bar_heights[i]
-            # Fast attack (0.70) snaps up with voice, smooth decay (0.24) falls gracefully
-            if target > current:
-                self.bar_heights[i] = current + (target - current) * 0.70
+            # Resting / ambient wave: always gently alive and wavy when listening
+            resting_h = min_h + (3.6 * self.bar_weights[i] * combined_wave)
+
+            # Active voice speech modulation:
+            # Power expansion ensures quiet speech lifts middle bars dramatically
+            speech_boost = math.pow(lvl, 0.40) if lvl > 0.008 else 0.0
+            voice_h = (max_h - min_h) * self.bar_weights[i] * speech_boost * (0.55 + 0.45 * wave1)
+
+            target = resting_h + voice_h
+            target = max(min_h, min(max_h, target))
+
+            cur = self.bar_heights[i]
+            if target > cur:
+                self.bar_heights[i] = cur + (target - cur) * 0.42
             else:
-                self.bar_heights[i] = current + (target - current) * 0.24
+                self.bar_heights[i] = cur + (target - cur) * 0.20
 
         self.update()
 
     def paintEvent(self, a0):
         p = QPainter(self)
-        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing, True)
         p.setPen(Qt.PenStyle.NoPen)
 
-        # Subtle bright glow when speech energy is high
-        alpha = int(210 + 45 * min(1.0, self.target_level * 1.5))
+        # Dynamic luminous brightness: soft pure white to bright glow
+        alpha = int(185 + 70 * min(1.0, self._current_level * 2.0))
         p.setBrush(QColor(255, 255, 255, alpha))
 
-        bar_w = 3.2
-        gap = 3.5
+        bar_w = 2.4 if self.num_bars >= 7 else 3.2
+        gap = 2.6 if self.num_bars >= 7 else 3.4
         total = self.num_bars * bar_w + (self.num_bars - 1) * gap
         x0 = (self.width() - total) / 2.0
-        max_h = float(self.height() - 2)
 
-        for i, bh in enumerate(self.bar_heights):
-            # Dynamic height smoothly between 3.5px and max_h (up to 18px)
-            h = max(3.5, min(max_h, bh * max_h))
+        for i, h in enumerate(self.bar_heights):
+            h = max(2.8, min(float(self.height() - 1), h))
             y = (self.height() - h) / 2.0
             x = x0 + i * (bar_w + gap)
             p.drawRoundedRect(QRectF(x, y, bar_w, h), bar_w / 2.0, bar_w / 2.0)
@@ -365,12 +396,18 @@ class AnimatedText(QWidget):
         if text == self._text:
             return
         self._x0 = self._x_cur
-        self._mode = "grow" if (self._text and text.startswith(self._text)) else "swap"
+        # Speech continuation / edit recognition: don't flip vertically on minor punctuation changes
+        is_grow = bool(self._text and (
+            text.startswith(self._text) or 
+            text.lower().startswith(self._text[:min(8, len(self._text))].lower()) or
+            (len(text) >= len(self._text) and abs(len(text) - len(self._text)) <= 12)
+        ))
+        self._mode = "grow" if is_grow else "swap"
         self._prev = self._text
         self._text = text
         self._p = 0.0
         self._anim.stop()
-        self._anim.setDuration(160 if self._mode == "grow" else 240)
+        self._anim.setDuration(90 if self._mode == "grow" else 180)
         self._anim.start()
 
     def _on_tick(self, v):
@@ -547,7 +584,7 @@ class ValueRow(QWidget):
             act.setCheckable(True)
             act.setChecked(i == self._idx)
             act.setEnabled(i not in self._disabled)
-            act.triggered.connect(lambda _=False, i=i: self.setCurrentIndex(i))
+            act.triggered.connect(lambda _=False, idx=i: QTimer.singleShot(15, lambda: self.setCurrentIndex(idx)))
 
         # Ensure the menu stays strictly in front of FloatingPill on Windows
         menu.aboutToShow.connect(lambda: (_force_topmost(menu), menu.raise_()))
@@ -950,6 +987,191 @@ class MeetingBar(QWidget):
         super().resizeEvent(a0)
 
 
+class FloatingCaptionBubble(QWidget):
+    """
+    Floating translucent live speech preview bubble for Option A (Wispr Flow) and Option C (Micro).
+    Hovers gracefully right above the capsule to show live transcription without stretching the capsule.
+    Features 60 FPS continuous width easing and artistic per-word smoothstep alpha fade-in.
+    """
+    def __init__(self, parent_pill: QWidget):
+        super().__init__()
+        self.pill = parent_pill
+        self.setWindowFlags(
+            Qt.WindowType.FramelessWindowHint |
+            Qt.WindowType.WindowStaysOnTopHint |
+            Qt.WindowType.Tool |
+            Qt.WindowType.WindowDoesNotAcceptFocus
+        )
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
+        self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+
+        self._text = ""
+        self._font = QFont(ui_font_family(), 10, QFont.Weight.Medium)
+        self.setWindowOpacity(0.0)
+
+        self._cur_w = 116.0
+        self._target_w = 116.0
+        self._word_records = []  # list of (word_str, birth_timestamp)
+
+        self.fade_anim = QPropertyAnimation(self, b"windowOpacity")
+        self.fade_anim.setDuration(160)
+        self.fade_anim.setEasingCurve(QEasingCurve.Type.OutCubic)
+
+        # 60 FPS continuous animation timer for liquid width easing and per-word alpha ramp
+        self._anim_timer = QTimer(self)
+        self._anim_timer.setInterval(16)
+        self._anim_timer.timeout.connect(self._on_anim_tick)
+
+    def set_text(self, text: str):
+        text = text.strip()
+        if text == self._text:
+            return
+
+        now = time.monotonic()
+        old_words = self._text.split() if self._text else []
+        new_words = text.split() if text else []
+
+        # Preserve birth timestamps for previously rendered prefix words
+        matched_prefix_len = 0
+        while (matched_prefix_len < len(old_words) and 
+               matched_prefix_len < len(new_words) and 
+               matched_prefix_len < len(self._word_records) and 
+               old_words[matched_prefix_len] == new_words[matched_prefix_len]):
+            matched_prefix_len += 1
+
+        updated_records = list(self._word_records[:matched_prefix_len])
+        for w in new_words[matched_prefix_len:]:
+            updated_records.append((w, now))
+
+        self._text = text
+        self._word_records = updated_records
+
+        if text:
+            fm = QFontMetricsF(self._font)
+            raw_w = fm.horizontalAdvance(text) + 32
+            self._target_w = float(max(116, min(480, int(raw_w))))
+            if not self._anim_timer.isActive():
+                self._anim_timer.start()
+
+            if not self.isVisible() or self.windowOpacity() < 0.1:
+                self.setFixedSize(int(self._cur_w), 32)
+                self._reposition()
+                self.show()
+                _force_topmost(self)
+                self.fade_anim.stop()
+                self.fade_anim.setStartValue(self.windowOpacity())
+                self.fade_anim.setEndValue(1.0)
+                self.fade_anim.start()
+            self.update()
+        else:
+            self.fade_out()
+
+    def _on_anim_tick(self):
+        diff = self._target_w - self._cur_w
+        now = time.monotonic()
+        has_animating_words = any((now - t) < 0.20 for _, t in self._word_records)
+
+        if abs(diff) > 0.5:
+            self._cur_w += diff * 0.30
+            self.setFixedSize(int(self._cur_w), 32)
+            self._reposition()
+            self.update()
+        elif has_animating_words:
+            self._cur_w = self._target_w
+            self.setFixedSize(int(self._cur_w), 32)
+            self._reposition()
+            self.update()
+        else:
+            self._cur_w = self._target_w
+            self.setFixedSize(int(self._cur_w), 32)
+            self._reposition()
+            self.update()
+            self._anim_timer.stop()
+
+    def _reposition(self):
+        if not self.pill or not self.pill.isVisible():
+            return
+        px = self.pill.x() + (self.pill.width() - self.width()) // 2
+        py = self.pill.y() - self.height() - 8
+        self.move(px, py)
+
+    def fade_out(self):
+        if not self.isVisible() or self.windowOpacity() <= 0.0:
+            self._text = ""
+            self._word_records = []
+            return
+        self.fade_anim.stop()
+        self.fade_anim.setStartValue(self.windowOpacity())
+        self.fade_anim.setEndValue(0.0)
+        try:
+            self.fade_anim.finished.disconnect(self._on_faded)
+        except Exception:
+            pass
+        self.fade_anim.finished.connect(self._on_faded)
+        self.fade_anim.start()
+
+    def _on_faded(self):
+        try:
+            self.fade_anim.finished.disconnect(self._on_faded)
+        except Exception:
+            pass
+        if self.windowOpacity() <= 0.05:
+            self.hide()
+            self._text = ""
+            self._word_records = []
+            self._anim_timer.stop()
+            self._cur_w = 116.0
+            self._target_w = 116.0
+
+    def paintEvent(self, a0):
+        if not self._text or not self._word_records:
+            return
+        p = QPainter(self)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        p.setRenderHint(QPainter.RenderHint.TextAntialiasing)
+
+        rect = QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5)
+        # Translucent glass bubble
+        p.setPen(QPen(QColor(255, 255, 255, 32), 1.0))
+        p.setBrush(QColor(16, 16, 20, 238))
+        p.drawRoundedRect(rect, 10.0, 10.0)
+
+        # Artistic per-word alpha rendering
+        p.setFont(self._font)
+        fm = QFontMetricsF(self._font)
+        now = time.monotonic()
+
+        avail_w = self.width() - 28.0
+        words_to_draw = []
+        tot_w = 0.0
+        space_w = fm.horizontalAdvance(" ")
+        for word, birth in reversed(self._word_records):
+            ww = fm.horizontalAdvance(word)
+            needed = ww + (space_w if words_to_draw else 0.0)
+            if tot_w + needed > avail_w and words_to_draw:
+                words_to_draw.insert(0, ("...", 0.0, fm.horizontalAdvance("...")))
+                break
+            words_to_draw.insert(0, (word, birth, ww))
+            tot_w += needed
+
+        base_y = (self.height() + fm.ascent() - fm.descent()) / 2.0
+        cur_x = 14.0
+        for word, birth, ww in words_to_draw:
+            if word == "...":
+                p.setPen(QColor(255, 255, 255, 120))
+            else:
+                age = now - birth
+                if age >= 0.18:
+                    alpha = 245
+                else:
+                    t = max(0.0, min(1.0, age / 0.18))
+                    alpha = int(40 + (245 - 40) * (t * t * (3.0 - 2.0 * t)))
+                p.setPen(QColor(255, 255, 255, alpha))
+            p.drawText(QPointF(cur_x, base_y), word)
+            cur_x += ww + space_w
+
+
 class FloatingPill(QWidget):
     """
     Black-and-white capsule HUD.
@@ -967,7 +1189,7 @@ class FloatingPill(QWidget):
 
     LANGS = [
         ("auto", "Auto Detect"), ("en-in", "English (India) / Hinglish"), ("or", "Odia / Odia-English"),
-        ("hi", "Hindi"), ("en", "English (US/UK)"), ("translate", "Any language → English"),
+        ("or-en", "Odia → English"), ("hi", "Hindi"), ("en", "English (US/UK)"), ("translate", "Any language → English"),
         ("es", "Spanish"), ("fr", "French"), ("de", "German"), ("zh", "Chinese"), ("ja", "Japanese"),
         ("pt", "Portuguese"), ("it", "Italian"), ("ar", "Arabic"), ("ru", "Russian"),
         ("ko", "Korean"), ("nl", "Dutch"), ("tr", "Turkish"),
@@ -977,7 +1199,7 @@ class FloatingPill(QWidget):
         ("bullets", "Bullet Points"), ("verbatim", "Verbatim"),
     ]
 
-    def __init__(self, current_mic_name: str = "Microphone", current_language: str = "en", current_model: str = "base", hide_when_idle: bool = False):
+    def __init__(self, current_mic_name: str = "Microphone", current_language: str = "en", current_model: str = "base", hide_when_idle: bool = False, capsule_style: str = "compact", follow_mouse_screen: bool = True):
         super().__init__()
         self.setWindowFlags(
             Qt.WindowType.FramelessWindowHint |
@@ -997,17 +1219,34 @@ class FloatingPill(QWidget):
         self.current_language = current_language
         self.current_model = current_model
         self.hide_when_idle = hide_when_idle
+        self.capsule_style = capsule_style
+        self.follow_mouse_screen = follow_mouse_screen
+        self.current_screen = None
+        self._is_transitioning_screen = False
         self._recent_mics = []
 
-        self._cap_w, self._cap_h = 360, 44
+        if capsule_style == "micro":
+            self._cap_w, self._cap_h = 88, 24
+            self._snooze_w, self._snooze_h = 54, 18
+        elif capsule_style == "standard":
+            self._cap_w, self._cap_h = 360, 44
+            self._snooze_w, self._snooze_h = 76, 8
+        else: # "compact" / Wispr Flow
+            self._cap_w, self._cap_h = 142, 32
+            self._snooze_w, self._snooze_h = 98, 24
+
         self._hud_w, self._hud_h = 360, 400
         self._line_w, self._line_h = 76, 8
         self._t = 0.0            # 0 = capsule, 1 = HUD
         self._line_t = 0.0       # 0 = capsule, 1 = minimal line
+        self._snooze_t = 0.0     # 0 = active capsule, 1 = snoozed resting pill
+        self._is_snoozed = False
         self._mode = "capsule"   # "capsule", "line", "hud"
         self._is_line_hovered = False
         self._dl = -1            # model download percent, -1 when not downloading
         self._anchor = QPoint()  # bottom-centre of the window during a morph
+
+        self.caption_bubble = FloatingCaptionBubble(self)
 
         self.morph_anim = QVariantAnimation(self)
         self.morph_anim.setDuration(360)
@@ -1021,14 +1260,31 @@ class FloatingPill(QWidget):
         self.line_anim.valueChanged.connect(self._apply_line_t)
         self.line_anim.finished.connect(self._on_line_anim_finished)
 
+        self.snooze_anim = QVariantAnimation(self)
+        self.snooze_anim.setDuration(280)
+        self.snooze_anim.setEasingCurve(QEasingCurve.Type.OutCubic)
+        self.snooze_anim.valueChanged.connect(self._apply_snooze_t)
+        self.snooze_anim.finished.connect(self._on_snooze_anim_finished)
+
         self.fade_anim = QPropertyAnimation(self, b"windowOpacity")
         self.fade_anim.setDuration(380)
         self.fade_anim.setEasingCurve(QEasingCurve.Type.OutCubic)
         self.fade_anim.finished.connect(self._on_fade_finished)
 
+        # Isolated screen transition animation to prevent cross-talk with state fades
+        self.screen_fade_anim = QPropertyAnimation(self, b"windowOpacity")
+        self.screen_fade_anim.setDuration(200)
+        self.screen_fade_anim.setEasingCurve(QEasingCurve.Type.OutCubic)
+
         self.hide_timer = QTimer(self)
         self.hide_timer.setSingleShot(True)
         self.hide_timer.timeout.connect(self._fade_out_and_hide)
+
+        # Multi-screen mouse follow timer
+        self._screen_track_timer = QTimer(self)
+        self._screen_track_timer.setInterval(380)
+        self._screen_track_timer.timeout.connect(self._check_screen_follow)
+        self._screen_track_timer.start()
 
         # Level smoothing timer for HUD live input bar (60 FPS liquid spring decay)
         self._target_level = 0.0
@@ -1048,6 +1304,7 @@ class FloatingPill(QWidget):
 
         self._build_capsule()
         self._build_hud()
+        self.set_capsule_style(self.capsule_style)
         self.setStyleSheet(f"QLabel {{ background: transparent; border: none; color: {FG}; }}")
         self._apply_t(0.0)
         self.position_bottom_center()
@@ -1064,6 +1321,11 @@ class FloatingPill(QWidget):
     def showEvent(self, a0):
         super().showEvent(a0)
         self.force_topmost()
+
+    def moveEvent(self, a0):
+        super().moveEvent(a0)
+        if hasattr(self, "caption_bubble"):
+            self.caption_bubble._reposition()
 
     def _tick_level(self):
         if not self.is_expanded_hud or not hasattr(self, "live_level_bar"):
@@ -1084,16 +1346,16 @@ class FloatingPill(QWidget):
     def _build_capsule(self):
         self.capsule_widget = QWidget(self)
         self.capsule_widget.setFixedSize(self._cap_w, self._cap_h)
-        lay = QHBoxLayout(self.capsule_widget)
-        lay.setContentsMargins(14, 0, 10, 0)
-        lay.setSpacing(10)
+        self.capsule_layout = QHBoxLayout(self.capsule_widget)
+        self.capsule_layout.setContentsMargins(10, 0, 10, 0)
+        self.capsule_layout.setSpacing(8)
 
         self.indicator = StateIndicator(self.capsule_widget)
-        lay.addWidget(self.indicator, 0, Qt.AlignmentFlag.AlignVCenter)
+        self.capsule_layout.addWidget(self.indicator, 0, Qt.AlignmentFlag.AlignVCenter)
 
         self.text_label = AnimatedText(self.current_mic_name, self._font(10, QFont.Weight.Medium), self.capsule_widget)
         self.text_label.setFixedHeight(24)
-        lay.addWidget(self.text_label, 1, Qt.AlignmentFlag.AlignVCenter)
+        self.capsule_layout.addWidget(self.text_label, 1, Qt.AlignmentFlag.AlignVCenter)
 
         self.lang_badge = QLabel(self._lang_short(self.current_language), self.capsule_widget)
         self.lang_badge.setFont(self._font(8, QFont.Weight.Medium))
@@ -1102,14 +1364,68 @@ class FloatingPill(QWidget):
         self.lang_badge.setStyleSheet(
             f"QLabel {{ color: {FG_DIM}; background: {FILL}; border-radius: 10px; padding: 0px 8px; }}"
         )
-        lay.addWidget(self.lang_badge, 0, Qt.AlignmentFlag.AlignVCenter)
+        self.capsule_layout.addWidget(self.lang_badge, 0, Qt.AlignmentFlag.AlignVCenter)
 
-        self.visualizer = WaveformBars(self.capsule_widget)
-        lay.addWidget(self.visualizer, 0, Qt.AlignmentFlag.AlignVCenter)
+        self.visualizer = WaveformBars(self.capsule_widget, num_bars=7)
+        self.capsule_layout.addWidget(self.visualizer, 0, Qt.AlignmentFlag.AlignVCenter)
 
         self.btn_more = MoreButton(self.capsule_widget)
         self.btn_more.clicked.connect(self.toggle_morph_hud)
-        lay.addWidget(self.btn_more, 0, Qt.AlignmentFlag.AlignVCenter)
+        self.capsule_layout.addWidget(self.btn_more, 0, Qt.AlignmentFlag.AlignVCenter)
+
+    def set_capsule_style(self, style: str):
+        if style not in ("standard", "compact", "micro"):
+            style = "compact"
+        self.capsule_style = style
+        if style == "standard":
+            self._cap_w, self._cap_h = 360, 44
+            self._snooze_w, self._snooze_h = 76, 8
+            self.text_label.show()
+            self.lang_badge.show()
+            self.btn_more.show()
+            self.indicator.show()
+            self.visualizer.setFixedSize(42, 20)
+            self.visualizer.set_bar_count(5)
+            self.visualizer.show()
+            self.capsule_widget.setFixedSize(360, 44)
+            self.capsule_layout.setContentsMargins(14, 0, 10, 0)
+            self.capsule_layout.setSpacing(10)
+        elif style == "compact":
+            self._cap_w, self._cap_h = 136, 32
+            self._snooze_w, self._snooze_h = 96, 24
+            self.text_label.hide()
+            self.text_label.setFixedWidth(0)
+            self.btn_more.hide()
+            self.indicator.show()
+            self.lang_badge.setText(self._lang_short(self.current_language))
+            self.lang_badge.show()
+            self.lang_badge.setFixedWidth(36)
+            self.visualizer.setFixedSize(44, 16)
+            self.visualizer.set_bar_count(7)
+            self.visualizer.show()
+            self.capsule_widget.setFixedSize(136, 32)
+            self.capsule_layout.setContentsMargins(10, 0, 10, 0)
+            self.capsule_layout.setSpacing(8)
+        elif style == "micro":
+            self._cap_w, self._cap_h = 88, 24
+            self._snooze_w, self._snooze_h = 54, 18
+            self.text_label.hide()
+            self.text_label.setFixedWidth(0)
+            self.lang_badge.hide()
+            self.btn_more.hide()
+            self.indicator.show()
+            self.visualizer.setFixedSize(44, 14)
+            self.visualizer.set_bar_count(5)
+            self.visualizer.show()
+            self.capsule_widget.setFixedSize(88, 24)
+            self.capsule_layout.setContentsMargins(8, 0, 8, 0)
+            self.capsule_layout.setSpacing(6)
+
+        if not self.is_expanded_hud:
+            self._snooze_t = 0.0
+            self._is_snoozed = False
+            self._apply_t(0.0)
+            self.position_bottom_center()
 
     def _row(self, title: str, widget: QWidget, trailing: bool = False) -> QWidget:
         """iOS settings row; trailing=True pins a compact control (switch) to the right edge."""
@@ -1131,7 +1447,15 @@ class FloatingPill(QWidget):
 
     def _build_hud(self):
         self.hud_widget = QWidget(self)
+        self.hud_widget.setObjectName("HUD")
         self.hud_widget.setFixedSize(self._hud_w, self._hud_h)
+        self.hud_widget.setStyleSheet(f"""
+            QWidget#HUD {{
+                background: rgba(18, 18, 22, 0.98);
+                border: 1px solid rgba(255, 255, 255, 0.12);
+                border-radius: 20px;
+            }}
+        """)
         lay = QVBoxLayout(self.hud_widget)
         lay.setContentsMargins(16, 20, 16, 16)
         lay.setSpacing(12)
@@ -1302,39 +1626,48 @@ class FloatingPill(QWidget):
         self._t = t
         w = round(self._cap_w + (self._hud_w - self._cap_w) * t)
         h = round(self._cap_h + (self._hud_h - self._cap_h) * t)
+
+        screen = self.current_screen or (QGuiApplication.screenAt(QCursor.pos()) if QGuiApplication.instance() else None) or QApplication.primaryScreen()
+        avail = screen.availableGeometry() if screen else QRect(0, 0, 1920, 1080)
+
         if not self._anchor.isNull():
-            self.setGeometry(self._anchor.x() - w // 2, self._anchor.y() - h, w, h)
+            new_x = self._anchor.x() - w // 2
+            new_y = self._anchor.y() - h
+            # Keep safely inside screen bounds so HUD never clips off-screen or into taskbar
+            new_x = max(avail.left() + 10, min(new_x, avail.right() - w - 10))
+            if new_y < avail.top() + 10:
+                new_y = avail.top() + 10
+            if new_y + h > avail.bottom() - 6:
+                new_y = avail.bottom() - h - 6
+            self.setGeometry(new_x, new_y, w, h)
         elif self.size() != self.capsule_widget.size():
             self.resize(w, h)
 
-        # content stays bottom-centred, window clips it while growing
-        self.capsule_widget.move((w - self._cap_w) // 2, h - self._cap_h)
-        self.hud_widget.move((w - self._hud_w) // 2, h - self._hud_h)
+        # Content positioning
+        self.capsule_widget.move((w - self._cap_w) // 2, (h - self._cap_h) // 2)
+        self.hud_widget.move((w - self._hud_w) // 2, 0)
 
-        cap_a = max(0.0, 1.0 - t * 2.6)
-        hud_a = max(0.0, min(1.0, (t - 0.35) * 2.2))
-        self._set_content_alpha(self.capsule_widget, cap_a)
-        self._set_content_alpha(self.hud_widget, hud_a)
+        # Crisp clean transition without QGraphicsOpacityEffect ghosting
+        if t <= 0.35:
+            self.hud_widget.setVisible(False)
+            self.capsule_widget.setVisible(True)
+        else:
+            self.hud_widget.setVisible(True)
+            self.capsule_widget.setVisible(False)
+
         self.update()
 
     def _set_content_alpha(self, w: QWidget, a: float):
-        from PyQt6.QtWidgets import QGraphicsOpacityEffect
         vis = a > 0.01
         if w.isVisible() != vis:
             w.setVisible(vis)
-        eff = w.graphicsEffect()
-        if a >= 0.99:
-            if eff is not None:
-                w.setGraphicsEffect(None)
-        else:
-            if eff is None:
-                eff = QGraphicsOpacityEffect(w)
-                w.setGraphicsEffect(eff)
-            eff.setOpacity(a)  # type: ignore[attr-defined]
 
     def _morph_to(self, target: float):
         geo = self.geometry()
-        self._anchor = QPoint(geo.center().x(), geo.bottom() + 1)
+        screen = self.current_screen or (QGuiApplication.screenAt(QCursor.pos()) if QGuiApplication.instance() else None) or QApplication.primaryScreen()
+        avail = screen.availableGeometry() if screen else QRect(0, 0, 1920, 1080)
+        bot_y = min(avail.bottom() - 15, max(avail.top() + 100, geo.bottom() + 1))
+        self._anchor = QPoint(geo.center().x(), bot_y)
         self.morph_anim.stop()
         self.morph_anim.setStartValue(self._t)
         self.morph_anim.setEndValue(target)
@@ -1347,6 +1680,10 @@ class FloatingPill(QWidget):
         self.is_expanded_hud = True
         self.hide_timer.stop()
         self.fade_anim.stop()
+        self.line_anim.stop()
+        self._line_t = 0.0
+        if hasattr(self, "caption_bubble"):
+            self.caption_bubble.fade_out()
         self.setWindowOpacity(1.0)
         self.show()
         _force_topmost(self)
@@ -1358,10 +1695,19 @@ class FloatingPill(QWidget):
 
     def _on_morph_finished(self):
         self._apply_t(self._t)
+        if self._t <= 0.05:
+            self.is_expanded_hud = False
+            self._anchor = QPoint()
+            self.hud_widget.setVisible(False)
+            self.capsule_widget.setVisible(True)
+            if self.hide_when_idle and self.current_state in ("idle", "pasted"):
+                self.hide_timer.stop()
+                self.hide_timer.start(1200)
+        elif self._t >= 0.95:
+            self.is_expanded_hud = True
+            self.capsule_widget.setVisible(False)
+            self.hud_widget.setVisible(True)
         self.update()
-        if not self.is_expanded_hud and self.hide_when_idle and self.current_state in ("idle", "pasted"):
-            self.hide_timer.stop()
-            self.hide_timer.start(1200)
 
     # ---------- line morph ----------
 
@@ -1392,6 +1738,8 @@ class FloatingPill(QWidget):
                 self.fade_anim.start()
 
     def _apply_line_t(self, val):
+        if self.is_expanded_hud or self.capsule_style in ("compact", "micro"):
+            return
         self._line_t = float(val)
         t = self._line_t
         target_w = 76 if (self._is_line_hovered and t > 0.85) else self._line_w
@@ -1413,7 +1761,7 @@ class FloatingPill(QWidget):
         self.update()
 
     def minimize_to_line(self):
-        if self.is_expanded_hud:
+        if self.is_expanded_hud or self.capsule_style in ("compact", "micro"):
             return
         if self.hide_when_idle:
             self._fade_out_and_hide()
@@ -1463,6 +1811,8 @@ class FloatingPill(QWidget):
             return "EN-IN"
         if code in ("or", "odia"):
             return "ODIA"
+        if code == "or-en":
+            return "OR→EN"
         if code == "translate":
             return "→EN"
         return code.upper()
@@ -1572,16 +1922,122 @@ class FloatingPill(QWidget):
         if not self.is_expanded_hud and self.isVisible():
             self.show_message(label, duration_ms=3000)
 
-    def position_bottom_center(self):
-        screen = QApplication.primaryScreen()
+    def position_bottom_center(self, screen=None):
+        if screen is None:
+            screen = self.current_screen or (QGuiApplication.screenAt(QCursor.pos()) if QGuiApplication.instance() else None) or QApplication.primaryScreen()
         if screen:
+            self.current_screen = screen
             r = screen.availableGeometry()
             self._anchor = QPoint()
-            w = self._line_w if self._mode == "line" else self._cap_w
-            h = self._line_h if self._mode == "line" else self._cap_h
+            w = self.width() if (self._is_snoozed or self._mode == "line") else self._cap_w
+            h = self.height() if (self._is_snoozed or self._mode == "line") else self._cap_h
             self.setGeometry(r.x() + (r.width() - w) // 2,
                              r.y() + r.height() - h - 35,
                              w, h)
+
+    def set_follow_mouse_screen(self, follow: bool):
+        self.follow_mouse_screen = follow
+
+    def _check_screen_follow(self):
+        if not self.follow_mouse_screen or self.is_expanded_hud or self._is_transitioning_screen:
+            return
+        # Only switch screens when resting / idle so we don't jump mid-sentence
+        if self.current_state not in ("idle", "pasted") and not self._is_snoozed and self._mode != "line":
+            return
+        cursor_pos = QCursor.pos()
+        target_screen = QGuiApplication.screenAt(cursor_pos)
+        if not target_screen:
+            return
+        cur_screen = self.current_screen or self.screen() or QGuiApplication.screenAt(self.geometry().center())
+        if cur_screen and target_screen.name() != cur_screen.name():
+            self._transition_to_screen(target_screen)
+
+    def _transition_to_screen(self, target_screen):
+        if self._is_transitioning_screen:
+            return
+        self._is_transitioning_screen = True
+        self.fade_anim.stop()
+        self.fade_anim.setDuration(150)
+        self.fade_anim.setEasingCurve(QEasingCurve.Type.OutCubic)
+        self.fade_anim.setStartValue(self.windowOpacity())
+        self.fade_anim.setEndValue(0.0)
+
+        def _on_screen_fade_out():
+            try:
+                self.fade_anim.finished.disconnect(_on_screen_fade_out)
+            except Exception:
+                pass
+            self.current_screen = target_screen
+            self.position_bottom_center(target_screen)
+            _force_topmost(self)
+            self.fade_anim.setDuration(190)
+            self.fade_anim.setEasingCurve(QEasingCurve.Type.OutCubic)
+            self.fade_anim.setStartValue(0.0)
+            self.fade_anim.setEndValue(1.0)
+
+            def _on_screen_fade_in():
+                try:
+                    self.fade_anim.finished.disconnect(_on_screen_fade_in)
+                except Exception:
+                    pass
+                self._is_transitioning_screen = False
+
+            self.fade_anim.finished.connect(_on_screen_fade_in)
+            self.fade_anim.start()
+
+        self.fade_anim.finished.connect(_on_screen_fade_out)
+        self.fade_anim.start()
+
+    def minimize_to_snooze(self):
+        if self.is_expanded_hud:
+            return
+        if self.hide_when_idle:
+            self._fade_out_and_hide()
+            return
+        if self.capsule_style == "standard":
+            self.minimize_to_line()
+            return
+        self._is_snoozed = True
+        self.current_state = "idle"
+        self.indicator.set_state("idle")
+        self.visualizer.setVisible(False)
+        self.snooze_anim.stop()
+        self.snooze_anim.setDuration(280)
+        self.snooze_anim.setEasingCurve(QEasingCurve.Type.OutCubic)
+        self.snooze_anim.setStartValue(self._snooze_t)
+        self.snooze_anim.setEndValue(1.0)
+        self.snooze_anim.start()
+
+    def expand_from_snooze(self):
+        self._is_snoozed = False
+        if self.capsule_style == "standard":
+            self.expand_from_line()
+            return
+        self.visualizer.setVisible(True)
+        self.snooze_anim.stop()
+        self.snooze_anim.setDuration(240)
+        self.snooze_anim.setEasingCurve(QEasingCurve.Type.OutCubic)
+        self.snooze_anim.setStartValue(self._snooze_t)
+        self.snooze_anim.setEndValue(0.0)
+        self.snooze_anim.start()
+
+    def _apply_snooze_t(self, val):
+        self._snooze_t = float(val)
+        target_w = round(self._cap_w - (self._cap_w - self._snooze_w) * self._snooze_t)
+        target_h = round(self._cap_h - (self._cap_h - self._snooze_h) * self._snooze_t)
+        self.capsule_widget.setFixedSize(target_w, target_h)
+        self.resize(target_w, target_h)
+        self.position_bottom_center()
+        self.update()
+
+    def _on_snooze_anim_finished(self):
+        if self._snooze_t >= 0.95:
+            self._is_snoozed = True
+            self.visualizer.setVisible(False)
+        else:
+            self._is_snoozed = False
+            self.visualizer.setVisible(True)
+        self.update()
 
     # ---------- state ----------
 
@@ -1594,11 +2050,25 @@ class FloatingPill(QWidget):
             return
         self.hide_timer.stop()
         was_hidden = not self.isVisible() or self.windowOpacity() < 0.1
+
+        # Check multi-screen follow on hotkey activation
+        if getattr(self, "follow_mouse_screen", True):
+            cursor_pos = QCursor.pos()
+            target_screen = QGuiApplication.screenAt(cursor_pos)
+            cur_screen = self.current_screen or self.screen() or QGuiApplication.screenAt(self.geometry().center())
+            if target_screen and cur_screen and target_screen.name() != cur_screen.name():
+                self.current_screen = target_screen
+                self.position_bottom_center(target_screen)
+
         if self._mode == "line" or self._line_t > 0.05:
             self.expand_from_line()
+        if self._is_snoozed or self._snooze_t > 0.05:
+            self.expand_from_snooze()
+
         self.current_state = "listening"
         self.indicator.set_state("listening")
-        self.text_label.setText(preset_name)
+        if self.capsule_style not in ("compact", "micro"):
+            self.text_label.setText(preset_name)
         self.lang_badge.setText(self._lang_short(self.current_language))
         self.visualizer.reset()
         self.visualizer.setVisible(True)
@@ -1627,14 +2097,20 @@ class FloatingPill(QWidget):
     def update_realtime_text(self, text: str):
         if not text or self.current_state != "listening" or self.is_expanded_hud:
             return
-        self.text_label.setText(text[-160:])
+        if self.capsule_style in ("compact", "micro"):
+            self.caption_bubble.set_text(text[-160:])
+        else:
+            self.text_label.setText(text[-160:])
 
     def show_processing(self):
+        if hasattr(self, "caption_bubble"):
+            self.caption_bubble.fade_out()
         if self.is_expanded_hud:
             return
         self.current_state = "processing"
         self.indicator.set_state("processing")
-        self.text_label.setText("Writing")
+        if self.capsule_style not in ("compact", "micro"):
+            self.text_label.setText("Writing")
         self.visualizer.reset()
         self.visualizer.setVisible(False)
         self.update()
@@ -1663,9 +2139,12 @@ class FloatingPill(QWidget):
         was_hidden = not self.isVisible() or self.windowOpacity() < 0.1
         if self._mode == "line" or self._line_t > 0.05:
             self.expand_from_line()
+        if self._is_snoozed or self._snooze_t > 0.05:
+            self.expand_from_snooze()
         self.current_state = "processing"
         self.indicator.set_state("processing")
-        self.text_label.setText(f"Downloading {model} model  {percent}%")
+        if self.capsule_style not in ("compact", "micro"):
+            self.text_label.setText(f"Downloading {model} model  {percent}%")
         self.visualizer.setVisible(False)
         self.hide_timer.stop()
         self.fade_anim.stop()
@@ -1684,15 +2163,21 @@ class FloatingPill(QWidget):
         self.update()
 
     def show_message(self, text: str, duration_ms: int = 2200):
-        """Brief notice (errors, empty result, ready notification), then minimize to line."""
+        """Brief notice (errors, empty result, ready notification), then minimize to line/snooze."""
         was_hidden = not self.isVisible() or self.windowOpacity() < 0.1
         if self._mode == "line" or self._line_t > 0.05:
             self.expand_from_line()
+        if self._is_snoozed or self._snooze_t > 0.05:
+            self.expand_from_snooze()
         self.current_state = "idle"
         self.indicator.set_state("idle")
-        self.text_label.setText(text)
+        if self.capsule_style not in ("compact", "micro"):
+            self.text_label.setText(text)
         self.visualizer.setVisible(False)
         self.update()
+        if self.capsule_style in ("compact", "micro") and hasattr(self, "caption_bubble"):
+            self.caption_bubble.set_text(text)
+            QTimer.singleShot(duration_ms, self.caption_bubble.fade_out)
         if not self.is_expanded_hud:
             self.fade_anim.stop()
             self.show()
@@ -1710,15 +2195,18 @@ class FloatingPill(QWidget):
             self.hide_timer.start(duration_ms)
 
     def show_pasted(self, word_count: int, latency_ms: int = 0):
+        if hasattr(self, "caption_bubble"):
+            self.caption_bubble.fade_out()
         if self.is_expanded_hud:
             return
         self.current_state = "pasted"
         self.indicator.set_state("done")
-        self.text_label.setText(f"Pasted {word_count} words")
+        if self.capsule_style not in ("compact", "micro"):
+            self.text_label.setText(f"Pasted {word_count} words")
         self.visualizer.setVisible(False)
         self.update()
         self.hide_timer.stop()
-        self.hide_timer.start(1800)
+        self.hide_timer.start(1400)
 
     def show_mic_event(self, mic_name: str, status: str = "connected"):
         """Displays pseudo-capsule notification pill above main capsule on mic connect/disconnect."""
@@ -1726,17 +2214,20 @@ class FloatingPill(QWidget):
             self.mic_pill.show_event(mic_name, status, self.geometry())
 
     def _fade_out_and_hide(self):
-        if self.is_expanded_hud:
+        if self.is_expanded_hud or self.current_state not in ("idle", "pasted"):
             return
         if self.hide_when_idle:
             self.fade_anim.stop()
-            self.fade_anim.setDuration(420)
+            self.fade_anim.setDuration(400)
             self.fade_anim.setEasingCurve(QEasingCurve.Type.OutCubic)
             self.fade_anim.setStartValue(self.windowOpacity())
             self.fade_anim.setEndValue(0.0)
             self.fade_anim.start()
             return
-        self.minimize_to_line()
+        if self.capsule_style in ("compact", "micro"):
+            self.minimize_to_snooze()
+        else:
+            self.minimize_to_line()
 
     def _on_fade_finished(self):
         if self.windowOpacity() > 0.01:
@@ -1745,10 +2236,14 @@ class FloatingPill(QWidget):
             self.hide()
             self._mode = "capsule"
             self._line_t = 0.0
-            self._apply_line_t(0.0)
+            self._snooze_t = 0.0
+            self._apply_t(0.0)
             self.position_bottom_center()
             return
-        self.minimize_to_line()
+        if self.capsule_style in ("compact", "micro"):
+            self.minimize_to_snooze()
+        else:
+            self.minimize_to_line()
 
     # ---------- painting / dragging / hovering ----------
 
@@ -1785,16 +2280,24 @@ class FloatingPill(QWidget):
         # 3. Active Capsule / HUD Sheet Mode
         r = min(rect.height() / 2.0, 22.0 + 6.0 * self._t)
 
-        if self.current_state in ("listening", "pasted") and self._t < 0.05:
-            border = QColor(255, 255, 255, 120)
-        elif self.current_state == "processing" and self._t < 0.05:
-            border = QColor(255, 255, 255, 70)
+        if self._t > 0.35:
+            # Full opaque rich glass for HUD
+            p.setBrush(QBrush(QColor(18, 18, 22, 252)))
+            p.setPen(QPen(QColor(255, 255, 255, 45), 1.0))
+            p.drawRoundedRect(rect, r, r)
         else:
-            border = QColor(255, 255, 255, 36)
+            if self.current_state in ("listening", "pasted"):
+                border = QColor(255, 255, 255, 120)
+            elif self.current_state == "processing":
+                border = QColor(255, 255, 255, 70)
+            elif self._is_snoozed or self._snooze_t > 0.8:
+                border = QColor(255, 255, 255, 24)
+            else:
+                border = QColor(255, 255, 255, 36)
 
-        p.setBrush(QBrush(QColor(0, 0, 0, 242)))
-        p.setPen(QPen(border, 1.0))
-        p.drawRoundedRect(rect, r, r)
+            p.setBrush(QBrush(QColor(0, 0, 0, 242)))
+            p.setPen(QPen(border, 1.0))
+            p.drawRoundedRect(rect, r, r)
 
         if self._t > 0.4:  # sheet grabber
             p.setPen(Qt.PenStyle.NoPen)
@@ -1829,9 +2332,26 @@ class FloatingPill(QWidget):
             self.expand_from_line()
             a0.accept()
             return
+        if (self._is_snoozed or self._snooze_t > 0.5) and a0.button() == Qt.MouseButton.LeftButton:
+            self.expand_from_snooze()
+            a0.accept()
+            return
+        if self.capsule_style in ("compact", "micro") and a0.button() == Qt.MouseButton.LeftButton and not self.is_expanded_hud:
+            self._click_t0 = time.monotonic()
+            self._click_pos = a0.globalPosition().toPoint()
         if a0.button() == Qt.MouseButton.LeftButton:
             self._drag_pos = a0.globalPosition().toPoint() - self.frameGeometry().topLeft()
             a0.accept()
+
+    def mouseReleaseEvent(self, a0):
+        if self.capsule_style in ("compact", "micro") and not self.is_expanded_hud and a0.button() == Qt.MouseButton.LeftButton:
+            dt = time.monotonic() - getattr(self, "_click_t0", 0.0)
+            dist = (a0.globalPosition().toPoint() - getattr(self, "_click_pos", QPoint())).manhattanLength()
+            if dt < 0.32 and dist < 6:
+                self.expand_to_hud()
+                a0.accept()
+                return
+        super().mouseReleaseEvent(a0)
 
     def mouseMoveEvent(self, a0):
         if self._mode != "line" and a0.buttons() == Qt.MouseButton.LeftButton:

@@ -123,7 +123,84 @@ def resolve(cfg: dict) -> dict:
                 size = downloaded[0]
         else:
             size = hw["model_size"]
+    # Odia speech goes to the Odia model whenever it is downloaded, whatever model is picked for other languages
+    from .transcriber import ODIA_LANGS
+    if cfg.get("language") in ODIA_LANGS and size != "odia":
+        from . import model_manager
+        if model_manager.cached_path("odia"):
+            size = "odia"
     # auto on a PC without NVIDIA: use the NPU, but only when its model build is already downloaded
-    if cfg.get("device", "auto") == "auto" and device == "cpu" and size != "parakeet"             and _npu_model_cached(size) and npu_name():
+    if cfg.get("device", "auto") == "auto" and device == "cpu" and size not in ("parakeet", "odia")             and _npu_model_cached(size) and npu_name():
         device = "npu"
     return {"device": device, "compute_type": compute, "model_size": size, "hw": hw}
+
+
+def get_system_stack(cfg: dict = None, transcriber = None) -> Dict[str, Any]:
+    """
+    Returns full hardware stack diagnostics detailing GPU, NPU, CPU utilization,
+    and active inference backend.
+    """
+    hw = detect()
+    npu = npu_name()
+    resolved = resolve(cfg or {})
+
+    # Active runtime device and model
+    active_device = (getattr(transcriber, "_loaded_device", None) or resolved.get("device") or "cpu").upper()
+    active_model = getattr(transcriber, "_current_loaded_name", None) or resolved.get("model_size") or "base.en"
+    compute = resolved.get("compute_type", "float16" if active_device == "CUDA" else "int8")
+
+    # GPU
+    gpu_active = active_device == "CUDA"
+    gpu_info = {
+        "name": hw.get("gpu_name") or "None detected",
+        "vram_gb": hw.get("vram_gb", 0),
+        "cuda_available": hw.get("cuda_ok", False),
+        "status": "Active Engine (Accelerated)" if gpu_active else ("Standby (Available)" if hw.get("cuda_ok") else "Unavailable"),
+        "backend": "CTranslate2 (cuBLAS / cuDNN)" if hw.get("cuda_ok") else "None",
+        "is_active": gpu_active
+    }
+
+    # NPU
+    npu_active = active_device == "NPU"
+    npu_info = {
+        "name": npu or "Intel AI Boost / DirectML NPU",
+        "detected": bool(npu),
+        "status": "Active Engine (Direct NPU IR)" if npu_active else ("Standby (OpenVINO IR Ready)" if npu else "Not Detected / Standby"),
+        "acceleration": "OpenVINO GenAI INT8" if npu else "DirectML NPU Driver",
+        "power_profile": "Ultra Low Power (1.5W-4.5W TDP)" if npu else "Standard",
+        "is_active": npu_active
+    }
+
+    # CPU
+    cpu_active = active_device == "CPU"
+    import platform
+    cpu_info = {
+        "processor": platform.processor() or "x86_64 Compatible",
+        "cores": hw.get("cpu_cores", os.cpu_count() or 4),
+        "ram_gb": hw.get("ram_gb", 0),
+        "status": "Active Engine (SIMD Int8)" if cpu_active else "Host & Audio DSP",
+        "is_active": cpu_active
+    }
+
+    # Pipeline summary description
+    if active_model == "parakeet":
+        pipeline_desc = "Sherpa-ONNX (Parakeet TDT) on CPU [INT8]"
+    elif active_model == "odia":
+        pipeline_desc = "ONNX Runtime (AI4Bharat IndicConformer, Odia) on CPU"
+    elif active_device == "NPU":
+        pipeline_desc = f"OpenVINO IR ({active_model}) on NPU [INT8]"
+    elif active_device == "CUDA":
+        pipeline_desc = f"faster-whisper ({active_model}) on NVIDIA CUDA [{compute}]"
+    else:
+        pipeline_desc = f"faster-whisper ({active_model}) on CPU [{compute}]"
+
+    return {
+        "gpu": gpu_info,
+        "npu": npu_info,
+        "cpu": cpu_info,
+        "active_device": active_device,
+        "active_model": active_model,
+        "compute_precision": compute,
+        "pipeline": pipeline_desc,
+        "recommendation": hw.get("note", "")
+    }

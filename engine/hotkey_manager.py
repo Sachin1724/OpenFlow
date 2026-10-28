@@ -79,7 +79,11 @@ class GlobalHotkeyManager:
         return True
 
     def _trigger_start(self):
+        now = time.time()
         with self._lock:
+            if now - getattr(self, "_last_trigger_t", 0.0) < 0.120:
+                return
+            self._last_trigger_t = now
             if not self._is_active:
                 self._is_active = True
                 print(f"[OpenFlow Hotkey] Activated '{self.hotkey_str}' (mode={self.mode})")
@@ -95,7 +99,11 @@ class GlobalHotkeyManager:
                     threading.Thread(target=self.on_stop, daemon=True).start()
 
     def _trigger_toggle(self):
+        now = time.time()
         with self._lock:
+            if now - getattr(self, "_last_trigger_t", 0.0) < 0.150:
+                return
+            self._last_trigger_t = now
             self._is_active = not self._is_active
             active = self._is_active
         print(f"[OpenFlow Hotkey] Toggled '{self.hotkey_str}': active={active}")
@@ -104,7 +112,7 @@ class GlobalHotkeyManager:
             threading.Thread(target=cb, daemon=True).start()
 
     def _poll_loop(self):
-        """Ultra low-latency polling loop for modifier hotkeys like Ctrl+Shift."""
+        """Ultra low-latency polling loop for modifier hotkeys like Ctrl+Shift with active watchdog."""
         was_down = False
         while self._is_running:
             is_down = self._check_async_keys()
@@ -116,9 +124,13 @@ class GlobalHotkeyManager:
                 else:
                     self._trigger_toggle()
 
-            elif not is_down and was_down:
+            elif not is_down and (was_down or (self.mode == "push_to_talk" and self._is_active)):
+                # 30ms hardware confirmation to eliminate key bounce or transient focus switch
+                time.sleep(0.030)
+                if self._check_async_keys():
+                    continue
                 was_down = False
-                if self.mode == "push_to_talk":
+                if self.mode == "push_to_talk" and self._is_active:
                     self._trigger_stop()
 
             time.sleep(0.015)  # 15ms interval = ~66Hz, unnoticeable CPU load (<0.01%)
@@ -162,10 +174,15 @@ class GlobalHotkeyManager:
         with self._lock:
             self._current_keys.discard(name)
             active = self._is_active
+            still_matches = self._matches_pynput()
         if active and self.mode == "push_to_talk":
+            # If modifier combo is physically held down per Windows kernel, don't stop!
+            if self._is_modifier_combo() and self._check_async_keys():
+                return
             parts = [p.strip() for p in self.hotkey_str.split("+")]
             if (
-                name in parts
+                not still_matches
+                or name in parts
                 or (name.startswith("ctrl") and "ctrl" in parts)
                 or (name.startswith("shift") and "shift" in parts)
                 or (name.startswith("alt") and "alt" in parts)

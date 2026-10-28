@@ -818,26 +818,64 @@ class MainWindow(QMainWindow):
     def _create_settings_tab(self) -> QWidget:
         widget = QWidget()
         layout = QVBoxLayout(widget)
-        layout.setContentsMargins(16, 16, 16, 16)
-        layout.setSpacing(14)
+        layout.setContentsMargins(18, 16, 18, 20)
+        layout.setSpacing(16)
 
-        card = QFrame(self)
-        card.setProperty("class", "Card")
-        c_layout = QVBoxLayout(card)
-        c_layout.setSpacing(12)
+        LABEL_W = 190
 
-        # Detected hardware and what the app will use
+        def _make_card(title: str, subtitle: str) -> tuple[QFrame, QVBoxLayout]:
+            card = QFrame(self)
+            card.setStyleSheet("""
+                QFrame.SettingsCard {
+                    background: rgba(255, 255, 255, 0.035);
+                    border: 1px solid rgba(255, 255, 255, 0.08);
+                    border-radius: 12px;
+                }
+            """)
+            card.setProperty("class", "SettingsCard")
+            c_lay = QVBoxLayout(card)
+            c_lay.setContentsMargins(18, 16, 18, 16)
+            c_lay.setSpacing(12)
+
+            t_lbl = QLabel(title, card)
+            t_lbl.setStyleSheet("font-size: 13.5px; font-weight: 600; color: #ffffff;")
+            s_lbl = QLabel(subtitle, card)
+            s_lbl.setStyleSheet("font-size: 11px; color: rgba(255, 255, 255, 0.48); margin-top: -6px;")
+            c_lay.addWidget(t_lbl)
+            c_lay.addWidget(s_lbl)
+
+            sep = QFrame(card)
+            sep.setFixedHeight(1)
+            sep.setStyleSheet("background: rgba(255, 255, 255, 0.06); margin: 2px 0 6px 0;")
+            c_lay.addWidget(sep)
+            return card, c_lay
+
+        def _make_row(label_text: str, ctrl_widget: QWidget) -> QHBoxLayout:
+            r = QHBoxLayout()
+            r.setSpacing(12)
+            lbl = QLabel(label_text, widget)
+            lbl.setFixedWidth(LABEL_W)
+            lbl.setStyleSheet("font-weight: 500; font-size: 12.5px; color: rgba(255, 255, 255, 0.88);")
+            lbl.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
+            r.addWidget(lbl)
+            r.addWidget(ctrl_widget, 1)
+            return r
+
+        # -------------------------------------------------------------------------
+        # CARD 1: AI Speech Engine & Hardware Stack
+        # -------------------------------------------------------------------------
+        card1, c1_layout = _make_card(
+            "⚡ AI Speech Engine & Hardware Stack",
+            "Local speech-to-text inference models and neural acceleration"
+        )
         hw = hardware.detect()
-        self.hw_note = QLabel(hw["note"], self)
+        self.hw_note = QLabel(hw["note"], card1)
         self.hw_note.setWordWrap(True)
-        self.hw_note.setStyleSheet(f"color: {COLORS['text_secondary']};")
-        c_layout.addWidget(self.hw_note)
+        self.hw_note.setStyleSheet(f"color: {COLORS['text_secondary']}; font-size: 11.5px; margin-bottom: 4px;")
+        c1_layout.addWidget(self.hw_note)
 
-        # Whisper model quality
-        m_layout = QHBoxLayout()
-        m_label = QLabel("Speech model:", self)
-        m_label.setStyleSheet("font-weight: 500;")
-        self.model_combo = QComboBox(self)
+        # Speech model
+        self.model_combo = QComboBox(card1)
         for key, label in [
             ("auto", f"Automatic (recommended: {hw['model_size']})"),
             ("tiny", "Tiny: fastest, lowest accuracy (~39 MB)"),
@@ -851,17 +889,12 @@ class MainWindow(QMainWindow):
             if self.model_combo.itemData(i) == curr_m:
                 self.model_combo.setCurrentIndex(i)
                 break
-        m_layout.addWidget(m_label)
-        m_layout.addWidget(self.model_combo, 1)
-        c_layout.addLayout(m_layout)
+        c1_layout.addLayout(_make_row("Speech model:", self.model_combo))
 
-        # Compute hardware
-        hw_layout = QHBoxLayout()
-        hw_label = QLabel("Run on:", self)
-        hw_label.setStyleSheet("font-weight: 500;")
-        self.device_combo = QComboBox(self)
+        # Compute device
+        self.device_combo = QComboBox(card1)
         self.device_combo.addItem("Automatic (recommended)", "auto")
-        if importlib.util.find_spec("openvino_genai"):  # cheap check; the NPU itself is probed on save
+        if importlib.util.find_spec("openvino_genai"):
             self.device_combo.addItem("NPU (Intel AI Boost, low power)", "npu")
         self.device_combo.addItem("GPU (NVIDIA CUDA)", "cuda")
         self.device_combo.addItem("CPU", "cpu")
@@ -869,15 +902,78 @@ class MainWindow(QMainWindow):
         for i in range(self.device_combo.count()):
             if self.device_combo.itemData(i) == curr_d:
                 self.device_combo.setCurrentIndex(i)
-        hw_layout.addWidget(hw_label)
-        hw_layout.addWidget(self.device_combo, 1)
-        c_layout.addLayout(hw_layout)
+        c1_layout.addLayout(_make_row("Run on:", self.device_combo))
 
-        # Microphone Input Device
-        mic_layout = QHBoxLayout()
-        mic_label = QLabel("Microphone:", self)
-        mic_label.setStyleSheet("font-weight: 500;")
-        self.mic_combo = QComboBox(self)
+        # Hardware diagnostics container
+        stack_hdr = QHBoxLayout()
+        stack_title = QLabel("Hardware Diagnostics & Pipeline", card1)
+        stack_title.setStyleSheet("font-weight: 500; font-size: 12px; color: rgba(255,255,255,0.7);")
+        stack_hdr.addWidget(stack_title)
+        stack_hdr.addStretch()
+
+        self.btn_refresh_stack = QPushButton("Refresh Status", card1)
+        self.btn_refresh_stack.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_refresh_stack.setStyleSheet("""
+            QPushButton { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.85); border: 1px solid rgba(255,255,255,0.14); border-radius: 6px; padding: 3px 8px; font-size: 11px; }
+            QPushButton:hover { background: rgba(255,255,255,0.14); }
+        """)
+        self.btn_refresh_stack.clicked.connect(self._refresh_system_stack)
+        stack_hdr.addWidget(self.btn_refresh_stack)
+        c1_layout.addLayout(stack_hdr)
+
+        self.stack_box = QFrame(card1)
+        self.stack_box.setStyleSheet("background: rgba(0, 0, 0, 0.25); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px;")
+        self.stack_box_layout = QVBoxLayout(self.stack_box)
+        self.stack_box_layout.setContentsMargins(12, 10, 12, 10)
+        self.stack_box_layout.setSpacing(6)
+        c1_layout.addWidget(self.stack_box)
+        self._refresh_system_stack()
+
+        layout.addWidget(card1)
+
+        # -------------------------------------------------------------------------
+        # CARD 2: Floating Capsule & Multi-Monitor Display
+        # -------------------------------------------------------------------------
+        card2, c2_layout = _make_card(
+            "🪄 Floating Capsule & Multi-Monitor Display",
+            "Desktop presence, sizing styles, and automatic screen following"
+        )
+
+        self.capsule_style_combo = QComboBox(card2)
+        self.capsule_style_combo.addItem("Option A: Compact / Wispr Flow (136 px) — Minimal & Floating Caption Bubble", "compact")
+        self.capsule_style_combo.addItem("Standard Capsule (360 px) — Full Controls & Action Hints", "standard")
+        self.capsule_style_combo.addItem("Option C: Micro Capsule (88 px) — Ultra-Minimal Waveform Only", "micro")
+
+        curr_style = self.config.get("capsule_style", "compact")
+        for i in range(self.capsule_style_combo.count()):
+            if self.capsule_style_combo.itemData(i) == curr_style:
+                self.capsule_style_combo.setCurrentIndex(i)
+                break
+        c2_layout.addLayout(_make_row("Capsule Style:", self.capsule_style_combo))
+
+        self.cb_follow_mouse = Switch("Follow mouse cursor to active monitor with smooth fade (multi-screen)", card2)
+        self.cb_follow_mouse.setChecked(self.config.get("follow_mouse_screen", True))
+        c2_layout.addWidget(self.cb_follow_mouse)
+
+        self.cb_realtime = Switch("Show live preview of words above capsule while dictating", card2)
+        self.cb_realtime.setChecked(self.config.get("realtime_preview", True))
+        c2_layout.addWidget(self.cb_realtime)
+
+        self.cb_hide_idle = Switch("Hide capsule completely when idle (don't show snooze pill on desktop)", card2)
+        self.cb_hide_idle.setChecked(self.config.get("hide_capsule_when_idle", False))
+        c2_layout.addWidget(self.cb_hide_idle)
+
+        layout.addWidget(card2)
+
+        # -------------------------------------------------------------------------
+        # CARD 3: Audio & Voice Capture
+        # -------------------------------------------------------------------------
+        card3, c3_layout = _make_card(
+            "🎙️ Audio & Voice Capture",
+            "Microphone hardware selection and automatic silence gating"
+        )
+
+        self.mic_combo = QComboBox(card3)
         self.mic_devices = list_microphones()
         self.mic_combo.addItem("Default System Microphone", None)
         curr_dev = self.config.get("input_device_index")
@@ -885,20 +981,42 @@ class MainWindow(QMainWindow):
             self.mic_combo.addItem(f"{dev['name']} (Ch: {dev['channels']})", dev["index"])
             if curr_dev == dev["index"]:
                 self.mic_combo.setCurrentIndex(self.mic_combo.count() - 1)
-        mic_layout.addWidget(mic_label)
-        mic_layout.addWidget(self.mic_combo, 1)
-        c_layout.addLayout(mic_layout)
+        c3_layout.addLayout(_make_row("Microphone:", self.mic_combo))
 
-        # Active Mic Status Indicator
-        self.active_mic_lbl = QLabel("Active Input: Default System Microphone", self)
-        self.active_mic_lbl.setStyleSheet(f"color: {COLORS['text_muted']}; font-size: 12px; margin-top: -4px;")
-        c_layout.addWidget(self.active_mic_lbl)
+        self.active_mic_lbl = QLabel("Active Input: Default System Microphone", card3)
+        self.active_mic_lbl.setStyleSheet(f"color: {COLORS['text_muted']}; font-size: 11.5px; margin-top: -6px; margin-left: 4px;")
+        c3_layout.addWidget(self.active_mic_lbl)
 
-        # Writing / Text Injection Method
-        inj_layout = QHBoxLayout()
-        inj_label = QLabel("Writing / Insertion Method:", self)
-        inj_label.setStyleSheet("font-weight: 500;")
-        self.inj_combo = QComboBox(self)
+        self.silence_spin = QDoubleSpinBox(card3)
+        self.silence_spin.setRange(0.6, 3.5)
+        self.silence_spin.setSingleStep(0.1)
+        self.silence_spin.setValue(float(self.config.get("silence_duration", 1.1)))
+        c3_layout.addLayout(_make_row("Auto-Write Pause (sec):", self.silence_spin))
+
+        self.cb_autowrite = Switch("Write automatically when you pause speaking", card3)
+        self.cb_autowrite.setChecked(self.config.get("auto_write_on_silence", True))
+        c3_layout.addWidget(self.cb_autowrite)
+
+        self.cb_sound = Switch("Play audio feedback tones on start and finish", card3)
+        self.cb_sound.setChecked(self.config.get("sound_feedback", True))
+        c3_layout.addWidget(self.cb_sound)
+
+        layout.addWidget(card3)
+
+        # -------------------------------------------------------------------------
+        # CARD 4: Shortcuts, Text Output & System
+        # -------------------------------------------------------------------------
+        card4, c4_layout = _make_card(
+            "⌨️ Shortcuts, Text Output & System",
+            "Global activation hotkey, text injection, and application behavior"
+        )
+
+        self.hotkey_input = HotkeyRecorder(self.config.get("hotkey", "ctrl+shift"), card4)
+        self.hotkey_input.sig_recording.connect(self.sig_hotkey_recording.emit)
+        self.hotkey_input.sig_changed.connect(self._on_hotkey_recorded)
+        c4_layout.addLayout(_make_row("Global Hotkey:", self.hotkey_input))
+
+        self.inj_combo = QComboBox(card4)
         self.inj_combo.addItem("Instant Paste (Clipboard - Fastest)", "clipboard")
         self.inj_combo.addItem("Type-In Effect (Word by Word - No Clipboard)", "typein")
         self.inj_combo.addItem("Direct Typewriter (Unicode Emulation - No Clipboard)", "type")
@@ -907,90 +1025,43 @@ class MainWindow(QMainWindow):
             if self.inj_combo.itemData(i) == curr_inj:
                 self.inj_combo.setCurrentIndex(i)
                 break
-        inj_layout.addWidget(inj_label)
-        inj_layout.addWidget(self.inj_combo, 1)
-        c_layout.addLayout(inj_layout)
+        c4_layout.addLayout(_make_row("Writing Method:", self.inj_combo))
 
-        # Hotkey Configuration
-        hk_layout = QHBoxLayout()
-        hk_label = QLabel("Global Hotkey:", self)
-        hk_label.setStyleSheet("font-weight: 500;")
-        self.hotkey_input = HotkeyRecorder(self.config.get("hotkey", "ctrl+shift"), self)
-        self.hotkey_input.sig_recording.connect(self.sig_hotkey_recording.emit)
-        self.hotkey_input.sig_changed.connect(self._on_hotkey_recorded)
-        hk_layout.addWidget(hk_label)
-        hk_layout.addWidget(self.hotkey_input, 1)
-        c_layout.addLayout(hk_layout)
-
-        # Auto-Write Silence Duration
-        sil_layout = QHBoxLayout()
-        sil_label = QLabel("Auto-Write Pause Duration (sec):", self)
-        sil_label.setStyleSheet("font-weight: 500;")
-        self.silence_spin = QDoubleSpinBox(self)
-        self.silence_spin.setRange(0.6, 3.5)
-        self.silence_spin.setSingleStep(0.1)
-        self.silence_spin.setValue(float(self.config.get("silence_duration", 1.1)))
-        sil_layout.addWidget(sil_label)
-        sil_layout.addWidget(self.silence_spin, 1)
-        c_layout.addLayout(sil_layout)
-
-        # Tone / Style Preset
-        tone_layout = QHBoxLayout()
-        tone_label = QLabel("Formatting Tone Preset:", self)
-        tone_label.setStyleSheet("font-weight: 500;")
-        self.tone_combo = QComboBox(self)
+        self.tone_combo = QComboBox(card4)
         self.tone_combo.addItem("Auto (Matches the app you are typing in)", "auto")
         self.tone_combo.addItem("Smart Clean (Removes fillers, natural sentences)", "smart_clean")
         self.tone_combo.addItem("Developer / Code (Variable casing, technical syntax)", "developer")
         self.tone_combo.addItem("Email & Professional (Structured greeting & signoff)", "email")
         self.tone_combo.addItem("Bullet Points (Thought outline)", "bullets")
         self.tone_combo.addItem("Raw Verbatim (No modification)", "verbatim")
-
         curr_tone = self.config.get("tone_preset", "auto")
         for i in range(self.tone_combo.count()):
             if self.tone_combo.itemData(i) == curr_tone:
                 self.tone_combo.setCurrentIndex(i)
                 break
-        tone_layout.addWidget(tone_label)
-        tone_layout.addWidget(self.tone_combo, 1)
-        c_layout.addLayout(tone_layout)
+        c4_layout.addLayout(_make_row("Formatting Preset:", self.tone_combo))
 
-        # Real-time and Auto-write Checkboxes
-        self.cb_autowrite = Switch("Write automatically when you pause speaking", self)
-        self.cb_autowrite.setChecked(self.config.get("auto_write_on_silence", True))
-        c_layout.addWidget(self.cb_autowrite)
-
-        self.cb_realtime = Switch("Show live preview of words in the capsule", self)
-        self.cb_realtime.setChecked(self.config.get("realtime_preview", True))
-        c_layout.addWidget(self.cb_realtime)
-
-        self.cb_hide_idle = Switch("Hide capsule completely when idle (don't show minimized bar on desktop)", self)
-        self.cb_hide_idle.setChecked(self.config.get("hide_capsule_when_idle", False))
-        c_layout.addWidget(self.cb_hide_idle)
-
-        self.cb_sound = Switch("Play sounds on start and finish", self)
-        self.cb_sound.setChecked(self.config.get("sound_feedback", True))
-        c_layout.addWidget(self.cb_sound)
-
-        self.cb_restore_clip = Switch("Restore previous clipboard after paste", self)
+        self.cb_restore_clip = Switch("Restore previous clipboard after paste", card4)
         self.cb_restore_clip.setChecked(self.config.get("restore_clipboard", True))
-        c_layout.addWidget(self.cb_restore_clip)
+        c4_layout.addWidget(self.cb_restore_clip)
 
-        self.cb_autostart = Switch("Start OpenFlow when I sign in", self)
+        self.cb_autostart = Switch("Start OpenFlow automatically when I sign in", card4)
         self.cb_autostart.setChecked(self.config.get("autostart", False))
-        c_layout.addWidget(self.cb_autostart)
+        c4_layout.addWidget(self.cb_autostart)
 
         # Save Button
-        save_btn = QPushButton("Save Settings", self)
+        save_btn = QPushButton("Save Settings", card4)
         save_btn.setObjectName("PrimaryButton")
+        save_btn.setFixedHeight(38)
+        save_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         save_btn.clicked.connect(self._save_settings)
-        c_layout.addWidget(save_btn)
+        c4_layout.addWidget(save_btn)
 
         # Updates Section
-        up_sep = QFrame(self)
+        up_sep = QFrame(card4)
         up_sep.setFixedHeight(1)
-        up_sep.setStyleSheet("background: rgba(255, 255, 255, 0.08); margin: 8px 0;")
-        c_layout.addWidget(up_sep)
+        up_sep.setStyleSheet("background: rgba(255, 255, 255, 0.08); margin: 6px 0;")
+        c4_layout.addWidget(up_sep)
 
         up_layout = QHBoxLayout()
         up_layout.setSpacing(12)
@@ -998,32 +1069,27 @@ class MainWindow(QMainWindow):
             from .. import __version__
         except (ImportError, ValueError):
             from __init__ import __version__
-        self.ver_label = QLabel(f"Version: <b>v{__version__}</b>", self)
+        self.ver_label = QLabel(f"Version: <b>v{__version__}</b>", card4)
         self.ver_label.setStyleSheet(f"color: {COLORS['text_secondary']}; font-size: 13px;")
         up_layout.addWidget(self.ver_label)
 
-        self.update_status_label = QLabel("", self)
+        self.update_status_label = QLabel("", card4)
         self.update_status_label.setStyleSheet(f"color: {COLORS['text_muted']}; font-size: 12px;")
         up_layout.addWidget(self.update_status_label, 1)
 
-        self.btn_check_update = QPushButton("Check for Updates", self)
+        self.btn_check_update = QPushButton("Check for Updates", card4)
         self.btn_check_update.clicked.connect(self._on_check_update_clicked)
         up_layout.addWidget(self.btn_check_update)
 
-        self.btn_install_update = QPushButton("Download & Install", self)
+        self.btn_install_update = QPushButton("Download & Install", card4)
         self.btn_install_update.setObjectName("PrimaryButton")
         self.btn_install_update.hide()
         self.btn_install_update.clicked.connect(lambda: self.sig_request_install_update.emit())
         up_layout.addWidget(self.btn_install_update)
 
-        c_layout.addLayout(up_layout)
+        c4_layout.addLayout(up_layout)
 
-        # one label column so every control starts at the same x
-        for lbl in (m_label, hw_label, mic_label, hk_label, sil_label, tone_label):
-            lbl.setFixedWidth(220)
-            lbl.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
-
-        layout.addWidget(card)
+        layout.addWidget(card4)
         layout.addStretch()
 
         # the tab is taller than the minimum window; let it scroll instead of clipping
@@ -1035,6 +1101,53 @@ class MainWindow(QMainWindow):
                              "QScrollArea > QWidget > QWidget { background: transparent; }")
         scroll.setWidget(widget)
         return scroll
+
+    def _refresh_system_stack(self):
+        while self.stack_box_layout.count():
+            item = self.stack_box_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+            elif item.layout():
+                sub_layout = item.layout()
+                while sub_layout.count():
+                    sub_item = sub_layout.takeAt(0)
+                    if sub_item.widget():
+                        sub_item.widget().deleteLater()
+
+        stack = hardware.get_system_stack(self.config)
+
+        # Active Pipeline Badge Row
+        pipe_row = QHBoxLayout()
+        lbl_pipe_title = QLabel("Active Engine:", self.stack_box)
+        lbl_pipe_title.setStyleSheet("font-size: 11px; color: rgba(255,255,255,0.6);")
+        pipe_row.addWidget(lbl_pipe_title)
+
+        pipe_badge = QLabel(f" {stack['pipeline']} ", self.stack_box)
+        pipe_badge.setStyleSheet("background: rgba(48, 209, 88, 0.16); color: #30D158; border: 1px solid rgba(48, 209, 88, 0.35); border-radius: 4px; font-weight: 600; font-size: 11px; padding: 2px 6px;")
+        pipe_row.addWidget(pipe_badge)
+        pipe_row.addStretch()
+        self.stack_box_layout.addLayout(pipe_row)
+
+        # GPU Line
+        gpu = stack["gpu"]
+        gpu_color = "#30D158" if gpu["is_active"] else ("#0A84FF" if gpu["cuda_available"] else "rgba(255,255,255,0.4)")
+        lbl_gpu = QLabel(f"• <b>GPU Acceleration:</b> {gpu['name']} ({gpu['vram_gb']} GB VRAM) — <span style='color:{gpu_color}; font-weight:600;'>{gpu['status']}</span> [{gpu['backend']}]", self.stack_box)
+        lbl_gpu.setStyleSheet("font-size: 11px; color: rgba(255,255,255,0.85);")
+        self.stack_box_layout.addWidget(lbl_gpu)
+
+        # NPU Line
+        npu = stack["npu"]
+        npu_color = "#30D158" if npu["is_active"] else ("#0A84FF" if npu["detected"] else "rgba(255,255,255,0.4)")
+        lbl_npu = QLabel(f"• <b>NPU Neural Core:</b> {npu['name']} — <span style='color:{npu_color}; font-weight:600;'>{npu['status']}</span> [{npu['acceleration']}]", self.stack_box)
+        lbl_npu.setStyleSheet("font-size: 11px; color: rgba(255,255,255,0.85);")
+        self.stack_box_layout.addWidget(lbl_npu)
+
+        # CPU Line
+        cpu = stack["cpu"]
+        cpu_color = "#30D158" if cpu["is_active"] else "rgba(255,255,255,0.5)"
+        lbl_cpu = QLabel(f"• <b>CPU Host:</b> {cpu['processor']} ({cpu['cores']} Cores, {cpu['ram_gb']} GB RAM) — <span style='color:{cpu_color}; font-weight:600;'>{cpu['status']}</span>", self.stack_box)
+        lbl_cpu.setStyleSheet("font-size: 11px; color: rgba(255,255,255,0.85);")
+        self.stack_box_layout.addWidget(lbl_cpu)
 
     def _save_settings(self):
         model_choice = self.model_combo.currentData()
@@ -1052,6 +1165,8 @@ class MainWindow(QMainWindow):
         self.config["model_size"] = selected_model_text
         self.config["device"] = device_choice
         self.config["compute_type"] = compute_type
+        if hasattr(self, "capsule_style_combo"):
+            self.config["capsule_style"] = self.capsule_style_combo.currentData()
         self.config["input_device_index"] = dev_idx
         self.config["injection_method"] = self.inj_combo.currentData()
         self.config["hotkey"] = hotkey
@@ -1060,12 +1175,15 @@ class MainWindow(QMainWindow):
         self.config["auto_write_on_silence"] = self.cb_autowrite.isChecked()
         self.config["realtime_preview"] = self.cb_realtime.isChecked()
         self.config["hide_capsule_when_idle"] = self.cb_hide_idle.isChecked()
+        if hasattr(self, "cb_follow_mouse"):
+            self.config["follow_mouse_screen"] = self.cb_follow_mouse.isChecked()
         self.config["sound_feedback"] = self.cb_sound.isChecked()
         self.config["restore_clipboard"] = self.cb_restore_clip.isChecked()
         self.config["autostart"] = self.cb_autostart.isChecked()
 
         save_config(self.config)
         self.config_changed.emit(self.config)
+        self._refresh_system_stack()
         QMessageBox.information(self, "Saved", "Settings updated.")
 
     def _update_hotkey_badge(self):

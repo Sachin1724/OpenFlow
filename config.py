@@ -16,7 +16,9 @@ DEFAULT_CONFIG = {
     "restore_clipboard": True,           # Restore user clipboard after paste
     "sound_feedback": True,              # Play subtle audio chimes
     "show_floating_pill": True,          # Show floating minimal capsule
+    "capsule_style": "compact",          # "standard" (360px full), "compact" (138px Wispr Flow), "micro" (88px minimal)
     "hide_capsule_when_idle": False,     # Hide capsule completely when idle (don't show minimized bar on desktop)
+    "follow_mouse_screen": True,         # Automatically follow mouse cursor to active display with smooth ease-in/out
     "input_device_index": None,          # None = system default
     "language": "en",
     "setup_done": False,                 # first-run model download completed

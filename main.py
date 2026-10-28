@@ -15,50 +15,72 @@ except Exception:
     pass
 
 try:
-    from .config import load_config, save_config, get_asset_path
-    from .database import Database
-    from .engine.audio_recorder import (
+    from openflow.config import load_config, save_config, get_asset_path
+    from openflow.database import Database
+    from openflow.engine.audio_recorder import (
         AudioRecorder, list_microphones, hardware_input_count,
         get_live_hardware_microphones, clean_device_name
     )
-    from .engine.transcriber import Transcriber, engine_model_name, StreamingSession
-    from .engine.formatter import TextFormatter
-    from .engine.injector import WindowInjector
-    from .engine.hotkey_manager import GlobalHotkeyManager
-    from .engine.sound_effects import play_start_sound, play_stop_sound, play_paste_sound
-    from .engine.context_detector import get_active_app_context, build_initial_prompt, AppContext
-    from .engine.updater import AppUpdater
-    from .engine.meeting import MeetingSession, active_meeting_app, format_meeting_notes, transcript_text, watch_mic
-    from .ui.floating_pill import FloatingPill, MeetingBar, ui_font_family
-    from .ui.main_window import MainWindow
-    from .ui.setup_dialog import SetupDialog
-    from .autostart import set_autostart
-    from .engine import hardware, model_manager
-    from . import __version__
-except (ImportError, ValueError):
-    from config import load_config, save_config, get_asset_path
-    from database import Database
-    from engine.audio_recorder import (
-        AudioRecorder, list_microphones, hardware_input_count,
-        get_live_hardware_microphones, clean_device_name
-    )
-    from engine.transcriber import Transcriber, engine_model_name, StreamingSession
-    from engine.formatter import TextFormatter
-    from engine.injector import WindowInjector
-    from engine.hotkey_manager import GlobalHotkeyManager
-    from engine.sound_effects import play_start_sound, play_stop_sound, play_paste_sound
-    from engine.context_detector import get_active_app_context, build_initial_prompt, AppContext
-    from engine.updater import AppUpdater
-    from engine.meeting import MeetingSession, active_meeting_app, format_meeting_notes, transcript_text, watch_mic
-    from ui.floating_pill import FloatingPill, MeetingBar, ui_font_family
-    from ui.main_window import MainWindow
-    from ui.setup_dialog import SetupDialog
-    from autostart import set_autostart
-    from engine import hardware, model_manager
+    from openflow.engine.transcriber import Transcriber, engine_model_name, StreamingSession
+    from openflow.engine.formatter import TextFormatter
+    from openflow.engine.injector import WindowInjector
+    from openflow.engine.hotkey_manager import GlobalHotkeyManager
+    from openflow.engine.sound_effects import play_start_sound, play_stop_sound, play_paste_sound
+    from openflow.engine.context_detector import get_active_app_context, build_initial_prompt, AppContext
+    from openflow.engine.updater import AppUpdater
+    from openflow.engine.meeting import MeetingSession, active_meeting_app, format_meeting_notes, transcript_text, watch_mic
+    from openflow.ui.floating_pill import FloatingPill, MeetingBar, ui_font_family
+    from openflow.ui.main_window import MainWindow
+    from openflow.ui.setup_dialog import SetupDialog
+    from openflow.autostart import set_autostart
+    from openflow.engine import hardware, model_manager, translator
+    from openflow import __version__
+except Exception:
     try:
-        from __init__ import __version__
-    except ImportError:
-        __version__ = "1.1.5"
+        from .config import load_config, save_config, get_asset_path
+        from .database import Database
+        from .engine.audio_recorder import (
+            AudioRecorder, list_microphones, hardware_input_count,
+            get_live_hardware_microphones, clean_device_name
+        )
+        from .engine.transcriber import Transcriber, engine_model_name, StreamingSession
+        from .engine.formatter import TextFormatter
+        from .engine.injector import WindowInjector
+        from .engine.hotkey_manager import GlobalHotkeyManager
+        from .engine.sound_effects import play_start_sound, play_stop_sound, play_paste_sound
+        from .engine.context_detector import get_active_app_context, build_initial_prompt, AppContext
+        from .engine.updater import AppUpdater
+        from .engine.meeting import MeetingSession, active_meeting_app, format_meeting_notes, transcript_text, watch_mic
+        from .ui.floating_pill import FloatingPill, MeetingBar, ui_font_family
+        from .ui.main_window import MainWindow
+        from .ui.setup_dialog import SetupDialog
+        from .autostart import set_autostart
+        from .engine import hardware, model_manager, translator
+        from . import __version__
+    except Exception:
+        from config import load_config, save_config, get_asset_path
+        from database import Database
+        from engine.audio_recorder import (
+            AudioRecorder, list_microphones, hardware_input_count,
+            get_live_hardware_microphones, clean_device_name
+        )
+        from engine.transcriber import Transcriber, engine_model_name, StreamingSession
+        from engine.formatter import TextFormatter
+        from engine.injector import WindowInjector
+        from engine.hotkey_manager import GlobalHotkeyManager
+        from engine.sound_effects import play_start_sound, play_stop_sound, play_paste_sound
+        from engine.context_detector import get_active_app_context, build_initial_prompt, AppContext
+        from engine.updater import AppUpdater
+        from engine.meeting import MeetingSession, active_meeting_app, format_meeting_notes, transcript_text, watch_mic
+        from ui.floating_pill import FloatingPill, MeetingBar, ui_font_family
+        from ui.main_window import MainWindow
+        from ui.setup_dialog import SetupDialog
+        from autostart import set_autostart
+        from engine import hardware, model_manager, translator
+        try:
+            from __init__ import __version__
+        except Exception:
+            __version__ = "1.1.5"
 
 _BOOT_T0 = time.perf_counter()
 
@@ -229,6 +251,8 @@ class OpenFlowApp(QObject):
             current_language=self.config.get("language", "en"),
             current_model=curr_model,
             hide_when_idle=self.config.get("hide_capsule_when_idle", False),
+            capsule_style=self.config.get("capsule_style", "compact"),
+            follow_mouse_screen=self.config.get("follow_mouse_screen", True),
         )
         self.floating_pill.populate_mics(recents)
         self.floating_pill.populate_models(curr_model)
@@ -416,6 +440,28 @@ class OpenFlowApp(QObject):
         save_config(self.config)
         self._reload_transcriber_async(language=lang_code)
         print(f"[OpenFlow] Switched language to: {lang_code}")
+        if lang_code == "or-en" and not model_manager.cached_path("odia-en"):
+            # picking "Odia → English" is the user asking for the translation model: fetch it once
+            threading.Thread(target=self._download_translator, daemon=True).start()
+
+    def _download_translator(self):
+        try:
+            self.bridge.sig_status.emit("Downloading Odia → English model...")
+            model_manager.download("odia-en", on_progress=lambda pct: self.bridge.sig_download.emit(pct, "odia-en"))
+            self.bridge.sig_status.emit("Odia → English ready")
+        except Exception as e:
+            print(f"[OpenFlow] Translation model download failed: {e}")
+            self.bridge.sig_error.emit("Translation download failed")
+
+    def _translate_odia(self, text: str) -> str:
+        """Odia text -> English with IndicTrans2; loads the model on first use."""
+        if getattr(self, "_translator", None) is None:
+            path = model_manager.cached_path("odia-en")
+            if path is None:
+                raise RuntimeError("Odia → English model not downloaded")
+            self._translator = translator.OdiaToEnglish(os.path.join(path, model_manager.TRANSLATOR_DIR),
+                                                        threads=min(8, os.cpu_count() or 4))
+        return self._translator.translate(text)
 
     def _reload_transcriber_async(self, language=None):
         """Model swap can download hundreds of MB; never block the UI thread."""
@@ -505,6 +551,10 @@ class OpenFlowApp(QObject):
         self.formatter.set_dictionary(self.db.get_dictionary())
         if hasattr(self, "floating_pill"):
             self.floating_pill.set_hide_when_idle(new_cfg.get("hide_capsule_when_idle", False))
+            if "capsule_style" in new_cfg:
+                self.floating_pill.set_capsule_style(new_cfg.get("capsule_style", "compact"))
+            if "follow_mouse_screen" in new_cfg:
+                self.floating_pill.set_follow_mouse_screen(new_cfg.get("follow_mouse_screen", True))
         if hasattr(self, "act_hide_idle"):
             self.act_hide_idle.blockSignals(True)
             self.act_hide_idle.setChecked(new_cfg.get("hide_capsule_when_idle", False))
@@ -664,6 +714,10 @@ class OpenFlowApp(QObject):
             self._stop_and_process()
 
     def _on_hotkey_press(self):
+        if getattr(self, "_hands_free_active", False) and self.audio_recorder.is_recording:
+            self._hands_free_active = False
+            self._stop_and_process()
+            return
         mode = self.config.get("trigger_mode", "push_to_talk")
         if mode == "push_to_talk":
             self._start_dictating()
@@ -675,16 +729,29 @@ class OpenFlowApp(QObject):
 
     def _on_hotkey_release(self):
         mode = self.config.get("trigger_mode", "push_to_talk")
-        if (mode in ("push_to_talk", "toggle")) and self.audio_recorder.is_recording:
+        if mode == "push_to_talk" and self.audio_recorder.is_recording:
+            held_sec = time.monotonic() - getattr(self, "_dictate_start_monotonic", time.monotonic())
+            if held_sec < 0.35:
+                # Fast tap (< 350ms): keep recording in hands-free mode so speech is never lost!
+                print(f"[OpenFlow] Hotkey quick-tapped ({held_sec:.2f}s): continuing in hands-free dictation")
+                self._hands_free_active = True
+                return
+            self._hands_free_active = False
             self._stop_and_process()
 
     def _start_dictating(self):
         if self._is_processing or self.audio_recorder.is_recording:
             return
 
+        self._dictate_start_monotonic = time.monotonic()
         self._last_activity = time.monotonic()
-        if self.transcriber.model is None:  # warm up while the user speaks
+        if hasattr(self.transcriber, "reset_preview_budget"):
+            self.transcriber.reset_preview_budget()
+
+        if self.transcriber.model is None and not getattr(self.transcriber, "is_loading", False):  # warm up while the user speaks
             self._reload_transcriber_async()
+            if hasattr(self, "floating_pill") and self.config.get("show_floating_pill", True):
+                self.floating_pill.show_message("Warming up AI...", duration_ms=1800)
 
         # 1. Capture the exact active target window immediately
         self.target_window_info = self.injector.get_foreground_window()
@@ -733,8 +800,10 @@ class OpenFlowApp(QObject):
 
     def _on_auto_silence(self):
         """Automatically triggered when user stops speaking for silence_duration."""
-        if self.config.get("auto_write_on_silence", True) and self.audio_recorder.is_recording:
+        auto_enabled = self.config.get("auto_write_on_silence", True) or getattr(self, "_hands_free_active", False)
+        if auto_enabled and self.audio_recorder.is_recording:
             print("[OpenFlow] Auto-silence detected: automatically writing text!")
+            self._hands_free_active = False
             self._stop_and_process()
 
     def _stop_and_process(self):
@@ -742,6 +811,13 @@ class OpenFlowApp(QObject):
             return
 
         self._is_processing = True
+
+        # Safety watchdog: guarantee that _is_processing can NEVER stay stuck for > 20s
+        def _clear_watchdog():
+            if getattr(self, "_is_processing", False):
+                print("[OpenFlow Watchdog] Safety timeout: auto-clearing _is_processing")
+                self._is_processing = False
+        threading.Timer(20.0, _clear_watchdog).start()
 
         # 1. Update capsule UI to writing state
         self.bridge.sig_stop_recording.emit()
@@ -755,15 +831,15 @@ class OpenFlowApp(QObject):
 
     def _process_worker(self, audio_data, session):
         try:
-            if len(audio_data) < 3000: # Less than 0.2s of audio
-                self.bridge.sig_error.emit("Too short")
+            if len(audio_data) < 4000: # Less than 0.25s of audio
+                self.bridge.sig_error.emit("Hold while speaking")
                 return
 
             peak = float(abs(audio_data).max())
             print(f"[OpenFlow] Captured {len(audio_data) / 16000:.1f}s of audio, peak level {peak:.3f}")
             if peak < 0.004:  # near-digital silence: wrong input device or Windows microphone privacy block
                 print("[OpenFlow] Microphone is silent. Check Windows Settings > Privacy > Microphone and the input device.")
-                self.bridge.sig_error.emit("No sound from mic")
+                self.bridge.sig_error.emit("Microphone silent")
                 return
 
             # Phrases spoken before the last pause are already transcribed; decode only the tail
@@ -772,6 +848,16 @@ class OpenFlowApp(QObject):
             if not raw_text.strip():
                 self.bridge.sig_error.emit("Didn't catch that")
                 return
+
+            if self.config.get("language") == "or-en":
+                try:
+                    start = time.perf_counter()
+                    print(f"[OpenFlow] Odia: {raw_text}")
+                    raw_text, detected_lang = self._translate_odia(raw_text), "en"
+                    latency_ms += int((time.perf_counter() - start) * 1000)
+                except Exception as e:  # paste the Odia text rather than lose the dictation
+                    print(f"[OpenFlow] Translation failed ({e}); writing the Odia text")
+                    self.bridge.sig_status.emit("Translation unavailable · wrote Odia")
 
             # Format speech (speech-to-writing: self-corrections, fillers, tech casing, context)
             tone = self.config.get("tone_preset", "auto")
@@ -855,8 +941,8 @@ class OpenFlowApp(QObject):
     @pyqtSlot(str)
     def _handle_ui_error(self, message: str):
         if self.config.get("show_floating_pill", True):
-            # Short 850ms notice on empty speech / too short so the capsule doesn't stay lingering
-            duration = 850 if message in ("Didn't catch that", "Too short", "No sound from mic") else 1800
+            # Show clear guidance notice on capsule or floating bubble
+            duration = 1800 if message in ("Didn't catch that", "Hold while speaking", "Microphone silent") else 2400
             self.floating_pill.show_message(message, duration_ms=duration)
 
     @pyqtSlot(float)
@@ -1022,6 +1108,7 @@ def main():
         app = holder.get("app")
         if app is not None:
             app.floating_pill.show_message(app._active_msg(), duration_ms=3500)
+            app.show_dashboard()
 
     server.newConnection.connect(on_second_launch)
 

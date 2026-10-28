@@ -44,7 +44,7 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 Name: "startupicon"; Description: "Launch OpenFlow automatically when Windows starts"; GroupDescription: "Startup:"
 
 [Files]
-Source: "..\dist\OpenFlow\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\dist\OpenFlow\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs restartreplace
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"
@@ -59,3 +59,25 @@ Filename: "{app}\{#MyAppExeName}"; Flags: nowait runasoriginaluser; WorkingDir: 
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}"
+
+[Code]
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  ResultCode: Integer;
+begin
+  // Forcibly terminate any running OpenFlow instances so executables and DLLs are never locked
+  Exec('cmd.exe', '/c taskkill /f /im OpenFlow.exe >nul 2>&1', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Sleep(300);
+  Result := '';
+end;
+
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+var
+  ResultCode: Integer;
+begin
+  if CurUninstallStep = usUninstall then
+  begin
+    Exec('cmd.exe', '/c taskkill /f /im OpenFlow.exe >nul 2>&1', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+    Sleep(250);
+  end;
+end;

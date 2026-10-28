@@ -46,8 +46,15 @@ if getattr(sys, "frozen", False):
     if basedir not in sys.path:
         sys.path.insert(0, basedir)
     pkg_dir = os.path.join(basedir, "openflow")
-    if os.path.isdir(pkg_dir) and pkg_dir not in sys.path:
-        sys.path.insert(0, pkg_dir)
+    if os.path.isdir(pkg_dir):
+        if pkg_dir not in sys.path:
+            sys.path.insert(0, pkg_dir)
+        if "openflow" not in sys.modules or getattr(sys.modules["openflow"], "__file__", None) is None:
+            mod = types.ModuleType("openflow")
+            mod.__file__ = os.path.join(pkg_dir, "__init__.py")
+            mod.__path__ = [pkg_dir]
+            mod.__package__ = "openflow"
+            sys.modules["openflow"] = mod
 else:
     basedir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     parent = os.path.dirname(basedir)

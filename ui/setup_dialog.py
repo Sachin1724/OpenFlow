@@ -20,7 +20,7 @@ except (ImportError, ValueError):
     from ui.floating_pill import get_squircle_pixmap, Switch
 
 LANGS = [("auto", "Auto Detect"), ("en-in", "English (India) / Hinglish"), ("or", "Odia / Odia-English"),
-         ("hi", "Hindi"), ("en", "English (US/UK)"), ("es", "Spanish"), ("fr", "French"),
+         ("or-en", "Odia → English"), ("hi", "Hindi"), ("en", "English (US/UK)"), ("es", "Spanish"), ("fr", "French"),
          ("de", "German"), ("zh", "Chinese"), ("ja", "Japanese"), ("pt", "Portuguese"), ("it", "Italian"),
          ("ar", "Arabic"), ("ru", "Russian"), ("ko", "Korean"), ("nl", "Dutch"), ("tr", "Turkish")]
 
