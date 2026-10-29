@@ -69,8 +69,99 @@ def ctc_greedy(ids: np.ndarray, vocab: list) -> str:
     return "".join(out).replace("▁", " ").strip()
 
 
+def odia_only(vocab: list) -> np.ndarray:
+    """Additive mask: 0 for Odia pieces and blank, -inf for the other scripts in the shared Indic vocab."""
+    ok = [all(c == "▁" or 0x0B00 <= ord(c) <= 0x0B7F for c in p) and p != "<unk>" for p in vocab] + [True]
+    return np.where(ok, 0.0, -np.inf).astype(np.float32)
+
+
+class WordLM:
+    """Odia word bigram LM with stupid backoff (build_odia_lm.py), in plain numpy.
+    Bigrams are int64 keys (w1 << 22 | w2) sorted for np.searchsorted; scores are natural logs."""
+
+    BACKOFF = float(np.log(0.4))
+
+    def __init__(self, path: str):
+        d = np.load(path, allow_pickle=False)
+        self.words = {w: i for i, w in enumerate(str(d["words"]).split("\n"))}
+        self.uni = d["uni"].astype(np.float32)
+        self.keys, self.bi = d["bi_keys"], d["bi"].astype(np.float32)
+        self.unk = float(d["unk"])
+        self._cache = {}
+
+    def score(self, prev: str, word: str) -> float:
+        k = (prev, word)
+        if k not in self._cache:
+            w = self.words.get(word)
+            if w is None:
+                s = self.unk
+            else:
+                s = self.BACKOFF + float(self.uni[w])
+                p = self.words.get(prev)
+                if p is not None:
+                    key = (p << 22) | w
+                    i = int(np.searchsorted(self.keys, key))
+                    if i < len(self.keys) and self.keys[i] == key:
+                        s = float(self.bi[i])
+            self._cache[k] = s
+        return self._cache[k]
+
+
+def ctc_beam_lm(logp: np.ndarray, vocab: list, lm: WordLM, alpha: float = 0.5, beta: float = 1.0,
+                beam: int = 16, prune: float = -8.0) -> str:
+    """CTC prefix beam search; each finished word adds alpha * log P(word | previous word) + beta."""
+    blank = len(vocab)
+    NEG = -1e30
+    # prefix (tuple of token ids) -> [log p_blank, log p_nonblank]; info -> (lm total, prev word, current word)
+    beams = {(): [0.0, NEG]}
+    info = {(): (0.0, "<s>", "")}
+
+    def extend(prefix, c):
+        new = prefix + (c,)
+        if new not in info:
+            lm_total, prev, cur = info[prefix]
+            piece = vocab[c]
+            if piece.startswith("▁"):
+                if cur:
+                    lm_total += alpha * lm.score(prev, cur) + beta
+                    prev = cur
+                cur = piece[1:]
+            else:
+                cur += piece
+            info[new] = (lm_total, prev, cur)
+        return new
+
+    for row in logp:
+        cand = [c for c in np.nonzero(row > prune)[0].tolist() if c != blank]
+        nxt = {}
+        for prefix, (pb, pnb) in beams.items():
+            total = np.logaddexp(pb, pnb)
+            e = nxt.setdefault(prefix, [NEG, NEG])
+            e[0] = np.logaddexp(e[0], total + row[blank])
+            last = prefix[-1] if prefix else -1
+            for c in cand:
+                p = row[c]
+                new = extend(prefix, c)
+                e2 = nxt.setdefault(new, [NEG, NEG])
+                if c == last:
+                    e2[1] = np.logaddexp(e2[1], pb + p)                   # c, blank, c: a new symbol
+                    nxt[prefix][1] = np.logaddexp(nxt[prefix][1], pnb + p)  # repeat collapses
+                else:
+                    e2[1] = np.logaddexp(e2[1], total + p)
+        beams = dict(sorted(nxt.items(), key=lambda kv: -(np.logaddexp(*kv[1]) + info[kv[0]][0]))[:beam])
+
+    def final(prefix):
+        lm_total, prev, cur = info[prefix]
+        return np.logaddexp(*beams[prefix]) + lm_total + (alpha * lm.score(prev, cur) + beta if cur else 0)
+    best = max(beams, key=final)
+    return "".join(vocab[c] for c in best).replace("▁", " ").strip()
+
+
 class IndicCTC:
-    """One IndicConformer language folder (model.onnx + vocab.json)."""
+    """One IndicConformer language folder (model.onnx + vocab.json, and lm.npz for beam search)."""
+
+    # tuned on FLEURS Odia dev; on the 883 test clips WER 21.1% -> 20.1%, CER 5.8% -> 5.5%
+    ALPHA, BETA, BEAM = 0.15, 1.0, 16
 
     def __init__(self, folder: str, threads: int = 4):
         import onnxruntime as ort
@@ -81,13 +172,20 @@ class IndicCTC:
         avail = ort.get_available_providers()
         providers = [p for p in ("CUDAExecutionProvider", "CPUExecutionProvider") if p in avail]
         self.sess = ort.InferenceSession(os.path.join(folder, "model.onnx"), opts, providers=providers)
+        lm_path = os.path.join(folder, "lm.npz")
+        self.lm = WordLM(lm_path) if os.path.exists(lm_path) else None  # absent: greedy, as before
+        self.mask = odia_only(self.vocab)
 
-    def text(self, audio: np.ndarray) -> str:
+    def text(self, audio: np.ndarray, beam: bool = True) -> str:
+        """beam=False is the greedy pass the live preview uses (~5 ms instead of ~80 ms)."""
         if len(audio) < 1600:  # under 0.1 s
             return ""
         x = features(audio)[None].astype(np.float32)
         out = self.sess.run(None, {"audio_signal": x, "length": np.array([x.shape[2]], dtype=np.int64)})
         logits = np.asarray(out[0])[0]
+        logits = logits + self.mask
+        if beam and self.lm is not None:
+            return ctc_beam_lm(logits, self.vocab, self.lm, self.ALPHA, self.BETA, self.BEAM)
         return ctc_greedy(logits.argmax(-1), self.vocab)
 
 

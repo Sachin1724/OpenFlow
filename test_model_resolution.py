@@ -110,3 +110,31 @@ def test_hung_gpu_call_falls_back_to_cpu():
         tr._HUNG_S = real_hung
         stuck.set()
     assert text == "hello" and t.device == "cpu", (text, t.device)
+
+
+def test_word_lm_picks_the_real_word():
+    import os
+    import tempfile
+    import numpy as np
+    from openflow.engine import indic_asr as ia
+
+    vocab = ["▁କ", "ା", "ମ", "▁ଭ", "ଲ"]  # blank = 5
+    words = ["ଭଲ", "କାମ"]
+    path = os.path.join(tempfile.mkdtemp(), "lm.npz")
+    np.savez(path, words="\n".join(words), uni=np.log([0.5, 0.5]).astype(np.float16),
+             bi_keys=np.array([(0 << 22) | 1], np.int64), bi=np.log([0.9]).astype(np.float16), unk=-20.0)
+    lm = ia.WordLM(path)
+
+    def frames(*rows):  # each row: {token: prob}, the rest to blank
+        out = np.full((len(rows), 6), 1e-6)
+        for i, r in enumerate(rows):
+            for t, p in r.items():
+                out[i, t] = p
+            out[i, 5] = max(1e-6, 1 - sum(r.values()))
+        return np.log(out / out.sum(1, keepdims=True)).astype(np.float32)
+
+    # "ଭଲ କ?ମ": the acoustics slightly prefer no vowel sign (କମ, unknown); the LM knows କାମ
+    lp = frames({3: 0.9}, {4: 0.9}, {0: 0.9}, {1: 0.45}, {2: 0.9})
+    assert ia.ctc_greedy(lp.argmax(-1), vocab) == "ଭଲ କମ"
+    assert ia.ctc_beam_lm(lp, vocab, lm, alpha=0.5, beta=1.0) == "ଭଲ କାମ"
+    assert ia.ctc_beam_lm(lp, vocab, lm, alpha=0.0, beta=0.0) == "ଭଲ କମ"

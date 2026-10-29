@@ -53,7 +53,7 @@ _MODELS["distil-large-v3-ov"] = "OpenVINO/distil-whisper-large-v3-int8-ov"
 _PATTERNS = ["config.json", "preprocessor_config.json", "model.bin", "tokenizer.json", "vocabulary.*"]
 _OV_PATTERNS = ["*.xml", "*.bin", "*.json"]
 _PARAKEET_PATTERNS = ["encoder.int8.onnx", "decoder.int8.onnx", "joiner.int8.onnx", "tokens.txt"]
-_ODIA_PATTERNS = ["or/model.onnx", "or/vocab.json"]
+_ODIA_PATTERNS = ["or/model.onnx", "or/vocab.json", "or/lm.npz"]
 TRANSLATOR_DIR = "indic-en-200m-ct2/ctranslate2_model"
 _TRANSLATOR_PATTERNS = [TRANSLATOR_DIR + "/*", TRANSLATOR_DIR + "/vocab/*"]
 
@@ -94,7 +94,7 @@ _KNOWN_SIZES: Dict[str, int] = {
     "large-v2": 3_090_000_000,
     "large-v3": 3_090_000_000,
     "parakeet": 670_478_772,
-    "odia": 197_090_303,
+    "odia": 209_792_458,  # with the 12.7 MB word LM
     "odia-en": 856_259_538,
     "writer": 1_558_000_000,
 }

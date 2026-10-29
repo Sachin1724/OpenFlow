@@ -232,6 +232,8 @@ class Transcriber:
         if target_name == "odia":
             from .indic_asr import IndicCTC
             self.model = IndicCTC(os.path.join(model_path, "or"), threads=_THREADS)
+            if self.model.lm is None:  # downloaded before the word LM shipped: fetch just that file
+                threading.Thread(target=_fetch_odia_lm, args=(self.model,), daemon=True).start()
             self._current_loaded_name = "odia"
             self._loaded_device = self.device
             print("[OpenFlow] Odia IndicConformer loaded and ready.")
@@ -310,10 +312,10 @@ class Transcriber:
         if self.on_status:
             self.on_status("Model parakeet ready (CPU)")
 
-    def _parakeet_text(self, audio: np.ndarray) -> str:
+    def _parakeet_text(self, audio: np.ndarray, beam: bool = True) -> str:
         assert self.model is not None
         if self._current_loaded_name == "odia":
-            return self.model.text(audio)
+            return self.model.text(audio, beam)
         stream = self.model.create_stream()
         stream.accept_waveform(16000, audio)
         self.model.decode_stream(stream)
@@ -387,7 +389,7 @@ class Transcriber:
             # Slicing the last 3.0 seconds (48,000 samples) instead of 8s keeps decode latency under 80ms
             sample = audio[-16000 * 3:]
             if self._current_loaded_name in ("parakeet", "odia"):
-                return self._parakeet_text(sample)
+                return self._parakeet_text(sample, beam=False)
             segments, _ = self.model.transcribe(
                 sample,
                 **_whisper_args(self.language),
@@ -559,6 +561,18 @@ def find_pause(audio: np.ndarray, start: int, min_pending_s: float = 4.0, pause_
             cut = (i + end) // 2 * block
             return cut if cut >= 16000 else None
     return None
+
+
+def _fetch_odia_lm(model):
+    """12.7 MB add-on to the Odia model the user already chose; decoding stays greedy until it lands."""
+    try:
+        from huggingface_hub import hf_hub_download
+        from .indic_asr import WordLM
+        path = hf_hub_download(model_manager._repo("odia"), "or/lm.npz")
+        model.lm = WordLM(path)
+        print("[OpenFlow] Odia word LM ready: beam search on")
+    except Exception as e:
+        print(f"[OpenFlow] Odia word LM unavailable ({e}); greedy decoding")
 
 
 class StreamingSession:
