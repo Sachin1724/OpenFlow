@@ -86,7 +86,7 @@ PARAKEET_LANGS = {
 
 
 # Settings that mean Odia speech; the "odia" model runs AI4Bharat IndicConformer for these.
-ODIA_LANGS = {"or", "odia", "or-en"}  # "or-en": speak Odia, main.py translates the text to English
+ODIA_LANGS = {"or", "odia", "or-en", "or-mix"}  # "or-en": main.py translates to English; "or-mix": English words in English letters
 
 
 def resolve_model_name(base_model: str, language: str) -> str:
@@ -488,6 +488,9 @@ class Transcriber:
         if self._current_loaded_name in ("parakeet", "odia"):
             with self._locked():
                 full_text = self._parakeet_text(audio)
+                if lang == "or-mix":
+                    from .odia_mix import to_mixed
+                    full_text = to_mixed(full_text, getattr(self.model, "lm", None))
             latency_ms = int((time.perf_counter() - start_time) * 1000)
             return full_text, duration_seconds, latency_ms, lang
 

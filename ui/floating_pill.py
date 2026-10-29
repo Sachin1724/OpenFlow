@@ -1222,7 +1222,7 @@ class FloatingPill(QWidget):
     sig_hide_idle_changed = pyqtSignal(bool)
 
     LANGS = [
-        ("auto", "Auto Detect"), ("en-in", "English (India) / Hinglish"), ("or", "Odia / Odia-English"),
+        ("auto", "Auto Detect"), ("en-in", "English (India) / Hinglish"), ("or", "Odia / Odia-English"), ("or-mix", "Odia + English words"),
         ("or-en", "Odia → English"), ("hi", "Hindi"), ("en", "English (US/UK)"), ("translate", "Any language → English"),
         ("es", "Spanish"), ("fr", "French"), ("de", "German"), ("zh", "Chinese"), ("ja", "Japanese"),
         ("pt", "Portuguese"), ("it", "Italian"), ("ar", "Arabic"), ("ru", "Russian"),
@@ -1963,6 +1963,8 @@ class FloatingPill(QWidget):
             return "ODIA"
         if code == "or-en":
             return "OR→EN"
+        if code == "or-mix":
+            return "OR+EN"
         if code == "translate":
             return "→EN"
         return code.upper()

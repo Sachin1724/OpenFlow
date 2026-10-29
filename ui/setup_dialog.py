@@ -19,7 +19,7 @@ except (ImportError, ValueError):
     from ui.styles import main_qss, COLORS
     from ui.floating_pill import get_squircle_pixmap, Switch
 
-LANGS = [("auto", "Auto Detect"), ("en-in", "English (India) / Hinglish"), ("or", "Odia / Odia-English"),
+LANGS = [("auto", "Auto Detect"), ("en-in", "English (India) / Hinglish"), ("or", "Odia / Odia-English"), ("or-mix", "Odia + English words"),
          ("or-en", "Odia → English"), ("hi", "Hindi"), ("en", "English (US/UK)"), ("es", "Spanish"), ("fr", "French"),
          ("de", "German"), ("zh", "Chinese"), ("ja", "Japanese"), ("pt", "Portuguese"), ("it", "Italian"),
          ("ar", "Arabic"), ("ru", "Russian"), ("ko", "Korean"), ("nl", "Dutch"), ("tr", "Turkish")]

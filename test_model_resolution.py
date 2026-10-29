@@ -71,6 +71,8 @@ def test_odia_routes_to_indicconformer():
     assert tr.resolve_model_name("odia", "en") == "base"  # other languages keep Whisper
     assert tr.resolve_model_name("small", "or") == "odia"  # Odia speech never goes to Whisper
     assert tr.resolve_model_name("small", "or-en") == "odia"
+    assert tr.resolve_model_name("small", "or-mix") == "odia"
+
     assert tr.engine_model_name("odia", "or", "npu") == "odia"  # never an "-ov" build
     assert mm.variants("odia") == ["odia"]
     assert mm._weights_file("odia") == "or/model.onnx"
@@ -140,3 +142,8 @@ def test_word_lm_picks_the_real_word():
     assert ia.ctc_greedy(lp.argmax(-1), vocab) == "ଭଲ କମ"
     assert ia.ctc_beam_lm(lp, vocab, lm, alpha=0.5, beta=1.0) == "ଭଲ କାମ"
     assert ia.ctc_beam_lm(lp, vocab, lm, alpha=0.0, beta=0.0) == "ଭଲ କମ"
+
+
+def test_odia_mix_keeps_odia_words():
+    from openflow.engine.odia_mix import to_mixed
+    assert to_mixed("ବିଜନେସ ଫ୍ରେଣ୍ଡଲି ନଥିଲା ଆଉ ମୋର ଫୁଲ ଅଫ ଦ ୱର୍ଲ୍ଡ") == "business friendly ନଥିଲା ଆଉ ମୋର ଫୁଲ of the world"
