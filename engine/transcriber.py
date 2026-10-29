@@ -91,6 +91,8 @@ ODIA_LANGS = {"or", "odia", "or-en"}  # "or-en": speak Odia, main.py translates 
 
 def resolve_model_name(base_model: str, language: str) -> str:
     """English (US/UK) -> fast .en model. Indian English, multilingual, auto, or regional -> multilingual model."""
+    if language in ODIA_LANGS:  # Whisper has no Odia: it writes Bengali or romanised gibberish
+        return "odia"
     if base_model == "parakeet":
         return "parakeet" if language in PARAKEET_LANGS else "base"
     if base_model == "odia":
@@ -188,7 +190,8 @@ class Transcriber:
         if target_name == self._current_loaded_name and self.model is not None and self._loaded_device == self.device:
             return
         model_path = model_manager.cached_path(target_name)
-        if model_path is None and not target_name.endswith("-ov"):  # NPU was picked explicitly: fetch its build
+        # NPU builds and Odia were picked explicitly (Odia by its language): fetch them, no Whisper stand-in
+        if model_path is None and not target_name.endswith("-ov") and target_name != "odia":
             # Only download what the user chose: use the other variant (base <-> base.en) or any
             # model already on disk; download only when nothing is cached at all (first run).
             names = model_manager.variants(target_name) + [

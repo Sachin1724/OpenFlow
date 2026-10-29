@@ -69,6 +69,8 @@ def test_odia_routes_to_indicconformer():
     from openflow.engine import transcriber as tr
     assert tr.resolve_model_name("odia", "or") == "odia"
     assert tr.resolve_model_name("odia", "en") == "base"  # other languages keep Whisper
+    assert tr.resolve_model_name("small", "or") == "odia"  # Odia speech never goes to Whisper
+    assert tr.resolve_model_name("small", "or-en") == "odia"
     assert tr.engine_model_name("odia", "or", "npu") == "odia"  # never an "-ov" build
     assert mm.variants("odia") == ["odia"]
     assert mm._weights_file("odia") == "or/model.onnx"
