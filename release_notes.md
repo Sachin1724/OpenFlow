@@ -1,3 +1,19 @@
+# OpenFlow v1.1.7 — Standalone Windows Release
+
+### Zero-Limit · 100% Offline · Local AI Voice Dictation & Meeting Intelligence for Windows
+**Architected and Created by Sachidananda**
+
+---
+
+### Fixes in v1.1.7
+- **Dictation pastes again**: Ctrl+V sent as one batched input was silently dropped on some Windows builds, leaving the text only in the clipboard. Keys are now sent one by one.
+- **No more endless spinner**: a live-preview call on the GPU could freeze and block every dictation after it. OpenFlow now gives up on a stuck call after 10 s and finishes on the CPU; the capsule always returns to idle and the hotkey keeps working.
+- **Mis-pressed hotkey**: a tap under 0.35 s (or a Ctrl shortcut) is discarded instead of starting a recording that never ended. Hands-free dictation is the Toggle mode in Settings.
+- **Dashboard no longer opens at boot**: the installer stops adding a Startup shortcut (it doubled the app's own autostart) and removes the old one; a second launch only shows the capsule.
+- **Capsule opacity**: new Settings slider, 30–100%, applied live.
+
+---
+
 # OpenFlow v1.1.6 — Standalone Windows Release
 
 ### Zero-Limit · 100% Offline · Local AI Voice Dictation & Meeting Intelligence for Windows
