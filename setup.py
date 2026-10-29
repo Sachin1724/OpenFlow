@@ -18,7 +18,7 @@ def get_version() -> str:
             match = re.search(r'__version__\s*=\s*["\']([^"\']+)["\']', f.read())
             if match:
                 return match.group(1)
-    return "1.1.7"
+    return "1.1.8"
 
 
 def get_requirements() -> list:

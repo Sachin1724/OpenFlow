@@ -10,7 +10,7 @@
 
 <br />
 
-[![Release](https://img.shields.io/badge/Release-v1.1.7-000000?style=for-the-badge&logoColor=white)](https://github.com/Sachin1724/OpenFlow)
+[![Release](https://img.shields.io/badge/Release-v1.1.8-000000?style=for-the-badge&logoColor=white)](https://github.com/Sachin1724/OpenFlow)
 [![Platform](https://img.shields.io/badge/Platform-Windows_10_%2F_11_x64-000000?style=for-the-badge&logoColor=white)](https://github.com/Sachin1724/OpenFlow)
 [![Runtime](https://img.shields.io/badge/Runtime-NVIDIA_CUDA_%7C_NPU_%7C_CPU-000000?style=for-the-badge&logoColor=white)](https://github.com/Sachin1724/OpenFlow)
 [![License](https://img.shields.io/badge/License-MIT-000000?style=for-the-badge&logoColor=white)](LICENSE)
@@ -85,7 +85,7 @@ Background meeting detection for Google Meet, Zoom, Microsoft Teams, and Webex. 
 Engineered to resolve phonetic ambiguities in Indic and European languages. Specialized context prompts ensure Hindi and Odia are transcribed into authentic Devanagari and Odia scripts rather than phonetic drift or alternate alphabets.
 - **Styles**: Smart Clean, Developer/Code, Email, Bullets, Verbatim
 - **Languages**: Auto-Detect (99 languages), English, Hindi, Odia, Spanish, French, German, Japanese, Chinese, Russian, and Portuguese
-- **Native Odia**: AI4Bharat IndicConformer (int8, 197 MB) writes real Odia script: 21.7% WER on FLEURS vs 136% for Whisper small, ~280 ms a clip on CPU
+- **Native Odia**: AI4Bharat IndicConformer (int8, 197 MB) writes real Odia script: 21.7% WER on FLEURS vs 136% for Whisper small, ~280 ms a clip on CPU; an Odia word LM (IndicCorpV2, 12.7 MB) in beam search cuts FLEURS test errors 21.1% -> 20.1% WER, 5.8% -> 5.5% CER
 - **Odia → English**: speak Odia, get English, through IndicTrans2 (200M, CTranslate2 int8), fully offline
 - **Voice Edits** *(optional)*: select text and say "make this formal" or "summarize this"; a local Qwen2.5-1.5B rewrites it in place. The same model writes offline meeting notes
 

@@ -1,3 +1,16 @@
+# OpenFlow v1.1.8 — Standalone Windows Release
+
+### Zero-Limit · 100% Offline · Local AI Voice Dictation & Meeting Intelligence for Windows
+**Architected and Created by Sachidananda**
+
+---
+
+### Fixes in v1.1.8
+- **Odia always uses the Odia model**: with Whisper small selected, picking Odia in the capsule still ran Whisper, which has no Odia and wrote Bengali or romanised gibberish. Odia languages now always use AI4Bharat IndicConformer, downloading it if needed.
+- **Fewer Odia mistakes**: beam search with an Odia word language model (400k words from IndicCorpV2, 12.7 MB, fetched once in the background) lowers FLEURS Odia test errors from 21.1% to 20.1% WER and 5.8% to 5.5% CER. Output is limited to Odia script, so stray Bengali or Devanagari letters no longer appear.
+
+---
+
 # OpenFlow v1.1.7 — Standalone Windows Release
 
 ### Zero-Limit · 100% Offline · Local AI Voice Dictation & Meeting Intelligence for Windows

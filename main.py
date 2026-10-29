@@ -81,7 +81,7 @@ except Exception:
         try:
             from __init__ import __version__
         except Exception:
-            __version__ = "1.1.7"
+            __version__ = "1.1.8"
 
 _BOOT_T0 = time.perf_counter()
 
