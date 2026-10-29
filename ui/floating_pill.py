@@ -1276,6 +1276,7 @@ class FloatingPill(QWidget):
         self._snooze_t = 0.0     # 0 = active capsule, 1 = snoozed resting pill
         self._is_snoozed = False
         self._mode = "capsule"   # "capsule", "line", "hud"
+        self.opacity = 1.0  # resting opacity; Settings > Capsule Opacity
         self._is_line_hovered = False
         self._dl = -1            # model download percent, -1 when not downloading
         self._anchor = QPoint()  # bottom-centre of the window during a morph
@@ -1817,7 +1818,7 @@ class FloatingPill(QWidget):
         self._line_t = 0.0
         if hasattr(self, "caption_bubble"):
             self.caption_bubble.fade_out()
-        self.setWindowOpacity(1.0)
+        self.setWindowOpacity(self.opacity)
         self.show()
         _force_topmost(self)
         self._morph_to(1.0)
@@ -1869,7 +1870,7 @@ class FloatingPill(QWidget):
                 self.fade_anim.setDuration(340)
                 self.fade_anim.setEasingCurve(QEasingCurve.Type.OutCubic)
                 self.fade_anim.setStartValue(0.0)
-                self.fade_anim.setEndValue(1.0)
+                self.fade_anim.setEndValue(self.opacity)
                 self.fade_anim.start()
 
     def _apply_line_t(self, val):
@@ -2130,7 +2131,7 @@ class FloatingPill(QWidget):
             self.screen_fade_anim.setDuration(220)
             self.screen_fade_anim.setEasingCurve(QEasingCurve.Type.OutCubic)
             self.screen_fade_anim.setStartValue(0.0)
-            self.screen_fade_anim.setEndValue(1.0)
+            self.screen_fade_anim.setEndValue(self.opacity)
 
             def _on_screen_fade_in():
                 try:
@@ -2220,6 +2221,11 @@ class FloatingPill(QWidget):
 
     # ---------- state ----------
 
+    def set_opacity(self, value: float):
+        self.opacity = max(0.3, min(1.0, value))
+        if self.isVisible() and self.windowOpacity() > 0.05 and                 self.fade_anim.state() != QPropertyAnimation.State.Running:
+            self.setWindowOpacity(self.opacity)
+
     def set_amplitude(self, level: float):
         self.visualizer.set_level(level)
         self._target_level = max(0.0, min(1.0, level))
@@ -2261,17 +2267,17 @@ class FloatingPill(QWidget):
             self.fade_anim.setDuration(340)
             self.fade_anim.setEasingCurve(QEasingCurve.Type.OutCubic)
             self.fade_anim.setStartValue(0.0)
-            self.fade_anim.setEndValue(1.0)
+            self.fade_anim.setEndValue(self.opacity)
             self.fade_anim.start()
         else:
-            if self.windowOpacity() < 0.99:
+            if self.windowOpacity() < self.opacity - 0.01:
                 self.fade_anim.setDuration(240)
                 self.fade_anim.setEasingCurve(QEasingCurve.Type.OutCubic)
                 self.fade_anim.setStartValue(self.windowOpacity())
-                self.fade_anim.setEndValue(1.0)
+                self.fade_anim.setEndValue(self.opacity)
                 self.fade_anim.start()
             else:
-                self.setWindowOpacity(1.0)
+                self.setWindowOpacity(self.opacity)
 
     def update_realtime_text(self, text: str):
         if not text or self.current_state != "listening" or self.is_expanded_hud:
@@ -2335,10 +2341,10 @@ class FloatingPill(QWidget):
                 self.fade_anim.setDuration(340)
                 self.fade_anim.setEasingCurve(QEasingCurve.Type.OutCubic)
                 self.fade_anim.setStartValue(0.0)
-                self.fade_anim.setEndValue(1.0)
+                self.fade_anim.setEndValue(self.opacity)
                 self.fade_anim.start()
             else:
-                self.setWindowOpacity(1.0)
+                self.setWindowOpacity(self.opacity)
         self.update()
 
     def show_message(self, text: str, duration_ms: int = 2200):
@@ -2366,10 +2372,10 @@ class FloatingPill(QWidget):
                 self.fade_anim.setDuration(340)
                 self.fade_anim.setEasingCurve(QEasingCurve.Type.OutCubic)
                 self.fade_anim.setStartValue(0.0)
-                self.fade_anim.setEndValue(1.0)
+                self.fade_anim.setEndValue(self.opacity)
                 self.fade_anim.start()
             else:
-                self.setWindowOpacity(1.0)
+                self.setWindowOpacity(self.opacity)
             self.hide_timer.stop()
             self.hide_timer.start(duration_ms)
 

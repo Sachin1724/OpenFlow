@@ -72,3 +72,41 @@ def test_odia_routes_to_indicconformer():
     assert tr.engine_model_name("odia", "or", "npu") == "odia"  # never an "-ov" build
     assert mm.variants("odia") == ["odia"]
     assert mm._weights_file("odia") == "or/model.onnx"
+
+
+def test_hung_gpu_call_falls_back_to_cpu():
+    import threading
+    import time
+    import numpy as np
+    from openflow.engine import transcriber as tr
+
+    stuck = threading.Event()
+
+    class HungModel:  # a CUDA encode that never returns, as seen in the field
+        def transcribe(self, audio, **kw):
+            stuck.wait()
+            return [], None
+
+    class CpuModel:
+        def transcribe(self, audio, **kw):
+            return [type("S", (), {"text": "hello"})()], None
+
+    t = tr.Transcriber(preload=False)
+    t.device = "cuda"
+    t.model, t._current_loaded_name, t._loaded_device = HungModel(), "small", "cuda"
+    t._target = lambda lang: "small"
+
+    def load():
+        t.model, t._current_loaded_name, t._loaded_device = CpuModel(), "small", t.device
+    t._load_model_locked = load
+    real_hung = tr._HUNG_S
+    tr._HUNG_S = 0.2
+    try:
+        threading.Thread(target=t.transcribe_partial, args=(np.zeros(16000, np.float32),), daemon=True).start()
+        time.sleep(0.05)
+        session = tr.StreamingSession(t, "en", None)
+        text = session.finish(np.zeros(32000, np.float32))[0]
+    finally:
+        tr._HUNG_S = real_hung
+        stuck.set()
+    assert text == "hello" and t.device == "cpu", (text, t.device)

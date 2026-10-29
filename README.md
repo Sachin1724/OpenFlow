@@ -65,6 +65,7 @@ An always-on-top glassmorphic HUD anchored to your screen. Built with custom PyQ
 - **Morphing**: 360ms OutCubic easing between Capsule, Line, and HUD
 - **Stealth Mode**: Sleek 76x8 hairline or auto-hide when idle
 - **Live Visualizer**: Real-time RMS audio waveform meters
+- **Opacity**: Settings slider from 30% to 100%, applied live
 
 </td>
 </tr>

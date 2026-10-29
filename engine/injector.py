@@ -189,14 +189,17 @@ class WindowInjector:
 
     @staticmethod
     def _ctrl(vk: int):
-        """Ctrl+<key> as one SendInput call with hardware scancodes."""
-        inputs = (INPUT * 4)()
-        for i, (key, up) in enumerate([(VK_CONTROL, 0), (vk, 0), (vk, KEYEVENTF_KEYUP), (VK_CONTROL, KEYEVENTF_KEYUP)]):
-            inputs[i].type = INPUT_KEYBOARD
-            inputs[i].u.ki.wVk = key
-            inputs[i].u.ki.wScan = user32.MapVirtualKeyW(key, 0)
-            inputs[i].u.ki.dwFlags = up
-        user32.SendInput(4, ctypes.byref(inputs), ctypes.sizeof(INPUT))
+        """Ctrl+<key>, one SendInput call per key event with hardware scancodes.
+        All four in one call get silently dropped on some PCs (SendInput still returns 4),
+        which left dictated text sitting in the clipboard unpasted."""
+        for key, up in [(VK_CONTROL, 0), (vk, 0), (vk, KEYEVENTF_KEYUP), (VK_CONTROL, KEYEVENTF_KEYUP)]:
+            event = INPUT()
+            event.type = INPUT_KEYBOARD
+            event.u.ki.wVk = key
+            event.u.ki.wScan = user32.MapVirtualKeyW(key, 0)
+            event.u.ki.dwFlags = up
+            user32.SendInput(1, ctypes.byref(event), ctypes.sizeof(INPUT))
+            time.sleep(0.01)
 
     def copy_selection(self, target_hwnd: int = 0) -> str:
         """Text selected in the target window ('' when nothing is selected); the clipboard is put back."""

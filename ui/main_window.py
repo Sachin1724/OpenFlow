@@ -2,7 +2,7 @@ from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QTabWidget,
     QPushButton, QTableWidget, QTableWidgetItem, QHeaderView, QLineEdit,
     QComboBox, QFrame, QMessageBox, QAbstractItemView, QDoubleSpinBox, QProgressBar,
-    QListWidget, QListWidgetItem, QTextBrowser, QSplitter, QFileDialog, QInputDialog
+    QListWidget, QListWidgetItem, QTextBrowser, QSplitter, QFileDialog, QInputDialog, QSlider
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QTimer, QUrl, QRectF, QPointF
 from PyQt6.QtGui import QFont, QIcon, QColor, QPixmap, QDesktopServices, QPainter, QPen
@@ -208,6 +208,7 @@ class MainWindow(QMainWindow):
     sig_model_download_requested = pyqtSignal(str)
     sig_model_delete_requested = pyqtSignal(str)
     sig_hotkey_recording = pyqtSignal(bool)
+    sig_capsule_opacity = pyqtSignal(float)  # live while the slider moves
 
     def __init__(self, db: Database, config: dict):
         super().__init__()
@@ -951,6 +952,21 @@ class MainWindow(QMainWindow):
                 break
         c2_layout.addLayout(_make_row("Capsule Style:", self.capsule_style_combo))
 
+        self.opacity_slider = QSlider(Qt.Orientation.Horizontal, card2)
+        self.opacity_slider.setRange(30, 100)  # below 30% the capsule is easy to lose
+        self.opacity_slider.setValue(round(float(self.config.get("capsule_opacity", 1.0)) * 100))
+        self.opacity_label = QLabel(f"{self.opacity_slider.value()}%", card2)
+        self.opacity_label.setFixedWidth(40)
+        opacity_row = QHBoxLayout()
+        opacity_row.addWidget(self.opacity_slider, 1)
+        opacity_row.addWidget(self.opacity_label)
+        opacity_box = QWidget(card2)
+        opacity_box.setLayout(opacity_row)
+        opacity_row.setContentsMargins(0, 0, 0, 0)
+        self.opacity_slider.valueChanged.connect(self._on_opacity_changed)
+        self.opacity_slider.sliderReleased.connect(lambda: save_config(self.config))
+        c2_layout.addLayout(_make_row("Capsule Opacity:", opacity_box))
+
         self.cb_follow_mouse = Switch("Follow mouse cursor to active monitor with smooth fade (multi-screen)", card2)
         self.cb_follow_mouse.setChecked(self.config.get("follow_mouse_screen", True))
         c2_layout.addWidget(self.cb_follow_mouse)
@@ -1190,6 +1206,14 @@ class MainWindow(QMainWindow):
         self.config_changed.emit(self.config)
         self._refresh_system_stack()
         QMessageBox.information(self, "Saved", "Settings updated.")
+
+    def _on_opacity_changed(self, value: int):
+        """Applies at once, like the hotkey; no Save needed."""
+        self.opacity_label.setText(f"{value}%")
+        self.config["capsule_opacity"] = value / 100
+        self.sig_capsule_opacity.emit(value / 100)
+        if not self.opacity_slider.isSliderDown():  # keyboard / wheel changes have no release
+            save_config(self.config)
 
     def _update_hotkey_badge(self):
         keys = " + ".join(pretty_hotkey(self.config.get("hotkey", "ctrl+shift")))

@@ -3,6 +3,7 @@ import re
 import time
 import threading
 import gc
+import contextlib
 import numpy as np
 from pathlib import Path
 from types import SimpleNamespace
@@ -126,6 +127,7 @@ _THREADS = min(8, max(2, _physical_cores()))
 # A preview still decoding when the key is released makes the final pass wait for it
 # (base on 2 cores: 1.8 s -> 3.3 s). Slower previews than this switch themselves off.
 _PREVIEW_BUDGET_S = 0.4
+_HUNG_S = 10.0  # a model call holding the lock this long never comes back (seen with CUDA)
 
 
 def _whisper_args(lang: str) -> dict:
@@ -151,6 +153,8 @@ class Transcriber:
         self._current_loaded_name = ""
         self._substitute = {}           # wanted model -> downloaded model used instead (no auto-download)
         self._lock = threading.RLock()  # model swaps must not race transcription
+        self._abandon_guard = threading.Lock()
+        self._holder_loading = False
         self.on_status = None           # optional callback(str) for "downloading/ready" messages
         self._loaded_device = ""
         self._preview_slow = False      # this model/device can't preview without delaying the final text
@@ -165,8 +169,12 @@ class Transcriber:
             return
         self.is_loading = True
         try:
-            with self._lock:
-                self._load_model_locked()
+            with self._locked():
+                self._holder_loading = True  # a download can hold the lock for minutes; that's no hang
+                try:
+                    self._load_model_locked()
+                finally:
+                    self._holder_loading = False
         finally:
             self.is_loading = False
 
@@ -311,9 +319,44 @@ class Transcriber:
         self.model.decode_stream(stream)
         return stream.result.text.strip()
 
+    @contextlib.contextmanager
+    def _locked(self):
+        lock = self._lock
+        got = lock.acquire(timeout=_HUNG_S)
+        if not got and self._holder_loading:
+            got = lock.acquire()
+        if not got:
+            with self._abandon_guard:  # two waiters timing out together must swap the model once
+                if self._lock is lock:
+                    lock = self._abandon_hung_model()
+                else:
+                    lock = self._lock
+                    lock.acquire()
+        try:
+            yield
+        finally:
+            lock.release()
+
+    def _abandon_hung_model(self) -> threading.RLock:
+        """A model call never returned and still holds the lock (a CUDA encode froze mid-preview).
+        Leave that call and its model behind and carry on with a fresh model on the CPU."""
+        print(f"[OpenFlow] {self.device.upper()} model stopped responding; continuing on the CPU")
+        if self.on_status:
+            self.on_status("GPU stopped responding · using CPU")
+        self._lock = lock = threading.RLock()  # threads still waiting on the old lock stay parked there
+        lock.acquire()
+        self.model, self._current_loaded_name, self.is_loading = None, "", False
+        self.device, self.compute_type = "cpu", "int8"
+        try:
+            self._load_model_locked()
+        except Exception:
+            lock.release()
+            raise
+        return lock
+
     def unload(self):
         """Free GPU/RAM while idle; transcribe() reloads lazily."""
-        with self._lock:
+        with self._locked():
             self.model = None
             self._current_loaded_name = ""
             gc.collect()
@@ -335,7 +378,8 @@ class Transcriber:
         """Fast real-time preview (beam_size=1, greedy) for streaming into the capsule."""
         if self.model is None or self._preview_slow or len(audio) < 8000:
             return ""
-        if not self._lock.acquire(blocking=False):  # model is swapping, skip preview
+        lock = self._lock
+        if not lock.acquire(blocking=False):  # model is swapping, skip preview
             return ""
 
         start = time.perf_counter()
@@ -360,7 +404,7 @@ class Transcriber:
             if took > _PREVIEW_BUDGET_S:
                 self._preview_slow = True
                 print(f"[OpenFlow] Live preview took {took * 1000:.0f} ms; turning it off so final text isn't delayed")
-            self._lock.release()
+            lock.release()
 
     def transcribe(
         self,
@@ -437,12 +481,12 @@ class Transcriber:
             return " ".join(seg.text.strip() for seg in segments).strip(), info
 
         if self._current_loaded_name in ("parakeet", "odia"):
-            with self._lock:
+            with self._locked():
                 full_text = self._parakeet_text(audio)
             latency_ms = int((time.perf_counter() - start_time) * 1000)
             return full_text, duration_seconds, latency_ms, lang
 
-        with self._lock:
+        with self._locked():
             try:
                 full_text, info = _run(vad=True)
             except ValueError as ve:
@@ -549,7 +593,13 @@ class StreamingSession:
         """Same return shape as Transcriber.transcribe; latency is what the user waits after release."""
         start = time.perf_counter()
         self._closed = True
-        with self._busy:  # let an in-flight phrase finish
+        free = self._busy.acquire(timeout=_HUNG_S)  # let an in-flight phrase finish
+        try:
+            if not free:  # that phrase is stuck: decode the whole recording instead
+                self._texts, self._done = [], 0
             tail, _, _, lang = self._t.transcribe(audio[self._done:], self._lang, self._prompt)
+        finally:
+            if free:
+                self._busy.release()
         text = " ".join(self._texts + ([tail] if tail else []))
         return text, len(audio) / 16000.0, int((time.perf_counter() - start) * 1000), lang

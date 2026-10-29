@@ -257,6 +257,7 @@ class OpenFlowApp(QObject):
             capsule_style=self.config.get("capsule_style", "compact"),
             follow_mouse_screen=self.config.get("follow_mouse_screen", True),
         )
+        self.floating_pill.set_opacity(float(self.config.get("capsule_opacity", 1.0)))
         self.floating_pill.populate_mics(recents)
         self.floating_pill.populate_models(curr_model)
         self.floating_pill.sig_mic_changed.connect(self._on_capsule_mic_changed)
@@ -270,6 +271,7 @@ class OpenFlowApp(QObject):
         self.main_window = MainWindow(self.db, self.config)
         self.main_window.refresh_devices(initial_mic)
         self.main_window.config_changed.connect(self._on_config_changed)
+        self.main_window.sig_capsule_opacity.connect(self.floating_pill.set_opacity)
         self.main_window.sig_model_switch_requested.connect(self._on_request_switch_model)
         self.main_window.sig_model_download_requested.connect(self._on_request_download_model)
         self.main_window.sig_model_delete_requested.connect(self._on_request_delete_model)
@@ -905,7 +907,7 @@ class OpenFlowApp(QObject):
             self._job += 1  # the stuck worker must not paste late into whatever has focus by then
             self._is_processing = False
             self.bridge.sig_error.emit("Took too long · try again")
-        threading.Timer(20.0 + len(audio_data) / 16000, _watchdog).start()
+        threading.Timer(35.0 + len(audio_data) / 16000, _watchdog).start()
 
     def _process_worker(self, audio_data, session, job):
         try:
