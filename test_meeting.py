@@ -68,6 +68,20 @@ def test_live_capture():
     print("live meeting app:", m.active_meeting_app())
 
 
+def test_file_lines_use_file_time():
+    import tempfile, soundfile
+    loud, quiet = np.full(16000 * 2, 0.1, np.float32), np.zeros(16000 * 3, np.float32)
+    path = f"{tempfile.mkdtemp()}/talk.wav"
+    soundfile.write(path, np.concatenate([quiet, loud, quiet, loud, quiet]), m.SR)  # speech at 3 s and 8 s
+
+    class FakeTranscriber:
+        def transcribe(self, audio, **kw):
+            return ("hello",)
+    m._Speakers.label = lambda self, audio: "Person 1"  # no speaker model download in tests
+    lines = m.MeetingSession(FakeTranscriber(), "or", lambda *a: None, mic=False).transcribe_file(path)
+    assert [round(t) for t, _, _ in lines] == [3, 8], lines
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):

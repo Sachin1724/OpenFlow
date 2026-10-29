@@ -4,7 +4,7 @@ import datetime
 import threading
 import time
 import traceback
-from PyQt6.QtWidgets import QApplication, QSystemTrayIcon, QMenu
+from PyQt6.QtWidgets import QApplication, QSystemTrayIcon, QMenu, QFileDialog
 from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot, Qt, QTimer, QRectF
 from PyQt6.QtNetwork import QLocalServer, QLocalSocket
 from PyQt6.QtGui import QIcon, QPixmap, QPainter, QColor, QPainterPath, QPen, QBrush
@@ -366,6 +366,13 @@ class OpenFlowApp(QObject):
         act_toggle = menu.addAction("Dictate Now")
         act_toggle.triggered.connect(self._toggle_dictation_manual)
 
+        self.act_playing = menu.addAction("Transcribe What's Playing")
+        self.act_playing.setCheckable(True)
+        self.act_playing.triggered.connect(self._toggle_playing)
+
+        act_file = menu.addAction("Transcribe Audio File...")
+        act_file.triggered.connect(self._transcribe_file)
+
         menu.addSeparator()
         tone_menu = menu.addMenu("Formatting Tone")
         for key, label in [
@@ -648,6 +655,8 @@ class OpenFlowApp(QObject):
     def _check_meeting(self):
         app = active_meeting_app()
         if self._meeting is not None:
+            if not self._meeting.mic:  # "what's playing" has no call app to watch; the user stops it
+                return
             # The call app lets go of the mic when the call ends; stop after 12 s without it
             # (time-based: mic events make checks arrive at irregular intervals)
             if app:
@@ -666,18 +675,20 @@ class OpenFlowApp(QObject):
             self.meeting_bar.hide()
             self._meeting_dismissed = None
 
-    def _start_meeting(self):
+    def _meeting_language(self) -> str:
         # Calls mix languages: English settings switch to auto-detect; translate or a fixed language is kept
         lang = self.config.get("language", "auto")
-        if lang in ("en", "en-in"):
-            lang = "auto"
-        session = MeetingSession(self.transcriber, lang, self.bridge.sig_meeting_line.emit,
-                                 mic_device=self.audio_recorder.device_index)
+        return "auto" if lang in ("en", "en-in") else lang
+
+    def _start_meeting(self, mic: bool = True):
+        session = MeetingSession(self.transcriber, self._meeting_language(), self.bridge.sig_meeting_line.emit,
+                                 mic_device=self.audio_recorder.device_index, mic=mic)
         try:
             session.start()
         except Exception as e:
             print(f"[OpenFlow Meeting] Could not start: {e}")
             self.floating_pill.show_message("Couldn't start meeting notes")
+            self.act_playing.setChecked(False)
             return
         self._meeting, self._meeting_gone = session, None
         self.meeting_bar.show_recording(self.floating_pill.geometry())
@@ -689,17 +700,50 @@ class OpenFlowApp(QObject):
         app = self._meeting_app or "Meeting"
         self._meeting_dismissed = app  # don't offer again for the call that just ended
         self.meeting_bar.finish()
+        self.act_playing.setChecked(False)
         self.floating_pill.show_message("Writing meeting notes…", duration_ms=4000)
+        threading.Thread(target=lambda: self._save_notes(session.stop(), app, time.time() - session.started),
+                         daemon=True).start()
+
+    def _save_notes(self, lines, app: str, seconds: float):
+        if not lines:
+            self.bridge.sig_meeting_saved.emit("")
+            return
+        raw = transcript_text(lines)
+        title = f"{app} · {datetime.datetime.now():%d %b %H:%M}"
+        self.db.add_meeting_note(title, app, raw, format_meeting_notes(raw, app, llm=self._writer()), seconds)
+        self.bridge.sig_meeting_saved.emit(title)
+
+    def _toggle_playing(self):
+        """Captions and notes for whatever the speakers play: podcasts, videos, lectures. Mic stays off."""
+        if self._meeting is not None:
+            self._stop_meeting()
+            return
+        self._meeting_app = "What's playing"
+        self.act_playing.setChecked(True)
+        self._start_meeting(mic=False)
+
+    def _transcribe_file(self):
+        path, _ = QFileDialog.getOpenFileName(
+            None, "Transcribe audio file", "",
+            "Audio or video (*.mp3 *.m4a *.aac *.wav *.flac *.ogg *.opus *.webm *.mp4 *.mkv *.mov);;All files (*)")
+        if not path:
+            return
+        name = os.path.basename(path)
+        self.floating_pill.show_message(f"Transcribing {name}…", duration_ms=4000)
+
+        def keep_loaded(*_):
+            self._last_activity = time.monotonic()
 
         def work():
-            lines = session.stop()
-            if not lines:
-                self.bridge.sig_meeting_saved.emit("")
+            try:
+                session = MeetingSession(self.transcriber, self._meeting_language(), keep_loaded, mic=False)
+                lines = session.transcribe_file(path)
+            except Exception as e:
+                print(f"[OpenFlow] Could not transcribe {path}: {e}")
+                self.bridge.sig_error.emit("Couldn't read that file")
                 return
-            raw = transcript_text(lines)
-            title = f"{app} · {datetime.datetime.now():%d %b %H:%M}"
-            self.db.add_meeting_note(title, app, raw, format_meeting_notes(raw, app, llm=self._writer()), time.time() - session.started)
-            self.bridge.sig_meeting_saved.emit(title)
+            self._save_notes(lines, name, lines[-1][0] if lines else 0.0)
 
         threading.Thread(target=work, daemon=True).start()
 

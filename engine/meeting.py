@@ -184,6 +184,7 @@ class _Segmenter:
         self._silence = 0.0
         self._t0 = 0.0
         self._voiced: List[Tuple[float, float]] = []  # (time, seconds) of loud chunks, last 30 s
+        self.clock = time.time  # a file's position replaces wall time when transcribing from disk
 
     def voiced_between(self, t0: float, t1: float) -> float:
         return sum(d for t, d in self._voiced if t0 <= t <= t1)
@@ -192,11 +193,11 @@ class _Segmenter:
         dur = len(x) / SR
         loud = float(np.sqrt(np.mean(x ** 2))) >= self.threshold
         if loud:
-            now = time.time()
+            now = self.clock()
             self._voiced = [v for v in self._voiced if v[0] > now - 30] + [(now, dur)]
         if not self._buf:
             if loud:
-                self._buf, self._speech, self._silence, self._t0 = [self._lead, x], dur, 0.0, time.time()
+                self._buf, self._speech, self._silence, self._t0 = [self._lead, x], dur, 0.0, self.clock()
             else:
                 self._lead = np.concatenate([self._lead, x])[-int(SR * 0.3):]
             return
@@ -303,8 +304,9 @@ class MeetingSession:
     """Records mic + call audio, transcribes each utterance in the background, reports captions."""
 
     def __init__(self, transcriber, language: str, on_line: Callable[[str, str], None],
-                 mic_device: Optional[int] = None):
+                 mic_device: Optional[int] = None, mic: bool = True):
         self.transcriber = transcriber
+        self.mic = mic  # False: only what the speakers play (podcasts, videos)
         self.language = language
         self.on_line = on_line
         self.mic_device = mic_device
@@ -329,6 +331,9 @@ class MeetingSession:
         self.started = time.time()
         self._worker = threading.Thread(target=self._work, daemon=True)
         self._worker.start()
+        if not self.mic:
+            self._open_call_audio()  # nothing else to record: let a failure reach the caller
+            return
         self._mic_stream = sd.InputStream(samplerate=SR, channels=1, dtype="float32", device=self.mic_device,
                                           blocksize=1600, callback=lambda d, *_: self._mic.feed(d[:, 0].copy()))
         self._mic_stream.start()
@@ -336,6 +341,19 @@ class MeetingSession:
             self._open_call_audio()
         except Exception as e:
             print(f"[OpenFlow Meeting] Call audio unavailable ({e}); recording mic only")
+
+    def transcribe_file(self, path: str) -> List[Tuple[float, str, str]]:
+        """An audio or video file (podcast, recording): same utterance cuts and speaker labels as a call."""
+        from faster_whisper.audio import decode_audio  # PyAV: mp3, m4a, webm, mp4, wav...
+        audio = decode_audio(path, sampling_rate=SR)  # ponytail: whole file in memory, ~230 MB an hour
+        pos = [0.0]
+        self.started, self._call.clock = 0.0, lambda: pos[0]
+        self._worker = threading.Thread(target=self._work, daemon=True)
+        self._worker.start()
+        for i in range(0, len(audio), 1600):
+            self._call.feed(audio[i:i + 1600])
+            pos[0] += 0.1
+        return self.stop()
 
     def _open_call_audio(self):
         """What the speakers play (WASAPI loopback): everyone else on the call."""

@@ -87,6 +87,7 @@ Engineered to resolve phonetic ambiguities in Indic and European languages. Spec
 - **Languages**: Auto-Detect (99 languages), English, Hindi, Odia, Spanish, French, German, Japanese, Chinese, Russian, and Portuguese
 - **Native Odia**: AI4Bharat IndicConformer (int8, 197 MB) writes real Odia script: 21.7% WER on FLEURS vs 136% for Whisper small, ~280 ms a clip on CPU; an Odia word LM (IndicCorpV2, 12.7 MB) in beam search cuts FLEURS test errors 21.1% -> 20.1% WER, 5.8% -> 5.5% CER
 - **Odia → English**: speak Odia, get English, through IndicTrans2 (200M, CTranslate2 int8), fully offline
+- **Podcasts and videos**: tray menu → *Transcribe What's Playing* captions whatever the speakers play (mic off), and *Transcribe Audio File...* turns an mp3, m4a, webm or mp4 into notes with speaker turns; both land in Meeting Notes
 - **Voice Edits** *(optional)*: select text and say "make this formal" or "summarize this"; a local Qwen2.5-1.5B rewrites it in place. The same model writes offline meeting notes
 
 </td>
