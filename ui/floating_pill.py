@@ -2376,10 +2376,10 @@ class FloatingPill(QWidget):
     def show_pasted(self, word_count: int, latency_ms: int = 0):
         if hasattr(self, "caption_bubble"):
             self.caption_bubble.fade_out()
+        self.current_state = "pasted"  # even under the HUD, or the spinner is waiting when it closes
+        self.indicator.set_state("done")
         if self.is_expanded_hud:
             return
-        self.current_state = "pasted"
-        self.indicator.set_state("done")
         if self.capsule_style not in ("compact", "micro"):
             self.text_label.setText(f"Pasted {word_count} words")
         self.visualizer.setVisible(False)

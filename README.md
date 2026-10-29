@@ -84,6 +84,9 @@ Background meeting detection for Google Meet, Zoom, Microsoft Teams, and Webex. 
 Engineered to resolve phonetic ambiguities in Indic and European languages. Specialized context prompts ensure Hindi and Odia are transcribed into authentic Devanagari and Odia scripts rather than phonetic drift or alternate alphabets.
 - **Styles**: Smart Clean, Developer/Code, Email, Bullets, Verbatim
 - **Languages**: Auto-Detect (99 languages), English, Hindi, Odia, Spanish, French, German, Japanese, Chinese, Russian, and Portuguese
+- **Native Odia**: AI4Bharat IndicConformer (int8, 197 MB) writes real Odia script: 21.7% WER on FLEURS vs 136% for Whisper small, ~280 ms a clip on CPU
+- **Odia → English**: speak Odia, get English, through IndicTrans2 (200M, CTranslate2 int8), fully offline
+- **Voice Edits** *(optional)*: select text and say "make this formal" or "summarize this"; a local Qwen2.5-1.5B rewrites it in place. The same model writes offline meeting notes
 
 </td>
 </tr>
@@ -133,7 +136,8 @@ OpenFlow interfaces directly with the Windows `winmm` audio kernel via `waveInGe
 | Shortcut | Action | Description |
 | :--- | :--- | :--- |
 | **`Ctrl + Shift`** *(Hold)* | **Push to Talk** | Hold while speaking; release to transcribe and paste immediately |
-| **`Ctrl + Shift + Space`** | **Hands-Free Toggle** | Tap once to begin continuous dictation; tap again to finalize |
+| **Hotkey tap** *(under 0.35 s)* | **Ignored** | A quick tap or a Ctrl shortcut is discarded, so a mis-press never leaves the capsule recording |
+| **Toggle mode** *(Settings)* | **Hands-Free** | Press once to begin continuous dictation; press again to finalize |
 | **`Capsule Click`** | **Expand HUD** | Morphs the compact floating capsule into the Apple Control Center HUD |
 | **`Double Click Line`** | **Restore Capsule** | Wakes the minimized bar from desktop stealth mode |
 
@@ -199,9 +203,13 @@ openflow/
 ├── config.py                     # Persistent settings (~/.openflow/config.json)
 ├── database.py                   # SQLite history & meeting notes store
 ├── main.py                       # Main process loop, tray coordinator & single instance lock
+├── bench_odia.py / research_odia.py  # FLEURS Odia benchmarks behind the landing page
 ├── engine/
 │   ├── audio_recorder.py         # Live Win32 waveIn polling & 16kHz PCM capture
 │   ├── transcriber.py            # faster-whisper CUDA/CPU inference engine
+│   ├── indic_asr.py              # Odia IndicConformer CTC on ONNX Runtime
+│   ├── translator.py             # Odia → English with IndicTrans2 (CTranslate2)
+│   ├── local_llm.py              # Qwen2.5 voice edits & meeting notes (CTranslate2)
 │   ├── formatter.py              # Filler stripper, capitalization & tone presets
 │   ├── injector.py               # Win32 SendInput non-destructive clipboard injector
 │   ├── hotkey_manager.py         # Low-level Windows keyboard listener (WH_KEYBOARD_LL)

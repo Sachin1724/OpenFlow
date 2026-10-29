@@ -3,6 +3,7 @@ import os
 import datetime
 import threading
 import time
+import traceback
 from PyQt6.QtWidgets import QApplication, QSystemTrayIcon, QMenu
 from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot, Qt, QTimer, QRectF
 from PyQt6.QtNetwork import QLocalServer, QLocalSocket
@@ -187,6 +188,8 @@ class OpenFlowApp(QObject):
         self.target_window_info = {"hwnd": 0, "title": "", "process": ""}
         self._app_context: AppContext = get_active_app_context()  # type: ignore[assignment]
         self._is_processing = False
+        self._job = 0  # bumped per dictation; a worker whose job is stale must not paste
+        self._dictation_lock = threading.RLock()
         _boot("app context detected")
 
         # Bridge
@@ -342,7 +345,7 @@ class OpenFlowApp(QObject):
 
         menu = QMenu()
         act_hud = menu.addAction("Show Capsule HUD")
-        act_hud.triggered.connect(lambda: self.floating_pill.show_message(self._active_msg(), duration_ms=3500))
+        act_hud.triggered.connect(self.show_capsule)
 
         act_expand = menu.addAction("Capsule Settings (Expand HUD)")
         act_expand.triggered.connect(self.floating_pill.expand_to_hud)
@@ -386,10 +389,15 @@ class OpenFlowApp(QObject):
 
     def _on_tray_activated(self, reason):
         if reason == QSystemTrayIcon.ActivationReason.Trigger:
-            self.floating_pill.show_message(self._active_msg(), duration_ms=3500)
+            self.show_capsule()
         elif reason == QSystemTrayIcon.ActivationReason.DoubleClick:
             self.show_dashboard()
 
+
+    def show_capsule(self):
+        if self._is_processing or self.audio_recorder.is_recording:
+            return  # the capsule is already up showing the dictation; a notice would hide it
+        self.floating_pill.show_message(self._active_msg(), duration_ms=3500)
 
     def show_dashboard(self):
         self.main_window.show()
@@ -476,7 +484,7 @@ class OpenFlowApp(QObject):
             self._writer_llm = local_llm.LocalLLM(path, threads=min(8, os.cpu_count() or 4))
         return self._writer_llm
 
-    def _voice_edit(self, raw_text: str) -> bool:
+    def _voice_edit(self, raw_text: str, job: int) -> bool:
         """'Make this formal' spoken over selected text: rewrite the selection in place. False = normal dictation."""
         command = local_llm.edit_command(raw_text) if self.config.get("voice_edits") else None
         if not command:
@@ -494,6 +502,8 @@ class OpenFlowApp(QObject):
         edited = llm.rewrite(selected, command)
         if not edited:
             self.bridge.sig_error.emit("Couldn't rewrite that")
+            return True
+        if job != self._job:
             return True
         self.injector.inject_text(edited, target_hwnd=hwnd, method="clipboard",
                                   restore_clipboard=self.config.get("restore_clipboard", True))
@@ -760,36 +770,44 @@ class OpenFlowApp(QObject):
             self._reload_transcriber_async()
 
     def _toggle_dictation_manual(self):
-        if not self.audio_recorder.is_recording:
-            self._start_dictating()
-        else:
-            self._stop_and_process()
-
-    def _on_hotkey_press(self):
-        if getattr(self, "_hands_free_active", False) and self.audio_recorder.is_recording:
-            self._hands_free_active = False
-            self._stop_and_process()
-            return
-        mode = self.config.get("trigger_mode", "push_to_talk")
-        if mode == "push_to_talk":
-            self._start_dictating()
-        else: # "auto_silence" or "toggle"
+        with self._dictation_lock:
             if not self.audio_recorder.is_recording:
                 self._start_dictating()
             else:
                 self._stop_and_process()
 
+    def _on_hotkey_press(self):
+        # press, release and auto-silence each arrive on their own thread; one at a time
+        with self._dictation_lock:
+            mode = self.config.get("trigger_mode", "push_to_talk")
+            if mode == "push_to_talk":
+                self._start_dictating()
+                if not self.hotkey_mgr._is_active:  # released while the mic was opening
+                    self._cancel_dictation("Hold to speak")
+            else:  # "auto_silence" or "toggle"
+                if not self.audio_recorder.is_recording:
+                    self._start_dictating()
+                else:
+                    self._stop_and_process()
+
     def _on_hotkey_release(self):
-        mode = self.config.get("trigger_mode", "push_to_talk")
-        if mode == "push_to_talk" and self.audio_recorder.is_recording:
-            held_sec = time.monotonic() - getattr(self, "_dictate_start_monotonic", time.monotonic())
-            if held_sec < 0.35:
-                # Fast tap (< 350ms): keep recording in hands-free mode so speech is never lost!
-                print(f"[OpenFlow] Hotkey quick-tapped ({held_sec:.2f}s): continuing in hands-free dictation")
-                self._hands_free_active = True
-                return
-            self._hands_free_active = False
-            self._stop_and_process()
+        with self._dictation_lock:
+            mode = self.config.get("trigger_mode", "push_to_talk")
+            if mode == "push_to_talk" and self.audio_recorder.is_recording:
+                held_sec = time.monotonic() - getattr(self, "_dictate_start_monotonic", time.monotonic())
+                if held_sec < 0.35:  # a tap, not a hold: a mis-press or a Ctrl shortcut
+                    print(f"[OpenFlow] Hotkey tapped ({held_sec:.2f}s): discarding")
+                    self._cancel_dictation("Hold to speak")
+                    return
+                self._stop_and_process()
+
+    def _cancel_dictation(self, message: str):
+        """Drop the recording without transcribing; the capsule goes back to idle."""
+        if not self.audio_recorder.is_recording:
+            return
+        self.audio_recorder.stop_recording()
+        self._stream_session = None
+        self.bridge.sig_error.emit(message)
 
     def _start_dictating(self):
         if self._is_processing or self.audio_recorder.is_recording:
@@ -852,24 +870,19 @@ class OpenFlowApp(QObject):
 
     def _on_auto_silence(self):
         """Automatically triggered when user stops speaking for silence_duration."""
-        auto_enabled = self.config.get("auto_write_on_silence", True) or getattr(self, "_hands_free_active", False)
-        if auto_enabled and self.audio_recorder.is_recording:
-            print("[OpenFlow] Auto-silence detected: automatically writing text!")
-            self._hands_free_active = False
-            self._stop_and_process()
+        if self.config.get("auto_write_on_silence", True):
+            with self._dictation_lock:
+                if self.audio_recorder.is_recording:
+                    print("[OpenFlow] Auto-silence detected: automatically writing text!")
+                    self._stop_and_process()
 
     def _stop_and_process(self):
         if not self.audio_recorder.is_recording or self._is_processing:
             return
 
         self._is_processing = True
-
-        # Safety watchdog: guarantee that _is_processing can NEVER stay stuck for > 20s
-        def _clear_watchdog():
-            if getattr(self, "_is_processing", False):
-                print("[OpenFlow Watchdog] Safety timeout: auto-clearing _is_processing")
-                self._is_processing = False
-        threading.Timer(20.0, _clear_watchdog).start()
+        self._job += 1
+        job = self._job
 
         # 1. Update capsule UI to writing state
         self.bridge.sig_stop_recording.emit()
@@ -879,9 +892,22 @@ class OpenFlowApp(QObject):
         session, self._stream_session = self._stream_session, None
 
         # 3. Process in worker thread
-        threading.Thread(target=self._process_worker, args=(audio_data, session), daemon=True).start()
+        worker = threading.Thread(target=self._process_worker, args=(audio_data, session, job), daemon=True)
+        worker.start()
 
-    def _process_worker(self, audio_data, session):
+        # Watchdog: a stuck worker must never leave the capsule spinning or the hotkey dead
+        def _watchdog():
+            if not self._is_processing or self._job != job:
+                return
+            frame = sys._current_frames().get(worker.ident or 0)
+            stack = "".join(traceback.format_stack(frame)) if frame else "(worker gone)"
+            print(f"[OpenFlow Watchdog] Writing took too long; giving up. Worker was at:\n{stack}")
+            self._job += 1  # the stuck worker must not paste late into whatever has focus by then
+            self._is_processing = False
+            self.bridge.sig_error.emit("Took too long · try again")
+        threading.Timer(20.0 + len(audio_data) / 16000, _watchdog).start()
+
+    def _process_worker(self, audio_data, session, job):
         try:
             if len(audio_data) < 4000: # Less than 0.25s of audio
                 self.bridge.sig_error.emit("Hold while speaking")
@@ -901,7 +927,9 @@ class OpenFlowApp(QObject):
                 self.bridge.sig_error.emit("Didn't catch that")
                 return
 
-            if self._voice_edit(raw_text):
+            if job != self._job:  # the watchdog already gave up on this one
+                return
+            if self._voice_edit(raw_text, job):
                 return
 
             if self.config.get("language") == "or-en":
@@ -935,6 +963,8 @@ class OpenFlowApp(QObject):
             method = self.config.get("injection_method", "clipboard")
             restore_clip = self.config.get("restore_clipboard", True)
 
+            if job != self._job:
+                return
             self.injector.inject_text(
                 formatted,
                 target_hwnd=target_hwnd,
@@ -967,7 +997,8 @@ class OpenFlowApp(QObject):
             print(f"[OpenFlow] Error in processing worker: {e}")
             self.bridge.sig_error.emit("Something went wrong")
         finally:
-            self._is_processing = False
+            if job == self._job:
+                self._is_processing = False
 
     @pyqtSlot()
     def _handle_ui_start(self):
@@ -983,6 +1014,8 @@ class OpenFlowApp(QObject):
     @pyqtSlot(str)
     def _handle_status(self, message: str):
         # status can arrive during startup, before the tray icon exists
+        if message.startswith("Download failed"):  # clears the capsule's download spinner
+            self.bridge.sig_error.emit("Download failed")
         tray = getattr(self, "tray", None)
         if tray is not None:
             tray.showMessage("OpenFlow", message, QSystemTrayIcon.MessageIcon.Information, 3000)
@@ -1161,9 +1194,8 @@ def main():
     def on_second_launch():
         server.nextPendingConnection()
         app = holder.get("app")
-        if app is not None:
-            app.floating_pill.show_message(app._active_msg(), duration_ms=3500)
-            app.show_dashboard()
+        if app is not None:  # e.g. the Startup shortcut and the Run key both firing at boot
+            app.show_capsule()
 
     server.newConnection.connect(on_second_launch)
 
