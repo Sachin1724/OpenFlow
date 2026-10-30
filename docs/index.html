@@ -235,7 +235,7 @@ section { position: relative; }
 .features p.statement { grid-column: 1 / 12; font-size: clamp(1.5rem, 1.1rem + 1.3vw, 2.25rem); line-height: 1.22; letter-spacing: -0.02em; font-weight: 400; max-width: 26em; }
 .slot img { transition: transform .6s var(--ease); }
 .slot:hover img { transform: scale(1.15); }
-.slot { display: inline-block; height: 1em; width: 1.9em; border-radius: .18em; overflow: hidden; vertical-align: -0.14em; background: var(--surface-2); }
+.slot { margin-left: .3em; display: inline-block; height: 1em; width: 1.9em; border-radius: .18em; overflow: hidden; vertical-align: -0.14em; background: var(--surface-2); }
 .slot img { width: 100%; height: 100%; object-fit: cover; object-position: left center; }
 .slot img.r { object-position: right center; }
 .slot.chip { display: inline-grid; place-items: center; width: 1.2em; font-size: .6em; height: 1.65em; vertical-align: -0.3em; color: #fff; font-weight: 500; border-radius: 999px; padding: 0 .9em; width: auto; }
@@ -636,6 +636,14 @@ section[id] { scroll-margin-top: 24px; }
   .tabs button { flex: none; }
   .dash .shot { overflow-x: auto; }
   .dash .shot img { min-width: 760px; }
+  /* phone: no inline capsule pictures breaking the statement, tighter section gaps, no empty space in the island cards */
+  .slot { display: none; }
+  .hint { display: none; }  /* 'or hold Space': no Space key on a phone */
+  .pad { padding-block: clamp(64px, 16vw, 96px); }
+  .isl-grid { gap: 12px; }
+  .isl-pic { min-height: 0; padding: 0 16px 16px; }
+  .isl-cap { min-height: 0; padding: 0 20px 24px; }
+  .isl-cap h3 { font-size: 22px; }
 }
 @media (max-width: 860px) {
   .js .isle { position: absolute; }
@@ -701,9 +709,9 @@ section[id] { scroll-margin-top: 24px; }
   <h2 class="sr" id="f-h">What it does</h2>
   <div class="grid">
     <p class="statement rv">
-      Hold a key and talk <span class="slot"><img class="r" src="img/pill-listening.png" alt="The OpenFlow capsule while listening" width="720" height="88"></span>,
-      and the words land in any app <span class="slot"><img src="img/pill-done.png" alt="The capsule confirming 24 words pasted" width="720" height="88"></span>,
-      in 99 languages, on your own PC <span class="slot"><img src="img/pill-idle.png" alt="The idle capsule showing the active microphone" width="720" height="88"></span>.
+      Hold a key and talk<span class="slot"><img class="r" src="img/pill-listening.png" alt="The OpenFlow capsule while listening" width="720" height="88"></span>,
+      and the words land in any app<span class="slot"><img src="img/pill-done.png" alt="The capsule confirming 24 words pasted" width="720" height="88"></span>,
+      in 99 languages, on your own PC<span class="slot"><img src="img/pill-idle.png" alt="The idle capsule showing the active microphone" width="720" height="88"></span>.
     </p>
     <div class="after">
       <p class="rv">No subscription, no word counter, no cloud. The model downloads once and works offline after that.</p>
