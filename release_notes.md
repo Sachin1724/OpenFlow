@@ -1,3 +1,26 @@
+# OpenFlow v1.3.0 — Standalone Windows Release
+
+### Zero-Limit · 100% Offline · Local AI Voice Dictation & Meeting Intelligence for Windows
+**Architected and Created by Sachidananda**
+
+---
+
+### Highlights in v1.3.0
+- **Dynamic Island capsule**: a new capsule style, a black shape flush to the top (or bottom) screen edge. It rests as a small pill, tucks up when idle, springs open to listen, write and show alerts (microphone changes, model downloads, updates), and opens a settings panel when you click it. Pick it in Settings > Capsule > Style.
+- **Capsule size controls**: Width and Height sliders (50 to 200 percent) for the capsule and the island, plus "Grow on big screens", which scales the capsule up on screens wider than 1920 px. Contents always fit the shape.
+- **Live typing preview**: the words you speak now type in steadily under the capsule instead of re-appearing every few seconds.
+- **New dashboard**: a sidebar, grouped settings, a rebuilt Model Library without clipped cards, and a meeting-notes viewer that matches. The bare logo mark replaces the tiled icon.
+- **Lighter, steadier app**: the speech engine runs in its own process and is released after 10 idle minutes, so memory comes back and a stuck GPU call can no longer freeze the app. Intel NPU detection no longer loads extra drivers on other PCs.
+
+### Fixes in v1.3.0
+- **Nothing is written from silence**: recordings with no speech, or only room noise, never reach the model, and repeated-phrase loops are trimmed or dropped.
+- **Exported meeting notes** keep one paragraph per sentence instead of one block per speaker.
+- **Scrolling Settings** no longer changes the sliders and drop-downs under the cursor.
+- **Only one capsule shows at a time** when you switch styles.
+- **Self-recovery**: if the app ever stops responding for 20 seconds, it saves a freeze log and restarts itself.
+
+---
+
 # OpenFlow v1.2.0 — Standalone Windows Release
 
 ### Zero-Limit · 100% Offline · Local AI Voice Dictation & Meeting Intelligence for Windows
