@@ -348,6 +348,14 @@ class Transcriber:
         print(f"[OpenFlow] {self.device.upper()} model stopped responding; continuing on the CPU")
         if self.on_status:
             self.on_status("GPU stopped responding · using CPU")
+        if self.device == "cuda":
+            try:
+                from . import hardware
+                hardware.CUDA_HUNG_MARK.parent.mkdir(parents=True, exist_ok=True)
+                hardware.CUDA_HUNG_MARK.touch()
+                hardware.detect.cache_clear()
+            except OSError:
+                pass
         self._lock = lock = threading.RLock()  # threads still waiting on the old lock stay parked there
         lock.acquire()
         self.model, self._current_loaded_name, self.is_loading = None, "", False

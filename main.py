@@ -81,7 +81,7 @@ except Exception:
         try:
             from __init__ import __version__
         except Exception:
-            __version__ = "1.1.8"
+            __version__ = "1.1.9"
 
 _BOOT_T0 = time.perf_counter()
 
@@ -866,8 +866,7 @@ class OpenFlowApp(QObject):
 
         if self.transcriber.model is None and not getattr(self.transcriber, "is_loading", False):  # warm up while the user speaks
             self._reload_transcriber_async()
-            if hasattr(self, "floating_pill") and self.config.get("show_floating_pill", True):
-                self.floating_pill.show_message("Warming up AI...", duration_ms=1800)
+            self.bridge.sig_error.emit("Warming up AI...")  # Qt widgets belong to the main thread; this runs on a hotkey thread
 
         # 1. Capture the exact active target window immediately
         self.target_window_info = self.injector.get_foreground_window()

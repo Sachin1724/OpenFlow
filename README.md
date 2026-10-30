@@ -10,7 +10,7 @@
 
 <br />
 
-[![Release](https://img.shields.io/badge/Release-v1.1.8-000000?style=for-the-badge&logoColor=white)](https://github.com/Sachin1724/OpenFlow)
+[![Release](https://img.shields.io/badge/Release-v1.1.9-000000?style=for-the-badge&logoColor=white)](https://github.com/Sachin1724/OpenFlow)
 [![Platform](https://img.shields.io/badge/Platform-Windows_10_%2F_11_x64-000000?style=for-the-badge&logoColor=white)](https://github.com/Sachin1724/OpenFlow)
 [![Runtime](https://img.shields.io/badge/Runtime-NVIDIA_CUDA_%7C_NPU_%7C_CPU-000000?style=for-the-badge&logoColor=white)](https://github.com/Sachin1724/OpenFlow)
 [![License](https://img.shields.io/badge/License-MIT-000000?style=for-the-badge&logoColor=white)](LICENSE)
@@ -153,6 +153,12 @@ Download the standalone release package without installing Python or build tools
 1. Download `OpenFlow-v1.0-Windows-x64.zip` from [Releases](https://github.com/Sachin1724/OpenFlow/releases).
 2. Extract the archive to any directory (e.g. `C:\OpenFlow`).
 3. Launch `OpenFlow.exe` (or use `Launch-OpenFlow.bat`).
+
+### Option 1b: One command with npm
+Needs Node 16+. Downloads the latest `OpenFlow-Setup.exe` and runs it:
+```
+npx github:Sachin1724/OpenFlow
+```
 
 ### Option 2: Running from Source
 

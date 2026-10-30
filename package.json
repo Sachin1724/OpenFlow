@@ -1,0 +1,12 @@
+{
+  "name": "openflow",
+  "version": "1.1.9",
+  "description": "Free, private, offline voice dictation for Windows. Installs the latest OpenFlow release.",
+  "bin": { "openflow": "bin/openflow.js" },
+  "files": ["bin"],
+  "os": ["win32"],
+  "engines": { "node": ">=16" },
+  "repository": "github:Sachin1724/OpenFlow",
+  "license": "MIT",
+  "author": "Sachidananda"
+}

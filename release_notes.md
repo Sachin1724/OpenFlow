@@ -1,3 +1,19 @@
+# OpenFlow v1.1.9 — Standalone Windows Release
+
+### Zero-Limit · 100% Offline · Local AI Voice Dictation & Meeting Intelligence for Windows
+**Architected and Created by Sachidananda**
+
+---
+
+### Fixes in v1.1.9
+- **Hotkey works after idle**: after 10 minutes idle the model is unloaded, and the next press touched the capsule from a worker thread, which froze dictation. The capsule is now updated on the main thread.
+- **Intel NPU is used on Core Ultra PCs**: auto mode now picks the NPU on a first run (PCs without NVIDIA) instead of staying on the CPU, and logs why when no NPU is visible.
+- **A GPU that froze stays off**: if CUDA hangs, OpenFlow remembers it and starts on the NPU or CPU next time instead of stalling 10 s again. Delete `~/.openflow/cuda_hung` to retry.
+- **Install with npm**: `npx github:Sachin1724/OpenFlow` downloads and runs the latest installer.
+- **Landing page on phones**: the demo no longer runs off the right edge.
+
+---
+
 # OpenFlow v1.1.8 — Standalone Windows Release
 
 ### Zero-Limit · 100% Offline · Local AI Voice Dictation & Meeting Intelligence for Windows

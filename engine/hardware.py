@@ -1,11 +1,14 @@
 import os
 import subprocess
+from pathlib import Path
 from functools import lru_cache
 from typing import Dict, Any, Optional
 
 import psutil
 
 CUDA_FIX = "pip install nvidia-cublas-cu12 nvidia-cudnn-cu12"
+# written when CUDA froze mid-call; auto mode then uses the NPU/CPU. Delete it, or pick CUDA in Settings, to retry.
+CUDA_HUNG_MARK = Path.home() / ".openflow" / "cuda_hung"
 
 
 def _nvidia_smi() -> Dict[str, Any]:
@@ -38,7 +41,7 @@ def detect() -> Dict[str, Any]:
     gpu = _nvidia_smi()
     # An NVIDIA driver is enough for the startup choice: importing ctranslate2 to probe CUDA costs
     # several seconds. If CUDA is not actually usable, the model load falls back to the CPU itself.
-    cuda_ok = bool(gpu)
+    cuda_ok = bool(gpu) and not CUDA_HUNG_MARK.exists()  # a CUDA call froze here before: stay off it
     cores = os.cpu_count() or 4
     ram_gb = round(psutil.virtual_memory().total / 2**30, 1)
 
@@ -67,7 +70,7 @@ def gpu_changed() -> bool:
     """Re-probes the NVIDIA driver (GPU switched off/on, eGPU, hybrid-graphics mode change).
     Returns True and refreshes detect() when GPU availability differs from the cached result."""
     now = bool(_nvidia_smi())
-    if now == detect()["cuda_ok"]:
+    if now == bool(detect()["gpu_name"]):  # not cuda_ok: the hang marker can turn that off while the driver stays
         return False
     detect.cache_clear()
     return True
@@ -82,9 +85,16 @@ def npu_name() -> str:
         core = ov.Core()
         if "NPU" in core.available_devices:
             return str(core.get_property("NPU", "FULL_DEVICE_NAME"))
-    except Exception:
-        pass
+        print(f"[OpenFlow] No Intel NPU visible to OpenVINO (devices: {core.available_devices}). "
+              "On a Core Ultra PC, update the Intel NPU driver.")
+    except Exception as e:
+        print(f"[OpenFlow] NPU probe failed: {e}")
     return ""
+
+
+def _npu_has_build(size: str) -> bool:
+    from . import model_manager
+    return size.replace(".en", "") + "-ov" in model_manager._MODELS
 
 
 def _npu_model_cached(size: str) -> bool:
@@ -129,9 +139,16 @@ def resolve(cfg: dict) -> dict:
         from . import model_manager
         if model_manager.cached_path("odia"):
             size = "odia"
-    # auto on a PC without NVIDIA: use the NPU, but only when its model build is already downloaded
-    if cfg.get("device", "auto") == "auto" and device == "cpu" and size not in ("parakeet", "odia")             and _npu_model_cached(size) and npu_name():
-        device = "npu"
+    # auto on a PC without NVIDIA: use the NPU. Its OpenVINO build is what gets downloaded on a first run;
+    # once a regular model is on disk, switching needs the user to pick the NPU (no surprise downloads).
+    if (cfg.get("device", "auto") == "auto" and device == "cpu" and size not in ("parakeet", "odia")
+            and _npu_has_build(size) and npu_name()):
+        from . import model_manager
+        if _npu_model_cached(size) or not model_manager.list_downloaded_models():
+            device = "npu"
+        elif not getattr(resolve, "_hinted", False):
+            resolve._hinted = True
+            print("[OpenFlow] Intel NPU available: choose Device > NPU in Settings to use it (downloads its model build).")
     return {"device": device, "compute_type": compute, "model_size": size, "hw": hw}
 
 
