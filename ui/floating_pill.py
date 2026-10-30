@@ -44,6 +44,14 @@ def _force_topmost(widget: QWidget):
     except Exception:
         pass
 
+try:
+    from ..engine.preview_text import merge_preview
+except ImportError:
+    try:
+        from openflow.engine.preview_text import merge_preview
+    except ImportError:
+        from engine.preview_text import merge_preview
+
 _ASSETS = get_asset_path().replace("\\", "/")
 
 # Black & white palette
@@ -1017,100 +1025,82 @@ class FloatingCaptionBubble(QWidget):
         self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
 
         self._text = ""
+        self._shown = 0.0   # characters typed in so far
+        self._ended = False  # faded out: the next text starts a new line
         self._font = QFont(ui_font_family(), 10, QFont.Weight.Medium)
         self.setWindowOpacity(0.0)
 
         self._cur_w = 116.0
         self._target_w = 116.0
-        self._word_records = []  # list of (word_str, birth_timestamp)
 
         self.fade_anim = QPropertyAnimation(self, b"windowOpacity")
         self.fade_anim.setDuration(160)
         self.fade_anim.setEasingCurve(QEasingCurve.Type.OutCubic)
 
-        # 60 FPS continuous animation timer for liquid width easing and per-word alpha ramp
+        # 60 FPS timer: the type-in effect and the liquid width easing
         self._anim_timer = QTimer(self)
         self._anim_timer.setInterval(16)
         self._anim_timer.setTimerType(Qt.TimerType.PreciseTimer)
         self._anim_timer.timeout.connect(self._on_anim_tick)
 
-    def set_text(self, text: str):
+    def set_text(self, text: str, merge: bool = True):
+        """Dictation passes the latest window of recognised speech, merged into one steadily growing line;
+        a notice (merge=False) replaces the line and types in from the start."""
         text = text.strip()
-        if text == self._text:
-            return
-
-        now = time.monotonic()
-        old_words = self._text.split() if self._text else []
-        new_words = text.split() if text else []
-
-        # Preserve birth timestamps for previously rendered prefix words
-        matched_prefix_len = 0
-        while (matched_prefix_len < len(old_words) and 
-               matched_prefix_len < len(new_words) and 
-               matched_prefix_len < len(self._word_records) and 
-               old_words[matched_prefix_len] == new_words[matched_prefix_len]):
-            matched_prefix_len += 1
-
-        updated_records = list(self._word_records[:matched_prefix_len])
-        for w in new_words[matched_prefix_len:]:
-            updated_records.append((w, now))
-
-        self._text = text
-        self._word_records = updated_records
-
-        if text:
-            fm = QFontMetricsF(self._font)
-            raw_w = fm.horizontalAdvance(text) + 32
-            self._target_w = float(max(116, min(480, int(raw_w))))
-            if not self._anim_timer.isActive():
-                self._anim_timer.start()
-
-            if not self.isVisible() or self.windowOpacity() < 0.1:
-                self.setFixedSize(int(self._cur_w), 32)
-                self._reposition()
-                self.show()
-                _force_topmost(self)
-                self.fade_anim.stop()
-                self.fade_anim.setStartValue(self.windowOpacity())
-                self.fade_anim.setEndValue(1.0)
-                self.fade_anim.start()
-            self.update()
-        else:
+        if not text:
             self.fade_out()
+            return
+        if self._ended or not merge:  # a new dictation or a notice never builds on faded-out text
+            self._text, self._shown, self._ended = "", 0.0, False
+        merged = merge_preview(self._text, text) if merge else text
+        if merged == self._text:
+            return
+        self._text = merged
+        fm = QFontMetricsF(self._font)
+        self._target_w = float(max(116, min(480, int(fm.horizontalAdvance(merged) + 32))))
+        if not self._anim_timer.isActive():
+            self._anim_timer.start()
+        if not self.isVisible() or self.windowOpacity() < 0.1:
+            self.setFixedSize(int(self._cur_w), 32)
+            self._reposition()
+            self.show()
+            _force_topmost(self)
+            self.fade_anim.stop()
+            self.fade_anim.setStartValue(self.windowOpacity())
+            self.fade_anim.setEndValue(1.0)
+            self.fade_anim.start()
+        self.update()
 
     def _on_anim_tick(self):
+        n = len(self._text)
+        if self._shown < n:  # type in: steady, speeding up when far behind so it never lags the voice
+            self._shown = min(float(n), self._shown + max(0.7, (n - self._shown) * 0.14))
         diff = self._target_w - self._cur_w
-        now = time.monotonic()
-        has_animating_words = any((now - t) < 0.20 for _, t in self._word_records)
-
-        if abs(diff) > 0.5:
-            self._cur_w += diff * 0.30
-            self.setFixedSize(int(self._cur_w), 32)
-            self._reposition()
-            self.update()
-        elif has_animating_words:
-            self._cur_w = self._target_w
-            self.setFixedSize(int(self._cur_w), 32)
-            self._reposition()
-            self.update()
-        else:
-            self._cur_w = self._target_w
-            self.setFixedSize(int(self._cur_w), 32)
-            self._reposition()
-            self.update()
+        self._cur_w = self._target_w if abs(diff) <= 0.5 else self._cur_w + diff * 0.30
+        self.setFixedSize(int(self._cur_w), 32)
+        self._reposition()
+        self.update()
+        if self._shown >= n and abs(diff) <= 0.5:
             self._anim_timer.stop()
 
     def _reposition(self):
         if not self.pill or not self.pill.isVisible():
             return
         px = self.pill.x() + (self.pill.width() - self.width()) // 2
-        py = self.pill.y() + self.pill.body_top() - self.height() - 8
+        if getattr(self.pill, "caption_below", False):  # the island sits at the top edge: caption goes underneath
+            py = self.pill.y() + self.pill.body_bottom() + 8
+        else:
+            py = self.pill.y() + self.pill.body_top() - self.height() - 8
         self.move(px, py)
 
+    def _reset(self):
+        self._text, self._shown, self._ended = "", 0.0, False
+        self._cur_w = self._target_w = 116.0
+
     def fade_out(self):
+        self._ended = True
         if not self.isVisible() or self.windowOpacity() <= 0.0:
-            self._text = ""
-            self._word_records = []
+            self._reset()
             return
         self.fade_anim.stop()
         self.fade_anim.setStartValue(self.windowOpacity())
@@ -1129,14 +1119,11 @@ class FloatingCaptionBubble(QWidget):
             pass
         if self.windowOpacity() <= 0.05:
             self.hide()
-            self._text = ""
-            self._word_records = []
             self._anim_timer.stop()
-            self._cur_w = 116.0
-            self._target_w = 116.0
+            self._reset()
 
     def paintEvent(self, a0):
-        if not self._text or not self._word_records:
+        if not self._text:
             return
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.Antialiasing, True)
@@ -1155,39 +1142,28 @@ class FloatingCaptionBubble(QWidget):
         bubble_rim.setColorAt(1.0, QColor(255, 255, 255, 18))
         p.strokePath(path, QPen(QBrush(bubble_rim), 1.0))
 
-        # Artistic per-word alpha rendering
         p.setFont(self._font)
         fm = QFontMetricsF(self._font)
-        now = time.monotonic()
-
-        avail_w = self.width() - 28.0
-        words_to_draw = []
-        tot_w = 0.0
-        space_w = fm.horizontalAdvance(" ")
-        for word, birth in reversed(self._word_records):
-            ww = fm.horizontalAdvance(word)
-            needed = ww + (space_w if words_to_draw else 0.0)
-            if tot_w + needed > avail_w and words_to_draw:
-                words_to_draw.insert(0, ("...", 0.0, fm.horizontalAdvance("...")))
-                break
-            words_to_draw.insert(0, (word, birth, ww))
-            tot_w += needed
-
+        n = int(self._shown)
+        typed = self._text[:n]
+        lead = ""
+        avail = self.width() - 28.0
+        while fm.horizontalAdvance(lead + typed) > avail and " " in typed:  # keep the newest words in view
+            typed, lead = typed.split(" ", 1)[1], "… "
         base_y = (self.height() + fm.ascent() - fm.descent()) / 2.0
-        cur_x = 14.0
-        for word, birth, ww in words_to_draw:
-            if word == "...":
-                p.setPen(QColor(255, 255, 255, 120))
-            else:
-                age = now - birth
-                if age >= 0.18:
-                    alpha = 245
-                else:
-                    t = max(0.0, min(1.0, age / 0.18))
-                    alpha = int(40 + (245 - 40) * (t * t * (3.0 - 2.0 * t)))
-                p.setPen(QColor(255, 255, 255, alpha))
-            p.drawText(QPointF(cur_x, base_y), word)
-            cur_x += ww + space_w
+        x = 14.0
+        if lead:
+            p.setPen(QColor(255, 255, 255, 120))
+            p.drawText(QPointF(x, base_y), lead)
+            x += fm.horizontalAdvance(lead)
+        if typed:
+            frac = self._shown - n if n < len(self._text) else 1.0  # the newest character eases in
+            body = typed[:-1] if frac < 1.0 else typed
+            p.setPen(QColor(255, 255, 255, 245))
+            p.drawText(QPointF(x, base_y), body)
+            if frac < 1.0:
+                p.setPen(QColor(255, 255, 255, int(40 + 205 * frac)))
+                p.drawText(QPointF(x + fm.horizontalAdvance(body), base_y), typed[-1])
 
 
 class _Veil(QWidget):
@@ -1494,10 +1470,11 @@ class FloatingPill(QWidget):
         k = screen_scale(self.current_screen or self.screen() or QApplication.primaryScreen()) if auto else 1.0
         wf, hf = self._size[0] * k, self._size[1] * k
         if (wf, hf) != (1.0, 1.0):
-            self._cap_w, self._cap_h = round(self._cap_w * wf), round(self._cap_h * hf)
+            self.visualizer.setFixedSize(round(self.visualizer.width() * min(wf, hf)), round(self.visualizer.height() * min(wf, hf)))
+            need = self.capsule_layout.totalMinimumSize()  # never smaller than what the capsule has to hold
+            self._cap_w, self._cap_h = max(round(self._cap_w * wf), need.width()), max(round(self._cap_h * hf), need.height())
             self._snooze_w, self._snooze_h = round(self._snooze_w * wf), round(self._snooze_h * hf)
             self.capsule_widget.setFixedSize(self._cap_w, self._cap_h)
-            self.visualizer.setFixedSize(round(self.visualizer.width() * hf), round(self.visualizer.height() * hf))
 
         if not self.is_expanded_hud:
             self._snooze_t = 0.0
@@ -2386,7 +2363,7 @@ class FloatingPill(QWidget):
         self.visualizer.setVisible(False)
         self.update()
         if self.capsule_style in ("compact", "micro") and hasattr(self, "caption_bubble"):
-            self.caption_bubble.set_text(text)
+            self.caption_bubble.set_text(text, merge=False)
             QTimer.singleShot(duration_ms, self.caption_bubble.fade_out)
         if not self.is_expanded_hud:
             self.fade_anim.stop()

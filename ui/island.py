@@ -4,21 +4,21 @@ Exposes the same signals and methods as FloatingPill, so the app drives either o
 import math
 import time
 
-from PyQt6.QtCore import QObject, Qt, QTimer, QRectF, QRect, QPointF, QVariantAnimation, QEasingCurve, pyqtSignal
+from PyQt6.QtCore import QEvent, QObject, Qt, QTimer, QRectF, QRect, QPointF, QVariantAnimation, QEasingCurve, pyqtSignal
 from PyQt6.QtGui import QPainter, QColor, QPainterPath, QFont, QFontMetrics, QPen, QRegion, QCursor, QGuiApplication
 from PyQt6.QtWidgets import QWidget, QApplication, QMenu
 
 try:
-    from .floating_pill import FloatingPill, ValueRow, WaveformBars, ui_font_family, _force_topmost
+    from .floating_pill import FloatingPill, FloatingCaptionBubble, ValueRow, WaveformBars, ui_font_family, _force_topmost
     from ..engine import model_manager
     from ..engine.audio_recorder import list_microphones
 except ImportError:
     try:
-        from openflow.ui.floating_pill import FloatingPill, ValueRow, WaveformBars, ui_font_family, _force_topmost
+        from openflow.ui.floating_pill import FloatingPill, FloatingCaptionBubble, ValueRow, WaveformBars, ui_font_family, _force_topmost
         from openflow.engine import model_manager
         from openflow.engine.audio_recorder import list_microphones
     except ImportError:
-        from ui.floating_pill import FloatingPill, ValueRow, WaveformBars, ui_font_family, _force_topmost
+        from ui.floating_pill import FloatingPill, FloatingCaptionBubble, ValueRow, WaveformBars, ui_font_family, _force_topmost
         from engine import model_manager
         from engine.audio_recorder import list_microphones
 
@@ -53,7 +53,7 @@ class IslandPill(QWidget):
         self.W, self.H = W0, H0
         self._wf = self._hf = 1.0     # user's width/height percent / 100
         self._auto = False            # grow with the screen: 1920 px wide = 1x, never below
-        self._wk = self._hk = 1.0     # the factors in force on the current screen
+        self._wk = self._hk = self._sk = 1.0   # the factors in force on the current screen
         self.resize(self.W, self.H)
 
         self.font_family = ui_font_family()
@@ -72,6 +72,7 @@ class IslandPill(QWidget):
         self._dl = -1
         self._panel_idle = 0
         self._screen = None
+        self._enabled = False         # only an activated island ever shows; Settings can switch it off for good
 
         self._shape_anim = QVariantAnimation(self)
         self._shape_anim.setDuration(550)
@@ -111,6 +112,7 @@ class IslandPill(QWidget):
         QFontMetrics(self._font(11)).horizontalAdvance("EN")  # Qt loads its font database on first use (~2 s): do it now, not mid-animation
         self.wave = WaveformBars(self)
         self.wave.hide()
+        self.caption_bubble = FloatingCaptionBubble(self)  # live words, typed in under the island
         self._build_panel()
         self._place()
 
@@ -208,6 +210,16 @@ class IslandPill(QWidget):
         y = g.top() if self.position == "top" else g.bottom() + 1 - self.H
         self.move(g.center().x() - self.W // 2, y)
 
+    @property
+    def caption_below(self):
+        return self.position == "top"
+
+    def body_top(self):
+        return int(self._shape_rect().top())
+
+    def body_bottom(self):
+        return int(self._shape_rect().bottom())
+
     def set_position(self, position):
         self.position = "bottom" if position == "bottom" else "top"
         self._place()
@@ -220,22 +232,29 @@ class IslandPill(QWidget):
         if self._auto and self._screen is not None:
             k = max(1.0, min(1.5, self._screen.geometry().width() / 1920.0))
         self._wk, self._hk = self._wf * k, self._hf * k
+        self._sk = min(self._wk, self._hk)  # contents scale by the smaller factor, so they always fit; the other adds room
         W = max(W0, round(344 * self._wk) + 36)
         if W != self.W:
             self.W = W
             self.resize(self.W, self.H)
             if self._screen is not None:
                 self.move(self._screen.geometry().center().x() - self.W // 2, self.y())
-        self.wave.setFixedSize(round(48 * self._hk), round(22 * self._hk))
+        self.wave.setFixedSize(round(48 * self._sk), round(22 * self._sk))
 
     def set_capsule_size(self, wf, hf, auto):
         """Width and height as fractions of the default, plus 'grow with the screen'. Shows a short preview."""
         self._wf, self._hf, self._auto = wf, hf, auto
         self._screen = self._screen or self._target_screen()
         self._refresh_scale()
-        if self._state == "idle" and self.isVisible():
+        if not (self._enabled and self.isVisible()) or self._state == "panel":
+            return
+        if self._state == "idle":
             self._go("listen")
-            self._done_timer.start(1400)  # back to rest, which also re-snoozes
+            self._done_timer.start(1400)  # a short preview, then back to rest (which re-snoozes)
+        else:  # every change retargets the shape, whatever is showing, so it never lags behind its contents
+            self._go(self._state, self._note_dims() if self._state in ("note", "msg") and self._note else None)
+            if self._state == "listen" and self._done_timer.isActive():
+                self._done_timer.start(1400)
 
     def _shape_rect(self, dims=None, snooze=None):
         w, h, _ = dims or self._dims
@@ -256,6 +275,10 @@ class IslandPill(QWidget):
 
     def _go(self, state, dims=None):
         """Move the shape to a state's size with the spring, and cross-fade its contents."""
+        if not self._enabled:
+            return
+        if state != "listen":
+            self.caption_bubble.fade_out()
         self._rest_timer.stop()
         self._snooze_anim.stop()
         self._snooze = 0.0
@@ -281,6 +304,8 @@ class IslandPill(QWidget):
             r.hide()
 
     def _ensure_visible(self, may_change_screen):
+        if not self._enabled:
+            return
         if not self.isVisible() or may_change_screen:
             self._place()
             self.show()
@@ -343,6 +368,8 @@ class IslandPill(QWidget):
 
     def _tick(self):
         self.update()
+        if self.caption_bubble.isVisible():
+            self.caption_bubble._reposition()  # follows the shape as it springs
 
     def _keep_up(self):
         if not self.isVisible():
@@ -380,14 +407,17 @@ class IslandPill(QWidget):
         if same:
             self.update()
             return
-        if sub:
-            self._go("note")
-        else:
-            width = QFont(self.font_family)
-            width.setPixelSize(14)
-            tw = QFontMetrics(width).horizontalAdvance(title)
-            need = (tw + 78) * max(self._wk, self._hk) / self._wk  # contents grow with the height: keep the text in view
-            self._go("msg", (max(200, min((self.W - 24) / self._wk, need)), 44, 22))
+        self._go("note" if sub else "msg", self._note_dims())
+
+    def _note_dims(self):
+        """Design size of the current notice (a two-line note is fixed; a one-line message follows its text)."""
+        if self._note[1]:
+            return None
+        f = QFont(self.font_family)
+        f.setPixelSize(14)
+        tw = QFontMetrics(f).horizontalAdvance(self._note[0])
+        need = (tw + 78) * self._sk / self._wk  # contents scale by the smaller factor; keep the whole text in view
+        return (max(200, min((self.W - 24) / self._wk, need)), 44, 22)
 
     def _finish_note(self):
         self._to_idle()
@@ -448,7 +478,8 @@ class IslandPill(QWidget):
         self.wave.set_level(level)
 
     def update_realtime_text(self, text):
-        pass  # the island has no room for a live caption
+        if text and self._state == "listen":
+            self.caption_bubble.set_text(text[-160:])
 
     def expand_to_hud(self):
         self._open_panel()
@@ -477,9 +508,25 @@ class IslandPill(QWidget):
 
     def activate(self):
         """Show the island at rest (used when the app switches to this style)."""
+        self._enabled = True
         self._dims = DIMS["idle"]
         self._go("idle")
         self._to_idle()
+
+    def deactivate(self):
+        """Switched to another style: stop everything so no pending timer can bring the island back."""
+        self._enabled = False
+        for t in (self._rest_timer, self._note_timer, self._done_timer, self._frame):
+            t.stop()
+        for a in (self._shape_anim, self._face_anim, self._snooze_anim):
+            a.stop()
+        self._queue.clear()
+        self._note = None
+        self._state, self._snooze = "idle", 0.0
+        self.caption_bubble.fade_out()
+        for r in self._rows:
+            r.hide()
+        self.hide()
 
     # -- input --------------------------------------------------------------
 
@@ -542,7 +589,7 @@ class IslandPill(QWidget):
             return
         p.save()
         p.setOpacity(a)
-        s = 1.0 if face == "panel" else self._hk  # contents grow with the height; the width factor only adds room
+        s = 1.0 if face == "panel" else self._sk
         if s != 1.0:
             c = r.center()
             p.translate(c)
@@ -699,6 +746,8 @@ class CapsuleRouter(QObject):
     def __init__(self, pill, island, style="compact", follow=True):
         super().__init__()
         self._pill, self._island, self._on_island, self._follow = pill, island, False, follow
+        self._size = (1.0, 1.0, False)
+        pill.installEventFilter(self)  # whatever shows the classic capsule while the island is in use, it is hidden again
         for sig in ("sig_mic_changed", "sig_language_changed", "sig_tone_changed", "sig_model_changed",
                     "sig_open_dashboard", "sig_update_requested", "sig_hide_idle_changed"):
             getattr(pill, sig).connect(getattr(self, sig))
@@ -707,6 +756,11 @@ class CapsuleRouter(QObject):
             setattr(self, name, self._both(name))
         if style == "island":
             self.set_capsule_style("island")
+
+    def eventFilter(self, obj, event):
+        if obj is self._pill and self._on_island and event.type() == QEvent.Type.Show:
+            QTimer.singleShot(0, self._pill.hide)
+        return False
 
     def _both(self, name):
         def call(*a, **k):
@@ -724,8 +778,9 @@ class CapsuleRouter(QObject):
             return
         if self._on_island:
             self._on_island = False
-            self._island.hide()
+            self._island.deactivate()
             self._pill.set_follow_mouse_screen(self._follow)
+            self._pill.set_capsule_size(*self._size)
             self._pill.set_capsule_style(style)
             self._pill.show_message("OpenFlow capsule", duration_ms=1500)
         else:
@@ -740,8 +795,10 @@ class CapsuleRouter(QObject):
         self._island.set_position(position)
 
     def set_capsule_size(self, wf, hf, auto):
-        self._pill.set_capsule_size(wf, hf, auto)
+        self._size = (wf, hf, auto)
         self._island.set_capsule_size(wf, hf, auto)
+        if not self._on_island:  # re-laying out the hidden capsule could show it
+            self._pill.set_capsule_size(wf, hf, auto)
 
     def geometry(self):
         return QRect() if self._on_island else self._pill.geometry()  # the meeting bar then uses its default spot

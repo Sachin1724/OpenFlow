@@ -9,7 +9,10 @@ from PyQt6.QtWidgets import QApplication
 
 from database import Database
 from config import load_config
+import ui.main_window as mw
 from ui.main_window import MainWindow
+
+mw.save_config = lambda *_: None  # these tests drive real controls: never write the user's config
 
 app = QApplication.instance() or QApplication([])
 
@@ -27,7 +30,7 @@ def _val(c):
 
 
 def test_wheel_is_left_to_the_page_unless_focused():
-    w = MainWindow(Database(":memory:"), load_config())
+    w = MainWindow(Database(":memory:"), dict(load_config()))
     w.resize(760, 560)
     w.show()
     w.select_page(4)  # Settings
@@ -43,12 +46,12 @@ def test_wheel_is_left_to_the_page_unless_focused():
     QTest.qWait(100)
     if w.opacity_slider.hasFocus():  # offscreen platforms may not grant focus; the unfocused checks above still hold
         before = w.opacity_slider.value()
-        wheel(w.opacity_slider, 120)
+        wheel(w.opacity_slider, -120 if before >= w.opacity_slider.maximum() else 120)
         assert w.opacity_slider.value() != before
 
 
 def test_every_page_builds_and_nav_matches():
-    w = MainWindow(Database(":memory:"), load_config())
+    w = MainWindow(Database(":memory:"), dict(load_config()))
     w.show()
     for i in range(w.stack.count()):
         w.select_page(i)
