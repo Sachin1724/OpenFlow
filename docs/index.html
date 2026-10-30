@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>OpenFlow — Free, Private &amp; Unlimited Local Voice Dictation for Windows | Wispr Flow Alternative</title>
-<meta name="description" content="Free, private, zero-limit local AI voice dictation and meeting intelligence for Windows. 100% offline, GPU & NPU-accelerated (sub-150ms latency), push-to-talk anywhere.">
+<meta name="description" content="Free, private, zero-limit local AI voice dictation and meeting intelligence for Windows, with a Dynamic Island capsule. 100% offline, GPU & NPU-accelerated (sub-150ms latency), push-to-talk anywhere.">
 <meta name="keywords" content="voice dictation, speech to text, wispr flow alternative, free voice dictation, local ai, push to talk, windows dictation, npu voice typing, copilot+ pc, intel ai boost, faster whisper, offline speech to text, whisper ai, cuda transcription, meeting notes ai, open source voice typing, ctranslate2, openvino">
 <meta name="author" content="Sachidananda">
 <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
@@ -131,8 +131,9 @@
   --light: #f5f5f7;
   --light-ink: #000000;
   --light-soft: #5c5c61;
-  --radius: 16px;
-  --pad: clamp(20px, 3.4vw, 48px);
+  --radius: 24px;
+  --accent: #0a84ff;
+  --pad: max(clamp(20px, 3.4vw, 48px), calc((100vw - 1440px) / 2));
   --font: 'General Sans', 'Inter', 'Segoe UI Variable Text', 'Segoe UI', -apple-system, 'Helvetica Neue', sans-serif;
   --step-small: clamp(0.8125rem, 0.79rem + 0.1vw, 0.875rem);
   --step-body: clamp(1.0625rem, 1rem + 0.25vw, 1.1875rem);
@@ -182,43 +183,10 @@ h1, h2 { font-weight: 500; letter-spacing: -0.04em; line-height: 0.98; text-wrap
 .btn.on-light { background: var(--light-ink); color: var(--light); }
 .btn.quiet { background: var(--surface-2); color: var(--ink); }
 
-/* navigation: wordmark, links, one action */
-.nav {
-  position: absolute; z-index: 5; inset: 28px var(--pad) auto var(--pad);
-  display: flex; align-items: center; justify-content: space-between; gap: 24px; font-size: 14px;
-}
-.nav .mark { display: flex; align-items: center; gap: 10px; font-weight: 500; font-size: 18px; letter-spacing: -0.01em; }
-.nav .mark img { width: 34px; height: 34px; }
-.nav ul { list-style: none; padding: 0; display: flex; gap: 28px; align-items: center; color: var(--soft); }
-.nav ul a:hover { color: var(--ink); }
-.nav ul a:not(.btn), .foot .links a { position: relative; transition: color .25s; }
-.nav ul a:not(.btn)::after, .foot .links a::after {
-  content: ""; position: absolute; left: 0; right: 0; bottom: -4px; height: 1.5px; background: currentColor;
-  transform: scaleX(0); transform-origin: right; transition: transform .4s var(--ease);
-}
-.nav ul a:not(.btn):hover::after, .foot .links a:hover::after { transform: scaleX(1); transform-origin: left; }
-.nav .mark img { transition: transform .5s var(--ease); }
-.nav .mark:hover img { transform: rotate(-8deg) scale(1.08); }
-.nav .btn { height: 36px; padding: 0 18px; font-size: 14px; }
-
-/* hero */
-.hero { position: relative; min-height: 100svh; padding: 140px 0 0 var(--pad); overflow: hidden; display: grid; grid-template-columns: repeat(12, 1fr); column-gap: 24px; align-content: start; }
-.hero-copy { grid-column: 1 / 6; grid-row: 1; padding-right: 24px; padding-top: 24px; }
-.hero h1 { font-size: clamp(3.25rem, 5.2vw, 5.5rem); }
-.hero p.lead { margin-top: 28px; max-width: 40ch; font-size: 18px; color: var(--soft); }
-.hero .actions { margin-top: 32px; display: flex; gap: 18px; align-items: center; flex-wrap: wrap; }
-.hero .actions .note { color: var(--soft); font-size: var(--step-small); }
-.stage {
-  grid-column: 6 / 13; grid-row: 1; margin-top: 0; background: var(--light); color: var(--light-ink);
-  min-height: calc(100svh - 140px); padding: 56px 0 0 56px; position: relative;
-  clip-path: polygon(72px 0, 100% 0, 100% 100%, 0 100%, 0 72px);
-}
 /* each background hosts its own dot canvas: isolation makes a stacking context, and a z-index of -1
    paints the canvas above the host's colour but below everything inside it */
 .dotbg { position: relative; isolation: isolate; }
 .field { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: -1; }
-.hero-copy, .stage { position: relative; z-index: 1; }
-.stage-label { position: absolute; top: 24px; right: 32px; color: var(--light-soft); font-size: var(--step-small); }
 
 /* demo fragment (product interface; data-ui) */
 .demo { width: min(640px, calc(100% - 20px)); display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; }
@@ -251,7 +219,7 @@ h1, h2 { font-weight: 500; letter-spacing: -0.04em; line-height: 0.98; text-wrap
 .pill .txt.pop { animation: pop .28s var(--ease); }
 @keyframes pop { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: none; } }
 .pill .txt { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pill .badge { height: 20px; padding: 0 9px; border-radius: 10px; background: rgba(255,255,255,.08); color: rgba(255,255,255,.6); font-size: 11px; display: grid; place-items: center; }
+.pill .badge { height: 20px; padding: 0 9px; border-radius: 10px; background: rgba(255,255,255,.08); color: rgba(255,255,255,.6); font-size: 13px; display: grid; place-items: center; }
 .pill .bars { display: flex; align-items: center; gap: 4px; height: 20px; width: 40px; justify-content: center; }
 .pill .bars i { width: 3px; height: 3px; border-radius: 2px; background: #fff; }
 .pill .dots { width: 26px; height: 26px; border-radius: 50%; background: rgba(255,255,255,.08); display: grid; place-items: center; grid-auto-flow: column; gap: 3px; align-content: center; justify-content: center; }
@@ -264,7 +232,7 @@ section { position: relative; }
 .grid { display: grid; grid-template-columns: repeat(12, 1fr); column-gap: 24px; }
 
 /* features: one paragraph, picture words */
-.features p.statement { grid-column: 1 / 12; font-size: clamp(1.5rem, 1.1rem + 1.3vw, 2.25rem); line-height: 1.22; letter-spacing: -0.02em; font-weight: 400; max-width: 34em; }
+.features p.statement { grid-column: 1 / 12; font-size: clamp(1.5rem, 1.1rem + 1.3vw, 2.25rem); line-height: 1.22; letter-spacing: -0.02em; font-weight: 400; max-width: 26em; }
 .slot img { transition: transform .6s var(--ease); }
 .slot:hover img { transform: scale(1.15); }
 .slot { display: inline-block; height: 1em; width: 1.9em; border-radius: .18em; overflow: hidden; vertical-align: -0.14em; background: var(--surface-2); }
@@ -278,7 +246,7 @@ section { position: relative; }
 .odia .grid { align-items: start; row-gap: 72px; }
 .odia .copy { grid-column: 1 / 6; }
 .odia h2 { font-size: var(--step-head); max-width: 14ch; }
-.odia h2 .or { display: block; margin-top: 16px; font-size: .46em; letter-spacing: 0; line-height: 1.25; color: var(--soft); font-weight: 400; }
+.odia .copy p.or { margin-top: 20px; font-size: 24px; line-height: 1.3; color: var(--soft); max-width: 22ch; }
 .odia .copy p { margin-top: 24px; color: var(--soft); max-width: 36ch; font-size: 18px; }
 .odia .try { grid-column: 7 / 13; background: var(--light); color: var(--light-ink); border-radius: var(--radius); padding: 24px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
 .seg { display: inline-flex; padding: 4px; gap: 4px; border-radius: 999px; background: #e5e5ea; justify-self: start; }
@@ -344,7 +312,7 @@ section { position: relative; }
 .hb .t { height: 14px; position: relative; }
 .hb .t i { position: absolute; inset: 0 auto 0 0; width: var(--w); border-radius: 0 4px 4px 0; background: #48484a; transform-origin: left; transition: transform 1.2s var(--ease) .15s, background .2s; }
 .hb .r.me .t i { background: #fff; }
-.hb .r.ceil .t i { background: repeating-linear-gradient(135deg, #48484a 0 2px, transparent 2px 6px); outline: 1px solid #636366; outline-offset: -1px; }
+.hb .r.ceil .t i { background: #3a3a3c; }
 .hb .r:hover .t i { background: #8e8e93; }
 .hb .r.me:hover .t i { background: #e5e5ea; }
 .hb .r b { font-weight: 500; text-align: right; font-variant-numeric: tabular-nums; }
@@ -357,17 +325,19 @@ section { position: relative; }
 .strip .lane.me circle { fill: #fff; fill-opacity: .8; }
 .strip circle:hover { r: 6; fill-opacity: 1; }
 .strip .med { stroke: #fff; stroke-width: 2; }
-.strip .axis { display: grid; grid-template-columns: 11em 1fr; gap: 12px; font-size: 12px; color: var(--soft); }
+.strip .axis { display: grid; grid-template-columns: 11em 1fr; gap: 12px; font-size: 13px; color: var(--soft); }
 .strip .axis div { display: flex; justify-content: space-between; font-variant-numeric: tabular-nums; }
-.tip { position: fixed; z-index: 20; pointer-events: none; background: #fff; color: #000; font-size: 13px; padding: 7px 10px; border-radius: 8px; box-shadow: 0 6px 24px rgba(0,0,0,.35); opacity: 0; transform: translate(-50%, calc(-100% - 10px)); transition: opacity .12s; white-space: nowrap; }
+.tip { position: fixed; z-index: 20; pointer-events: none; background: #fff; color: #000; font-size: 13px; padding: 7px 10px; border-radius: 8px; box-shadow: 0 6px 24px rgba(0,0,0,.35); /* taste-skill-ignore: floating tooltip */ opacity: 0; transform: translate(-50%, calc(-100% - 10px)); transition: opacity .12s; white-space: nowrap; }
 .tip.on { opacity: 1; }
+.research details:not([open]) > div { display: none; }
 .research details { margin-top: 8px; background: var(--surface); border-radius: var(--radius); padding: 20px 24px; color: var(--soft); font-size: 15px; overflow-x: auto; }
 .research summary { cursor: pointer; color: var(--ink); font-weight: 500; }
 .research table { width: 100%; border-collapse: collapse; margin-top: 16px; font-variant-numeric: tabular-nums; }
 .research th, .research td { text-align: right; padding: 8px 10px; border-bottom: 1px solid var(--surface-2); }
 .research th:first-child, .research td:first-child { text-align: left; }
 .research th { color: var(--ink); font-weight: 500; }
-.research .method { margin-top: 24px; color: var(--soft); font-size: 14px; max-width: 80ch; line-height: 1.6; }
+.research .more { margin-top: 40px; }
+.research .method { margin-top: 24px; color: var(--soft); font-size: 15px; max-width: 62ch; line-height: 1.6; }
 .research .method a { text-decoration: underline; text-underline-offset: 3px; }
 
 /* meetings: a call, its captions, then its notes (product interface; data-ui) */
@@ -416,20 +386,6 @@ section { position: relative; }
 .call[data-phase="notes"] .caps { display: none; }
 .call:not([data-phase="notes"]) .notes { display: none; }
 
-/* new: big statements, one per change */
-.log h2 { font-size: var(--step-head); max-width: 14ch; }
-.logs { margin-top: 56px; max-width: 720px; }
-.logs details { border-top: 1px solid rgba(128,128,128,.25); padding: 18px 0; }
-.logs summary { cursor: pointer; display: flex; gap: 16px; align-items: baseline; font-size: 20px; list-style: none; }
-.logs summary span { color: var(--soft); font-size: 15px; }
-.logs ul { margin: 12px 0 0 1.1em; color: var(--soft); font-size: 17px; display: grid; gap: 6px; }
-.logs code { font-size: .9em; }
-.new h2 { font-size: var(--step-head); max-width: 14ch; }
-.new ul { list-style: none; padding: 0; margin-top: 80px; display: grid; gap: 72px; }
-.new li { display: grid; grid-template-columns: repeat(12, 1fr); column-gap: 24px; align-items: baseline; }
-.new h3 { grid-column: 1 / 7; font-size: clamp(1.75rem, 1.2rem + 1.8vw, 2.75rem); font-weight: 500; letter-spacing: -0.03em; line-height: 1.05; }
-.new li p { grid-column: 7 / 12; font-size: 18px; color: var(--soft); }
-
 /* how it works: three moments, side by side */
 .how h2 { font-size: var(--step-head); max-width: 14ch; }
 .steps3 { margin-top: 72px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
@@ -472,45 +428,155 @@ section { position: relative; }
 .faq .pane.swap { opacity: 0; }
 .faq .inline-ans { display: none; }
 
-/* cta */
-.cta { background: #fff; color: #000; }
-.cta h2 { font-size: var(--step-display); max-width: 12ch; }
-.cta .row2 { margin-top: 48px; display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
-.cta .row2 p { color: var(--light-soft); font-size: 18px; max-width: 44ch; }
-
-/* footer: the name on a white tile, the download cut out beside it */
-.foot { padding: 8px; display: grid; gap: 8px; grid-template-columns: repeat(12, 1fr); }
-.foot .name { grid-column: span 8; min-height: 320px; background: #fff; color: #000; border-radius: var(--radius); display: grid; place-items: center; overflow: hidden; }
-.foot .name b { font-weight: 500; font-size: 13vw; letter-spacing: -0.06em; line-height: 1; }
-.foot .get { grid-column: span 4; min-height: 320px; background: #fff; color: #000; border-radius: var(--radius); padding: 24px; display: flex; flex-direction: column; justify-content: space-between; font-size: 24px; letter-spacing: -0.015em; transition: transform .35s var(--ease); }
-.foot .get:hover { transform: scale(.985); }
-.foot .get:active { transform: scale(.97); }
-.foot .get svg { align-self: flex-end; width: 56px; height: 56px; transition: transform .35s var(--ease); }
-.foot .get:hover svg { transform: translate(4px, -4px); }
-.foot .links { grid-column: 1 / -1; padding: 24px 16px 16px; display: flex; justify-content: space-between; gap: 24px; flex-wrap: wrap; color: var(--soft); font-size: 16px; }
-.foot .links ul { list-style: none; padding: 0; display: flex; gap: 28px; flex-wrap: wrap; }
-.foot .links a:hover { color: var(--ink); }
-
 /* motion: entrances that never hide content without script */
 .js .rv { opacity: 0; transform: translateY(24px); transition: opacity .8s var(--ease), transform .8s var(--ease); transition-delay: calc(var(--i, 0) * 80ms); }
 .js .rv.in { opacity: 1; transform: none; }
 .js .btn.rv { transition: opacity .8s var(--ease), transform .8s var(--ease), translate .45s var(--ease), scale .2s var(--ease), color .3s;
   transition-delay: calc(var(--i, 0) * 80ms), calc(var(--i, 0) * 80ms), 0s, 0s, 0s; }
-.js .stage { clip-path: polygon(72px 0, 100% 0, 100% 0, 72px 0, 72px 0); transition: clip-path 1.1s var(--ease); }
-.js .stage.in { clip-path: polygon(72px 0, 100% 0, 100% 100%, 0 100%, 0 72px); }
-.js .stage .demo { transform: scale(1.06); opacity: 0; transition: transform 1.1s var(--ease) .15s, opacity .8s .2s; }
-.js .stage.in .demo { transform: none; opacity: 1; }
+
+/* the island: this page's own nav. A pill flush to the top edge; opening reveals the same box, so it is symmetrical at any width */
+.isle {
+  position: absolute; z-index: 50; top: 0; left: 50%; translate: -50% 0; background: var(--surface-2); color: var(--ink);
+  border-radius: 0 0 28px 28px; font-size: 15px;
+}
+.isle-dot { display: none; }
+.isle-body { display: flex; align-items: center; gap: 32px; padding: 0 28px; height: 56px; white-space: nowrap; }
+.isle .mark { display: flex; align-items: center; gap: 10px; font-weight: 500; font-size: 17px; line-height: 1; letter-spacing: -0.01em; }
+.isle .mark img { width: 24px; height: 24px; flex: none; transition: transform .5s var(--ease); }
+.isle .mark:hover img { transform: rotate(-8deg) scale(1.1); }
+.isle ul { list-style: none; padding: 0; display: flex; align-items: center; gap: 24px; line-height: 1; color: var(--soft); }
+.isle li { display: flex; align-items: center; }
+.isle ul a:not(.btn) { display: inline-flex; align-items: center; height: 36px; padding: 0 4px; transition: color .25s; }
+.isle ul a:not(.btn):hover { color: var(--ink); }
+.isle .btn { height: 34px; padding: 0 18px; font-size: 14px; }
+.js .isle { position: fixed; clip-path: inset(0 calc(50% - 48px) calc(100% - 28px) calc(50% - 48px) round 0 0 16px 16px); transition: clip-path .8s var(--ease); }
+.js .isle.open, .js .isle:focus-within { clip-path: inset(0 0 0 0 round 0 0 28px 28px); }
+.js .isle-body { opacity: 0; transition: opacity .25s; }
+.js .isle.open .isle-body, .js .isle:focus-within .isle-body { opacity: 1; transition: opacity .45s .2s; }
+.js .isle-dot { display: block; position: absolute; left: 50%; top: 0; width: 96px; height: 28px; translate: -50% 0; border: 0; background: none; cursor: pointer; transition: opacity .2s; }
+.js .isle-dot::before { content: ""; position: absolute; left: 50%; top: 50%; width: 6px; height: 6px; margin: -3px; border-radius: 50%; background: #636366; }
+.js .isle.open .isle-dot, .js .isle:focus-within .isle-dot { opacity: 0; pointer-events: none; }
+.isle-dot:focus-visible { outline-offset: -4px; border-radius: 0 0 16px 16px; }
+
+/* hero: one pill, cropped only by the right edge of the viewport; copy and demo share one centre line */
+.hero { --copyw: clamp(360px, 38vw, 560px); --ph: clamp(460px, 64vh, 660px);
+  position: relative; min-height: clamp(640px, 100svh, 960px); overflow: hidden; padding: 120px var(--pad) 56px; display: flex; align-items: center; }
+.hero-copy { position: relative; z-index: 2; width: var(--copyw); }
+.hero h1 { font-size: clamp(3.5rem, 6.4vw, 7rem); line-height: .92; }
+.hero p.lead { margin-top: 28px; max-width: 34ch; font-size: 19px; color: var(--soft); }
+.hero .actions { margin-top: 36px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.btn.light-quiet { background: var(--surface-2); color: var(--ink); }
+.btn.light-quiet::before { background: #3a3a3c; }
+.btn.big { height: 56px; padding: 0 32px; font-size: 1.0625rem; }
+.stage { position: absolute; z-index: 1; top: 50%; translate: 0 -50%; left: calc(var(--pad) + var(--copyw) + 24px); width: 200vw; height: var(--ph);
+  border-radius: 999px; background: var(--accent); color: #000; display: flex; align-items: center; padding-left: calc(var(--ph) * .3); }
+.stage .demo { width: min(580px, calc(100vw - var(--pad) - var(--copyw) - 24px - var(--ph) * .3 - 48px)); }
+.stage .hint { color: #000; }
+.stage .demo-bar { gap: 12px; }
+.stage .note-card { min-height: 230px; }
+.js .stage { transform: translateX(16vw); opacity: 0; transition: transform 1.3s var(--ease), opacity .9s; }
+.js .stage.in { transform: none; opacity: 1; }
+
+/* the band: one full-width pill between the product and the depth */
+.band { margin: 0 var(--pad); height: clamp(112px, 17vw, 240px); border-radius: 999px; background: var(--accent); color: #000; display: grid; place-items: center; padding: 0 6vw; text-align: center; }
+.band p { font-size: clamp(1.75rem, 5.2vw, 5rem); font-weight: 500; letter-spacing: -0.04em; line-height: 1; text-wrap: balance; }
+
+/* switchers: pill tabs */
+.tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 40px; }
+.tabs button { border: 0; height: 44px; padding: 0 22px; border-radius: 999px; background: var(--surface-2); color: var(--ink); font-weight: 500; font-size: 1rem; cursor: pointer;
+  transition: background .35s var(--ease), color .35s, scale .2s var(--ease); }
+.tabs button:hover { background: #2c2c2e; }
+.tabs button:active { scale: .96; }
+.tabs button[aria-selected="true"] { background: var(--accent); color: #000; }
+.field-light .tabs button { background: #e5e5ea; color: #000; }
+.field-light .tabs button:hover { background: #d8d8de; }
+.field-light .tabs button[aria-selected="true"] { background: #000; color: #fff; }
+.tabs button:focus-visible { outline-color: var(--accent); }
+.field-light .tabs button:focus-visible { outline-color: #000; }
+.panes { display: grid; grid-template-columns: minmax(0, 1fr); }
+.pane { grid-area: 1 / 1; opacity: 0; visibility: hidden; transition: opacity .7s var(--ease), visibility 0s .7s; }
+.pane.on { opacity: 1; visibility: visible; transition: opacity .7s var(--ease); }
+
+/* meet the island: six states on one grid; the pictures are 4x sources shown at 2x */
+.isl h2 { font-size: var(--step-head); max-width: 12ch; }
+.isl .intro2 { margin-top: 24px; color: var(--soft); max-width: 48ch; font-size: 18px; }
+.isl-grid { margin-top: 64px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.isl-card { background: var(--light); color: var(--light-ink); border-radius: var(--radius); overflow: hidden; display: grid; grid-template-rows: 1fr auto; }
+.isl-pic { display: grid; justify-items: center; align-content: start; gap: 16px; padding: 0 24px 28px; min-height: 160px; }
+.isl-pic img { width: calc(var(--w) * 2px); max-width: 100%; height: auto; }
+.isl-cap { padding: 0 32px 32px; display: grid; gap: 8px; align-content: start; min-height: 150px; }
+.isl-cap h3 { font-size: 24px; font-weight: 500; letter-spacing: -0.02em; line-height: 1.1; }
+.isl-cap p { color: var(--light-soft); font-size: 17px; max-width: 44ch; }
+.bubble { background: #0e0e12; color: #fff; border-radius: 999px; padding: 8px 18px; font-size: 15px; font-weight: 500; min-height: 36px; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bubble .caret { background: #fff; height: 1em; }
+
+/* the dashboard */
+.dash h2 { font-size: var(--step-head); max-width: 12ch; }
+.dash .lead3 { margin-top: 24px; color: var(--light-soft); max-width: 46ch; font-size: 18px; }
+.dash .shot { margin-top: 40px; border-radius: var(--radius); overflow: hidden; background: #1c1c1e; max-width: 1180px; }
+.dash .shot img { width: 100%; height: auto; }
+.dash .says { margin-top: 24px; font-size: clamp(1.125rem, .9rem + .8vw, 1.5rem); line-height: 1.3; letter-spacing: -0.01em; max-width: 44ch; min-height: 3.2em; }
+.dash .says small { display: block; margin-top: 10px; font-size: 14px; color: var(--light-soft); letter-spacing: 0; }
+.dash .panes.shots-stack .pane { display: block; }
+
+/* coming in 1.3.0: big statements, one per change */
+.new h2 { font-size: var(--step-head); max-width: 14ch; }
+.new .intro { margin-top: 24px; color: var(--soft); max-width: 52ch; font-size: 18px; }
+.new ul { list-style: none; padding: 0; margin-top: 72px; display: grid; gap: 64px; }
+.new li { display: grid; grid-template-columns: repeat(12, 1fr); column-gap: 24px; align-items: baseline; }
+.new h3 { grid-column: 1 / 8; font-size: clamp(1.75rem, 1.2rem + 1.8vw, 2.75rem); font-weight: 500; letter-spacing: -0.03em; line-height: 1.05; }
+.new h3::before { content: ""; display: inline-block; width: .62em; height: .3em; border-radius: 999px; background: var(--accent); margin-right: .32em; vertical-align: .08em; }
+.new li p { grid-column: 8 / 13; font-size: 18px; color: var(--soft); }
+.new .more { margin-top: 72px; }
+
+/* get */
+.get { background: #fff; color: #000; }
+.get .grid { align-items: start; row-gap: 56px; }
+.get .g-copy { grid-column: 1 / 7; }
+.get.pad { padding-bottom: clamp(170px, 18vw, 210px); }
+.get h2 { font-size: var(--step-display); max-width: 8ch; }
+.get .g-copy > p { margin-top: 24px; color: var(--light-soft); max-width: 36ch; font-size: 19px; }
+.get .row2 { margin-top: 40px; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+.get .row2 .btn.quiet-light { background: #e5e5ea; color: #000; }
+.get .row2 .btn.quiet-light::before { background: #d1d1d6; }
+.get .small { margin-top: 28px; font-size: 15px; color: var(--light-soft); max-width: 44ch; }
+.get .small a { text-decoration: underline; text-underline-offset: 3px; color: #000; }
+.get .g-side { grid-column: 8 / 13; display: grid; gap: 40px; align-content: start; padding-top: 12px; }
+.get h3 { font-size: 24px; font-weight: 500; letter-spacing: -0.02em; margin-bottom: 14px; }
+.cmd { display: flex; align-items: center; gap: 10px; background: #000; color: #fff; border-radius: 999px; padding: 8px 8px 8px 24px; }
+.cmd code { flex: 1; min-width: 0; overflow-x: auto; white-space: nowrap; font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: 15px; }
+.cmd .btn { height: 40px; padding: 0 20px; background: #fff; color: #000; font-size: 15px; }
+.cmd .btn::before { background: #d1d1d6; }
+.firsts { list-style: none; padding: 0; display: grid; gap: 14px; }
+.firsts li { display: grid; grid-template-columns: auto 1fr; gap: 14px; align-items: baseline; font-size: 18px; color: var(--light-soft); }
+.firsts li::before { content: ""; width: 26px; height: 12px; border-radius: 999px; background: var(--accent); transform: translateY(1px); }
+.firsts b { color: #000; font-weight: 500; }
+
+/* meetings: the notes as the new dashboard shows them */
+.meetshot { grid-column: 5 / 13; margin: 0; display: grid; gap: 12px; }
+.meetshot img { width: 100%; height: auto; border-radius: var(--radius); background: #1c1c1e; }
+.meetshot figcaption { font-size: 14px; color: var(--light-soft); padding-left: 24px; }
+
+/* footer: the name on a pill, the download beside it */
+.foot { padding: 8px var(--pad) 8px; display: grid; gap: 12px; grid-template-columns: repeat(12, 1fr); }
+.foot .name { grid-column: span 7; min-height: 260px; background: var(--accent); color: #000; border-radius: 999px; display: grid; place-items: center; overflow: hidden; }
+.foot .name b { font-weight: 500; font-size: clamp(4rem, 10.5vw, 9.5rem); letter-spacing: -0.06em; line-height: 1; }
+.foot .get-pill { grid-column: span 5; min-height: 260px; background: #fff; color: #000; border-radius: 999px; padding: 24px 40px; display: flex; align-items: center; justify-content: space-between; gap: 16px; font-size: 22px; letter-spacing: -0.015em; transition: scale .35s var(--ease); }
+.foot .get-pill:hover { scale: .985; }
+.foot .get-pill:active { scale: .97; }
+.foot .get-pill svg { flex: none; width: 48px; height: 48px; transition: transform .35s var(--ease); }
+.foot .get-pill:hover svg { transform: translate(4px, -4px); }
+.foot .links { grid-column: 1 / -1; padding: 24px 16px 16px; display: flex; justify-content: space-between; gap: 24px; flex-wrap: wrap; color: var(--soft); font-size: 16px; }
+.foot .links ul { list-style: none; padding: 0; display: flex; gap: 28px; flex-wrap: wrap; }
+.foot .links a { transition: color .25s; }
+.foot .links a:hover { color: var(--ink); }
+
+section[id] { scroll-margin-top: 24px; }
+.story .iso-plate-corners { display: none; }
+.story .iso-plate { padding: 24px; }
+.research.pad { padding-bottom: clamp(170px, 22vw, 300px); }
 
 @media (max-width: 900px) {
-  .nav ul li:not(:last-child) { display: none; }
-  .hero { padding-top: 120px; display: block; padding-right: 0; }
-  .hero-copy { padding-right: var(--pad); padding-top: 0; }
-  .hero h1 { font-size: 11vw; }
-  .stage { overflow: hidden; margin-top: 44px; min-height: 420px; padding: 40px 0 0 20px; clip-path: polygon(48px 0, 100% 0, 100% 100%, 0 100%, 0 48px); }
-  .js .stage { clip-path: polygon(48px 0, 100% 0, 100% 0, 48px 0, 48px 0); }
-  .js .stage.in { clip-path: polygon(48px 0, 100% 0, 100% 100%, 0 100%, 0 48px); }
-  .stage-label { display: none; }
-  .demo { width: calc(100% - 40px); }
   .note-card { min-height: 200px; }
   .features .after { grid-column: 1 / -1; }
   .features p.statement { grid-column: 1 / -1; font-size: 24px; }
@@ -528,9 +594,6 @@ section { position: relative; }
   .call { padding: 12px; }
   .who .face { width: 40px; height: 40px; font-size: 16px; margin-bottom: 14px; }
   .who .name { font-size: 14px; left: 8px; bottom: 6px; }
-  .new li { display: block; }
-  .new li p { margin-top: 12px; }
-  .new ul { gap: 48px; margin-top: 56px; }
   .steps3, .hw .cols, .shots { grid-template-columns: 1fr; }
   .hw .col3 { min-height: 0; }
   .proof ul { min-width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 28px 24px; }
@@ -539,15 +602,52 @@ section { position: relative; }
   .faq .inline-ans { font-size: 18px; line-height: 1.4; padding: 6px 0 18px 22px; }
   .faq .q[aria-selected="true"] + .inline-ans { display: block; }
   .faq .q { padding: 10px 0; }
-  .foot .name, .foot .get { grid-column: 1 / -1; min-height: 180px; }
-  .foot .name b { font-size: 22vw; }
+}
+@media (max-width: 1100px) {
+  .isl-pic img { width: calc(var(--w) * 1px); }
+  .isl-cap { min-height: 0; }
+  .hero { padding-top: 104px; padding-bottom: 32px; display: block; min-height: 0; }
+  .hero-copy { width: auto; }
+  .hero h1 { font-size: clamp(3.5rem, 12vw, 7rem); }
+  .stage { position: relative; inset: auto; translate: none; width: auto; height: auto; margin: 44px calc(var(--pad) * -1) 0 0; padding: 36px 20px 36px 20px; border-radius: 72px 0 0 72px; display: block; }
+  .js .stage { transform: translateX(10vw); }
+  .stage .demo { width: 100%; max-width: 520px; }
+  .stage .note-card { min-height: 200px; }
+  .get .g-copy, .get .g-side { grid-column: 1 / -1; }
+  .meetshot { grid-column: 1 / -1; }
+}
+@media (max-width: 900px) {
+  :root { --radius: 16px; }
+  .isl-cap { min-height: 0; padding: 0 24px 24px; }
+  .meetshot figcaption { padding-left: 8px; }
+  .new li { display: block; }
+  .new li p { margin-top: 12px; }
+  .new ul { gap: 44px; margin-top: 48px; }
+  .band { height: clamp(96px, 28vw, 150px); padding: 0 8vw; }
+  .band p { font-size: clamp(1.4rem, 6.4vw, 2.4rem); line-height: 1.05; }
+  .foot .name, .foot .get-pill { grid-column: 1 / -1; min-height: 150px; }
+  .foot .name b { font-size: 17.5vw; }
+  .foot .get-pill { padding: 20px 28px; font-size: 20px; }
+  .cmd code { font-size: 14px; }
+}
+@media (max-width: 700px) {
+  .isl-grid { grid-template-columns: minmax(0, 1fr); margin-top: 48px; }
+  .tabs { flex-wrap: nowrap; overflow-x: auto; margin-right: calc(var(--pad) * -1); padding-right: var(--pad); scrollbar-width: none; }
+  .tabs button { flex: none; }
+  .dash .shot { overflow-x: auto; }
+  .dash .shot img { min-width: 760px; }
+}
+@media (max-width: 860px) {
+  .js .isle { position: absolute; }
+  .isle-body { flex-direction: column; align-items: flex-start; gap: 8px; height: auto; padding: 16px 22px 20px; white-space: normal; }
+  .isle ul { flex-direction: column; align-items: flex-start; gap: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .btn, .hold, .bar-btn, .faq .q, .who, .slot img, .pipe li, .meter .fill, .hb .t i, .nav .mark img, .foot .get, .foot .get svg { translate: none !important; scale: none !important; transform: none !important; }
+  .btn, .hold, .bar-btn, .faq .q, .who, .slot img, .pipe li, .meter .fill, .hb .t i, .isle .mark img, .foot .get-pill, .foot .get-pill svg, .tabs button, .stage { translate: none !important; scale: none !important; transform: none !important; }
   .btn::before { transition: none; }
   html { scroll-behavior: auto; }
-  .js .rv, .js .stage .demo { transform: none; transition: opacity .3s; }
-  .js .stage, .js .stage.in { clip-path: polygon(72px 0, 100% 0, 100% 100%, 0 100%, 0 72px); transition: none; }
+  .js .rv, .js .stage { transform: none; transition: opacity .3s; }
+  .js .isle, .js .isle-body, .pane { transition-duration: .01s; }
   .pill[data-state="listening"] .ind::after, .caret, .bar-top .rec::before, .caps p { animation: none; }
 }
 </style>
@@ -556,32 +656,32 @@ section { position: relative; }
 <body>
 
 <header class="hero" id="top">
-  <nav class="nav" aria-label="Main">
-    <a class="mark" href="#top"><img src="img/icon.png" alt="" width="26" height="26">OpenFlow</a>
-    <ul>
-      <li><a href="#odia">Odia</a></li>
-      <li><a href="#story">Story</a></li>
-      <li><a href="#research">Research</a></li>
-      <li><a href="#meetings">Meetings</a></li>
-      <li><a href="#new">What's new</a></li>
-      <li><a href="#versions">Versions</a></li>
-      <li><a href="#hardware">No GPU</a></li>
-      <li><a href="#faq">Questions</a></li>
-      <li><a class="btn" href="https://github.com/Sachin1724/OpenFlow/releases/latest/download/OpenFlow-Setup.exe">Download</a></li>
-    </ul>
+  <nav class="isle" id="isle" aria-label="Main">
+    <button class="isle-dot" type="button" aria-expanded="false" aria-controls="isleBody" aria-label="Open the menu"></button>
+    <div class="isle-body" id="isleBody">
+      <a class="mark" href="#top"><img src="img/icon.png" alt="" width="24" height="24">OpenFlow</a>
+      <ul>
+        <li><a href="#island">Island</a></li>
+        <li><a href="#dashboard">Dashboard</a></li>
+        <li><a href="#odia">Odia</a></li>
+        <li><a href="research.html">Research</a></li>
+        <li><a href="#meetings">Meetings</a></li>
+        <li><a href="changelog.html">Versions</a></li>
+        <li><a class="btn" href="#get">Get</a></li>
+      </ul>
+    </div>
   </nav>
 
   <div class="hero-copy">
     <h1 class="rv">Speak.<br>It types.</h1>
-    <p class="lead rv" style="--i:1">Free voice dictation for Windows that never leaves your PC. Hold a key, talk, and the words land in any app.</p>
+    <p class="lead rv" style="--i:1">Free voice dictation for Windows that never leaves your PC. Hold a key, talk, and the words land in any app. The demo here is the real thing, so try it.</p>
     <div class="actions rv" style="--i:2">
-      <a class="btn" href="https://github.com/Sachin1724/OpenFlow/releases/latest/download/OpenFlow-Setup.exe">Download for Windows (.exe)</a>
-      <span class="note">Offline. No account. No limits.</span>
+      <a class="btn big" href="https://github.com/Sachin1724/OpenFlow/releases/latest/download/OpenFlow-Setup.exe">Download for Windows (.exe)</a>
+      <a class="btn big light-quiet" href="changelog.html">See what's new</a>
     </div>
   </div>
 
   <div class="stage" id="stage">
-    <span class="stage-label">This one works. Try it.</span>
     <div class="demo" data-ui id="heroDemo">
       <div class="note-card">
         <div class="title">Notes</div>
@@ -607,15 +707,98 @@ section { position: relative; }
     </p>
     <div class="after">
       <p class="rv">No subscription, no word counter, no cloud. The model downloads once and works offline after that.</p>
-      <a class="btn rv" style="--i:1" href="https://github.com/Sachin1724/OpenFlow/releases/latest/download/OpenFlow-Setup.exe">Get OpenFlow (.exe)</a>
+      <a class="btn rv" style="--i:1" href="#get">Get OpenFlow</a>
     </div>
   </div>
 </section>
 
+<section class="isl pad" id="island" aria-labelledby="i-h">
+  <h2 id="i-h" class="rv">Meet the island.</h2>
+  <p class="intro2 rv" style="--i:1">A new capsule style for the top edge of your screen. It rests as a small black pill, tucks away when you stop, and springs open when you speak, when something needs saying, or when you want a setting. Choose it in Settings, under Capsule.</p>
+  <div class="isl-grid">
+    <article class="isl-card rv">
+      <div class="isl-pic"><img src="img/island-idle.png" alt="The island at rest: a small black pill with one dot" width="92" height="26" style="--w:92"></div>
+      <div class="isl-cap"><h3>Rest</h3><p>A small black pill with one dot. After a few seconds it tucks up to the edge, and a hover brings it back.</p></div>
+    </article>
+    <article class="isl-card rv" style="--i:1">
+      <div class="isl-pic"><img src="img/island-listen.png" alt="The island listening, with a red dot, a live waveform and the language badge" width="236" height="40" style="--w:236">
+        <div class="bubble" data-type="send the file to Rahul and then book the room for Friday morning">send the file to Rahul and then book the room for Friday morning</div></div>
+      <div class="isl-cap"><h3>Listening</h3><p>Hold Ctrl+Shift and it springs open with a live waveform. Your words type in underneath as you speak.</p></div>
+    </article>
+    <article class="isl-card rv">
+      <div class="isl-pic"><img src="img/island-writing.png" alt="The island writing, with a spinner" width="188" height="40" style="--w:188"></div>
+      <div class="isl-cap"><h3>Writing</h3><p>Let go and a spinner shows while the text is cleaned up: filler words out, punctuation in.</p></div>
+    </article>
+    <article class="isl-card rv" style="--i:1">
+      <div class="isl-pic"><img src="img/island-pasted.png" alt="The island showing a green check and the word Pasted" width="160" height="40" style="--w:160"></div>
+      <div class="isl-cap"><h3>Pasted</h3><p>A green check, then it folds away. The text is already in the app you were using.</p></div>
+    </article>
+    <article class="isl-card rv">
+      <div class="isl-pic"><img src="img/island-mic.png" alt="The island announcing that a microphone was connected" width="344" height="62" style="--w:344"></div>
+      <div class="isl-cap"><h3>Alerts</h3><p>A microphone plugged in, a model ready, an update waiting: every notice shares this one shape and waits its turn.</p></div>
+    </article>
+    <article class="isl-card rv" style="--i:1">
+      <div class="isl-pic"><img src="img/island-panel.png" alt="The island opened into its settings panel: language, model, microphone and style" width="356" height="284" style="--w:356"></div>
+      <div class="isl-cap"><h3>Settings</h3><p>Click it for language, model, microphone and style. Its width and height are yours to set, and it grows on big screens.</p></div>
+    </article>
+  </div>
+</section>
+
+<section class="dash field-light pad" id="dashboard" aria-labelledby="d-h">
+  <h2 id="d-h" class="rv">The new dashboard.</h2>
+  <p class="lead3 rv" style="--i:1">A sidebar, grouped settings and a mouse wheel that scrolls the page instead of changing a slider under your cursor. It opens from the tray or the capsule, never at boot.</p>
+  <div class="tabs rv" style="--i:2" role="tablist" aria-label="Dashboard pages" data-tabs="dash">
+    <button type="button" role="tab" id="dt-hist" aria-controls="dp-hist" aria-selected="true">History</button>
+    <button type="button" role="tab" id="dt-meet" aria-controls="dp-meet" aria-selected="false" tabindex="-1">Meeting Notes</button>
+    <button type="button" role="tab" id="dt-model" aria-controls="dp-model" aria-selected="false" tabindex="-1">Model Library</button>
+    <button type="button" role="tab" id="dt-set" aria-controls="dp-set" aria-selected="false" tabindex="-1">Settings</button>
+    <button type="button" role="tab" id="dt-stat" aria-controls="dp-stat" aria-selected="false" tabindex="-1">Analytics</button>
+  </div>
+  <div class="panes" id="dashPanes">
+    <div class="pane on" id="dp-hist" role="tabpanel" aria-labelledby="dt-hist">
+      <div class="shot"><img src="img/ui-history.png" alt="The History page: a searchable table of dictations with app, words, speed and text" width="1180" height="760" loading="lazy"></div>
+      <p class="says">Everything you dictated, newest first and searchable. Double-click a row to copy it.<small>Sample data shown.</small></p>
+    </div>
+    <div class="pane" id="dp-meet" role="tabpanel" aria-labelledby="dt-meet">
+      <div class="shot"><img src="img/ui-meetings.png" alt="The Meeting Notes page: a list of meetings and the notes for one, with summary, decisions, action items and transcript" width="1180" height="760" loading="lazy"></div>
+      <p class="says">Calls, and anything your speakers play, as a summary, decisions, action items and a transcript with a paragraph for each sentence. Export it as Markdown.<small>Sample data shown.</small></p>
+    </div>
+    <div class="pane" id="dp-model" role="tabpanel" aria-labelledby="dt-model">
+      <div class="shot"><img src="img/ui-models.png" alt="The Model Library page: each speech model with its size, speed, accuracy and a button to use or delete it" width="1180" height="760" loading="lazy"></div>
+      <p class="says">What is on your PC, what each model costs in space, and a switch between them. Nothing downloads until you press Download.</p>
+    </div>
+    <div class="pane" id="dp-set" role="tabpanel" aria-labelledby="dt-set">
+      <div class="shot"><img src="img/ui-settings.png" alt="The Settings page, grouped like a system settings screen, with capsule style, width, height and opacity sliders" width="1180" height="760" loading="lazy"></div>
+      <p class="says">Grouped like a system settings page. The capsule's width, height and opacity change while you drag.</p>
+    </div>
+    <div class="pane" id="dp-stat" role="tabpanel" aria-labelledby="dt-stat">
+      <div class="shot"><img src="img/ui-analytics.png" alt="The Analytics page: dictations, words spoken, typing time saved and effective speed" width="1180" height="760" loading="lazy"></div>
+      <p class="says">Dictations, words, time saved and speed, counted on your PC and nowhere else.<small>Sample data shown.</small></p>
+    </div>
+  </div>
+</section>
+
+<section class="new pad" id="new" aria-labelledby="n-h">
+  <h2 id="n-h" class="rv">Coming in 1.3.0.</h2>
+  <p class="intro rv" style="--i:1">These are built and tested, and not released yet. The installer you can download today does not include them.</p>
+  <ul>
+    <li class="rv"><h3>A Dynamic Island capsule.</h3><p>Pick it in Settings. It rests at the top of the screen, springs open for dictation, types your words in underneath as you speak, and queues every notice.</p></li>
+    <li class="rv"><h3>A lighter, steadier app.</h3><p>The speech engine now runs in its own process and is released after 10 idle minutes. A stuck model can no longer freeze the window, and if the interface ever stops responding, OpenFlow writes a log and restarts itself.</p></li>
+    <li class="rv"><h3>A new dashboard.</h3><p>A sidebar, grouped settings, a model library that fits on the page, and a mouse wheel that no longer moves a slider while you scroll.</p></li>
+    <li class="rv"><h3>Your size, on any screen.</h3><p>Width and height sliders for the capsule and the island, and an option to grow on screens wider than 1920 pixels.</p></li>
+    <li class="rv"><h3>Silence stays silent.</h3><p>A recording with no speech in it never reaches the model, and repeated-phrase loops are cut, so it stops writing sentences you never said.</p></li>
+    <li class="rv"><h3>Notes that read like notes.</h3><p>Exported meeting notes keep one paragraph for each sentence, not one block for each speaker.</p></li>
+  </ul>
+  <div class="more rv"><a class="btn big light-quiet" href="changelog.html">Every version, in detail</a></div>
+</section>
+
+<div class="band rv" role="note"><p>Nothing leaves your PC.</p></div>
+
 <section class="odia pad" id="odia" aria-labelledby="o-h">
   <div class="grid">
     <div class="copy">
-      <h2 id="o-h" class="rv">Speak Odia.<br>Write anywhere.<span class="or" lang="or">ଓଡ଼ିଆରେ କୁହନ୍ତୁ, ଯେକୌଣସି ଆପରେ ଲେଖନ୍ତୁ।</span></h2>
+      <h2 id="o-h" class="rv">Speak Odia.<br>Write anywhere.</h2>
+      <p class="or rv" lang="or" style="--i:1">ଓଡ଼ିଆରେ କୁହନ୍ତୁ, ଯେକୌଣସି ଆପରେ ଲେଖନ୍ତୁ।</p>
       <p class="rv" style="--i:1">Whisper has no Odia, so Odia speech used to come out in English letters. OpenFlow now carries a dedicated Odia model from AI4Bharat that writes real Odia script, and a second model that turns your Odia into English before it is pasted.</p>
       <p class="rv" style="--i:2">Both run on your PC, on an ordinary CPU, with the network off.</p>
     </div>
@@ -687,7 +870,7 @@ section { position: relative; }
   --anatomy-halo:#050505;--anatomy-halo-opacity:.9;--anatomy-dot:#e6e6e6;
   --anatomy-red:#ff6b6b;--anatomy-green:#6be0a0;--anatomy-blue:#6b9bff;
   --anatomy-weight:.6px;--anatomy-ease:cubic-bezier(.32,.72,0,1);
-  --anatomy-mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --anatomy-mono:var(--font);
   --anatomy-lift:inset 0 1px 0 0 #ffffff0a,inset 0 0 0 1px #ffffff06,0 0 0 1px #00000026,0 1px 1px -.5px #00000014,0 3px 3px -1.5px #00000014,0 6px 6px -3px #00000014,0 12px 12px -6px #00000014;
 }
 .iso[data-theme="light"]{
@@ -744,7 +927,7 @@ section { position: relative; }
 .iso-dots[data-tone="mid"] circle{opacity:.45}
 .iso-dots[data-tone="lo"] circle{opacity:.22}
 .iso-dots[data-tone="faint"] circle{opacity:.12}
-.iso-face-text{fill:var(--anatomy-mid);font-family:var(--anatomy-mono);letter-spacing:.04em}
+.iso-face-text{fill:var(--anatomy-mid);font-family:inherit;letter-spacing:.04em}
 .iso-face-text[data-tone="hi"]{fill:var(--anatomy-hi)}
 .iso-face-text[data-tone="lo"]{fill:var(--anatomy-lo)}
 .iso-face-text[data-tone="faint"]{fill:var(--anatomy-faint)}
@@ -760,9 +943,9 @@ section { position: relative; }
 .iso-line[data-flow]{animation:iso-flow 1600ms linear infinite}
 .iso-dots circle[data-pulse]{animation:iso-pulse 1600ms steps(1,end) infinite;animation-delay:var(--pulse-at,0ms)}
 .iso-figure{margin:32px 0 36px}
-.iso-plate{position:relative;padding:52px 24px;border-radius:0;background:var(--anatomy-card);box-shadow:0 0 0 1px var(--anatomy-mid);--anatomy-paper:var(--anatomy-card)}
+.iso-plate{position:relative;padding:52px 24px;border-radius:0;background:var(--anatomy-card);--anatomy-paper:var(--anatomy-card)}
 .iso-plate-corners{position:absolute;inset:18px 20px;pointer-events:none}
-.iso-plate-corner{position:absolute;color:var(--anatomy-muted);font-family:var(--anatomy-mono);font-size:10.5px;line-height:1;letter-spacing:.04em;white-space:nowrap}
+.iso-plate-corner{position:absolute;color:var(--anatomy-muted);font-family:inherit;font-size:10.5px;line-height:1;letter-spacing:.04em;white-space:nowrap}
 .iso-plate-corner[data-corner="fig"]{top:0;left:0;color:var(--anatomy-text)}
 .iso-plate-corner[data-corner="title"]{top:0;right:0;text-transform:uppercase;letter-spacing:.1em}
 .iso-plate-corner[data-corner="hint"]{bottom:0;left:0;text-transform:uppercase;letter-spacing:.1em}
@@ -889,6 +1072,7 @@ draw(still.matches ? 6 : 0);
   </div>
   <details class="rv"><summary>All numbers as a table</summary><div data-table></div></details>
   <p class="method rv" data-method></p>
+  <div class="more rv"><a class="btn big light-quiet" href="research.html">See all the research</a></div>
   <div class="tip" role="tooltip" data-tip></div>
 </section>
 
@@ -927,37 +1111,7 @@ draw(still.matches ? 6 : 0);
         </div>
       </div>
     </div>
-  </div>
-</section>
-
-<section class="new pad" id="new" aria-labelledby="n-h">
-  <h2 id="n-h" class="rv">What's new</h2>
-  <ul>
-    <li class="rv"><h3>Native Odia dictation.</h3><p>A dedicated AI4Bharat IndicConformer model writes Odia in Odia script, with a word error rate of 19.7% against Whisper's 125%. Pick Odia in the capsule and it is used automatically.</p></li>
-    <li class="rv"><h3>Speak Odia, write English.</h3><p>Choose Odia → English and IndicTrans2 translates on your PC before the text is pasted. The model downloads once, only when you pick it.</p></li>
-    <li class="rv"><h3>On-device NPU acceleration.</h3><p>Windows 11 Copilot+ PCs (Intel Core Ultra AI Boost) now run Whisper models on the NPU at under 2 Watts. Dictate and record meetings all day with zero fan spin and virtually no battery drain.</p></li>
-    <li class="rv"><h3>Apple-grade capsule HUD.</h3><p>Re-architected dark HUD material with fluid iOS toggle switches, inset grouped cards, and macOS-style popovers with leading accent checks and system typography.</p></li>
-    <li class="rv"><h3>Silent capsule-only boot.</h3><p>OpenFlow launches directly into the subtle floating dynamic island capsule without opening the heavy dashboard window. The full dashboard opens on demand from the tray or capsule.</p></li>
-    <li class="rv"><h3>Press-to-record hotkey box.</h3><p>Set custom hotkeys by simply clicking and pressing your keys. Automatically pauses global listeners during recording to prevent shortcut capture collisions.</p></li>
-    <li class="rv"><h3>Deterministic model downloads.</h3><p>Zero unsolicited background downloads. OpenFlow strictly downloads only the exact variant you select, and transparently substitutes cached local models.</p></li>
-  </ul>
-</section>
-
-<section class="log pad" id="versions" aria-labelledby="v-h">
-  <h2 id="v-h" class="rv">Version log</h2>
-  <div class="logs">
-    <details class="rv" open><summary><b>v1.2.0</b><span>Fixes</span></summary><ul><li>No more frozen tray, taskbar or Start menu after the app has been running a while.</li><li>If the app ever stops responding, it logs why and restarts itself.</li><li>Faster first dictation after idle: the model stays loaded on CPU and NPU.</li></ul></details>
-    <details class="rv"><summary><b>v1.1.9</b><span>Fixes</span></summary><ul><li>Hotkey works again after the app has been idle for 10 minutes.</li><li>Intel NPU is picked automatically on Core Ultra PCs.</li><li>A GPU that froze stays off on the next start.</li><li>Install with <code>npx github:Sachin1724/OpenFlow</code>.</li><li>Landing page demo fits on phones.</li></ul></details>
-    <details class="rv"><summary><b>v1.1.8</b><span>Fixes</span></summary><ul><li>Odia always uses the Odia model, even with Whisper selected.</li><li>Odia word language model: WER 21.1% to 20.1%, CER 5.8% to 5.5%.</li><li>Odia output is limited to Odia script.</li></ul></details>
-    <details class="rv"><summary><b>v1.1.7</b><span>Fixes</span></summary><ul><li>Dictation pastes again on Windows builds that dropped batched Ctrl+V.</li><li>A frozen GPU call no longer causes an endless spinner; it falls back to the CPU after 10 s.</li><li>Accidental hotkey taps under 0.35 s are ignored.</li><li>Dashboard no longer opens at boot.</li><li>Capsule opacity slider, 30 to 100%.</li></ul></details>
-    <details class="rv"><summary><b>v1.1.6</b><span>Highlights</span></summary><ul><li>Smoother, sharper capsule on high-DPI screens with a live audio waveform.</li><li>Native Odia dictation and offline Odia to English translation.</li><li>Meeting notes and voice edits with a local Qwen2.5 model.</li></ul></details>
-    <details class="rv"><summary><b>v1.1.5</b><span>Highlights</span></summary><ul><li>Fixed the startup crash from relative imports.</li><li>Reliable Windows packaging in CI.</li><li>About 65% faster CPU dictation on laptops without a GPU.</li><li>The app relaunches itself after a silent update.</li></ul></details>
-    <details class="rv"><summary><b>v1.1.4</b><span>Highlights</span></summary><ul><li>Faster CPU inference on AMD Ryzen and Intel laptops.</li><li>Fixed the <code>No module named 'openflow'</code> startup crash.</li><li>Relaunch after silent updates.</li></ul></details>
-    <details class="rv"><summary><b>v1.1.3</b><span>Highlights</span></summary><ul><li>Fixed packaging so every module is bundled in the Windows build.</li></ul></details>
-    <details class="rv"><summary><b>v1.1.2</b><span>Highlights</span></summary><ul><li>Fixed the package-resolution crash introduced in v1.1.1.</li></ul></details>
-    <details class="rv"><summary><b>v1.1.1</b><span>Highlights</span></summary><ul><li>In-app auto-update no longer re-prompts or hits file locks.</li><li>Automatic detection of WhatsApp Desktop calls and browser meetings.</li><li>Better Indian English, Hinglish and Odia accuracy.</li></ul></details>
-    <details class="rv"><summary><b>v1.1.0</b><span>Highlights</span></summary><ul><li>Intel NPU acceleration at under 2 W.</li><li>Apple-style capsule HUD redesign.</li><li>Silent capsule-first boot.</li><li>Press-to-record hotkey box.</li><li>Models download only when you pick them.</li></ul></details>
-    <details class="rv"><summary><b>v1.0.0</b><span>First release</span></summary><ul><li>Single-file Windows installer, no admin needed.</li><li>GPU-accelerated live dictation with a floating capsule.</li><li>Automatic meeting notes.</li><li>Microphone hotplug detection.</li><li>Tone presets: Smart Clean, Developer, Email, Bullets, Verbatim.</li><li>99+ languages.</li></ul></details>
+    <figure class="meetshot rv" style="--i:1"><img src="img/ui-meetings.png" alt="The Meeting Notes page of the new dashboard, showing a meeting's summary, decisions, action items and transcript" width="1180" height="760" loading="lazy"><figcaption>The same notes in the dashboard. Sample data shown.</figcaption></figure>
   </div>
 </section>
 
@@ -997,21 +1151,41 @@ draw(still.matches ? 6 : 0);
   </div>
 </section>
 
-<section class="cta pad" id="get" aria-labelledby="c-h">
-  <h2 id="c-h" class="rv">Stop typing. Start talking.</h2>
-  <div class="row2 rv" style="--i:1">
-    <a class="btn on-light" href="https://github.com/Sachin1724/OpenFlow/releases/latest/download/OpenFlow-Setup.exe">Download for Windows (.exe)</a>
-    <p>Windows 10 or 11. Free, offline, and no account.</p>
+<section class="get pad" id="get" aria-labelledby="g-h">
+  <div class="grid">
+    <div class="g-copy">
+      <h2 id="g-h" class="rv">Get OpenFlow.</h2>
+      <p class="rv" style="--i:1">Free, offline and no account. For Windows 10 or 11, 64-bit. A graphics card is optional.</p>
+      <div class="row2 rv" style="--i:2">
+        <a class="btn on-light big" href="https://github.com/Sachin1724/OpenFlow/releases/latest/download/OpenFlow-Setup.exe">Download for Windows (.exe)</a>
+        <a class="btn big quiet-light" href="changelog.html">Every version, in detail</a>
+      </div>
+      <p class="small rv" style="--i:3">Windows says it is not commonly downloaded? That is normal for a new free app. <a href="#faq">Here is why, and what to click.</a></p>
+    </div>
+    <div class="g-side">
+      <div class="rv" style="--i:1">
+        <h3>Or from a terminal</h3>
+        <div class="cmd"><code id="cmdText">npx github:Sachin1724/OpenFlow</code><button class="btn" type="button" id="copyCmd">Copy</button></div>
+      </div>
+      <div class="rv" style="--i:2">
+        <h3>The first minute</h3>
+        <ol class="firsts">
+          <li><span><b>Run the installer.</b> It adds shortcuts and asks for no administrator rights.</span></li>
+          <li><span><b>Hold Ctrl+Shift</b> in any app and speak.</span></li>
+          <li><span><b>Let go.</b> The words are typed where your cursor is.</span></li>
+        </ol>
+      </div>
+    </div>
   </div>
 </section>
 
 <footer class="foot">
   <div class="name" aria-hidden="true"><b>OpenFlow</b></div>
-  <a class="get" href="https://github.com/Sachin1724/OpenFlow/releases/latest/download/OpenFlow-Setup.exe"><span>Download for Windows (.exe)</span>
+  <a class="get-pill" href="https://github.com/Sachin1724/OpenFlow/releases/latest/download/OpenFlow-Setup.exe"><span>Download for Windows (.exe)</span>
     <svg viewBox="0 0 56 56" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 42L42 14M20 14h22v22"/></svg></a>
   <div class="links">
     <p>Voice dictation that stays on your computer.</p>
-    <ul><li><a href="#meetings">Meetings</a></li><li><a href="#faq">Questions</a></li><li><a href="https://github.com/Sachin1724/OpenFlow">Source</a></li></ul>
+    <ul><li><a href="changelog.html">Versions</a></li><li><a href="#island">Island</a></li><li><a href="#dashboard">Dashboard</a></li><li><a href="research.html">Research</a></li><li><a href="#meetings">Meetings</a></li><li><a href="#faq">Questions</a></li><li><a href="https://github.com/Sachin1724/OpenFlow">Source</a></li></ul>
   </div>
 </footer>
 
@@ -1375,6 +1549,75 @@ draw(still.matches ? 6 : 0);
   document.querySelectorAll('.rv, .how figure').forEach(el => io.observe(el));
   requestAnimationFrame(() => requestAnimationFrame(() => document.getElementById('stage').classList.add('in')));
   document.querySelectorAll('.features .slot').forEach((s, i) => { s.style.transition = 'transform .6s var(--ease) ' + i * 90 + 'ms'; });
+})();
+</script>
+<script>
+(() => {
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ---- the page's own island: a pill flush to the top edge that springs open ---- */
+  const isle = document.getElementById('isle'), dot = isle.querySelector('.isle-dot'), ibody = isle.querySelector('.isle-body');
+  let over = false, shut = 0;
+  const setOpen = on => { isle.classList.toggle('open', on); dot.setAttribute('aria-expanded', on); };
+  const openFor = ms => { clearTimeout(shut); setOpen(true); if (ms) shut = setTimeout(() => { if (!over && !isle.contains(document.activeElement)) setOpen(false); }, ms); };
+  if (reduce) { setOpen(true); isle.classList.add('static'); }
+  else {
+    const small = matchMedia('(max-width: 900px)').matches;  // on a phone the menu opens only when tapped: it would cover the headline
+    if (!small) setTimeout(() => openFor(2800), 900);
+    isle.addEventListener('pointerenter', () => { over = true; openFor(); });
+    isle.addEventListener('pointerleave', () => { over = false; openFor(900); });
+    isle.addEventListener('focusin', () => openFor());
+    isle.addEventListener('focusout', e => { if (!isle.contains(e.relatedTarget)) openFor(500); });
+    dot.addEventListener('click', () => openFor(4500));
+    isle.querySelectorAll('a').forEach(a => a.addEventListener('click', () => { over = false; openFor(250); }));
+    let y = scrollY;
+    addEventListener('scroll', () => { const d = scrollY - y; y = scrollY; if (d < -8 && !small) openFor(2200); else if (d > 8 && !over) { clearTimeout(shut); setOpen(false); } }, { passive: true });
+  }
+
+  /* ---- pill tabs: click, arrow keys, Home and End; panels crossfade ---- */
+  function tabs(list, onShow) {
+    const t = [...list.querySelectorAll('[role=tab]')];
+    const show = (tab, focus) => {
+      t.forEach(x => { const on = x === tab; x.setAttribute('aria-selected', on); x.tabIndex = on ? 0 : -1; document.getElementById(x.getAttribute('aria-controls')).classList.toggle('on', on); });
+      if (focus) tab.focus();
+      if (onShow) onShow(tab);
+    };
+    t.forEach((tab, i) => {
+      tab.addEventListener('click', () => show(tab));
+      tab.addEventListener('keydown', e => {
+        const j = { ArrowRight: i + 1, ArrowDown: i + 1, ArrowLeft: i - 1, ArrowUp: i - 1, Home: 0, End: t.length - 1 }[e.key];
+        if (j == null) return;
+        e.preventDefault(); show(t[(j + t.length) % t.length], true);
+      });
+    });
+    return { tabs: t, show };
+  }
+
+  /* the live words under the listening island type in, as they do in the app */
+  const bubble = document.querySelector('.bubble');
+  let typing = 0;
+  function typeBubble() {
+    clearInterval(typing);
+    const full = bubble.dataset.type; if (reduce) { bubble.textContent = full; return; }
+    const c = document.createElement('span'); c.className = 'caret'; bubble.textContent = ''; bubble.append(c);
+    let n = 0;
+    typing = setInterval(() => { c.before(full[n++]); if (n >= full.length) { clearInterval(typing); setTimeout(() => c.remove(), 900); } }, 38);
+  }
+
+  tabs(document.querySelector('[data-tabs=dash]'));
+
+  /* the live caption under the listening island types itself in whenever its card scrolls into view */
+  new IntersectionObserver(es => { if (es[0].isIntersecting) typeBubble(); else clearInterval(typing); }, { threshold: .6 })
+    .observe(bubble.closest('.isl-card'));
+
+  /* ---- copy the install line ---- */
+  const copy = document.getElementById('copyCmd');
+  copy.addEventListener('click', async () => {
+    const text = document.getElementById('cmdText').textContent;
+    try { await navigator.clipboard.writeText(text); }
+    catch (e) { const r = document.createRange(); r.selectNodeContents(document.getElementById('cmdText')); const s = getSelection(); s.removeAllRanges(); s.addRange(r); try { document.execCommand('copy'); } catch (e2) {} }
+    copy.textContent = 'Copied'; setTimeout(() => { copy.textContent = 'Copy'; }, 1800);
+  });
 })();
 </script>
 </body>

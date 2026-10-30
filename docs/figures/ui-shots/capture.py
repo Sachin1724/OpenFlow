@@ -2,6 +2,8 @@
 and the island's states (transparent PNG). Run from the repo root: python docs/figures/ui-shots/capture.py"""
 import os, sys, datetime
 os.environ["QT_QPA_PLATFORM"] = "offscreen"
+SCALE = os.environ.get("SHOT_SCALE", "1")             # 2 or 3 renders the pictures sharp for retina screens
+os.environ["QT_SCALE_FACTOR"] = SCALE
 from PyQt6.QtWidgets import QApplication, QScrollArea
 from PyQt6.QtTest import QTest
 from PyQt6.QtCore import QRect
@@ -57,7 +59,8 @@ def island(name, h=70):
     QTest.qWait(1000)
     r = isl._shape_rect().toAlignedRect().adjusted(-10, 0, 10, 10)
     path = os.path.join(OUT, f"island-{name}.png")
-    isl.grab().copy(QRect(r.x(), 0, r.width(), min(h, isl.height()))).save(path)
+    k = float(SCALE)
+    isl.grab().copy(QRect(int(r.x() * k), 0, int(r.width() * k), int(min(h, isl.height()) * k))).save(path)
     from PIL import Image
     im = Image.open(path).convert("RGBA")
     im.crop(im.getchannel("A").getbbox()).save(path)  # tight to the shape: transparent edges only get in the way
