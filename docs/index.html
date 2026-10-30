@@ -424,8 +424,8 @@ section { position: relative; }
 .faq .q[aria-selected="true"] { color: var(--light-ink); }
 .faq .q[aria-selected="true"]::before { background: #000; }
 .faq .q:focus-visible { outline: 2px solid #000; outline-offset: 6px; border-radius: 6px; }
-.faq .pane { grid-column: 7 / 13; position: sticky; top: 120px; align-self: start; font-size: clamp(1.4rem, 1.1rem + 1vw, 1.75rem); line-height: 1.3; letter-spacing: -0.015em; max-width: 30ch; min-height: 8em; transition: opacity .15s; }
-.faq .pane.swap { opacity: 0; }
+.faq .ans { grid-column: 7 / 13; position: sticky; top: 120px; align-self: start; font-size: clamp(1.4rem, 1.1rem + 1vw, 1.75rem); line-height: 1.3; letter-spacing: -0.015em; max-width: 30ch; min-height: 8em; transition: opacity .15s; }
+.faq .ans.swap { opacity: 0; }
 .faq .inline-ans { display: none; }
 
 /* motion: entrances that never hide content without script */
@@ -598,7 +598,7 @@ section[id] { scroll-margin-top: 24px; }
   .hw .col3 { min-height: 0; }
   .proof ul { min-width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 28px 24px; }
   .faq .qs { grid-column: 1 / -1; gap: 4px; }
-  .faq .pane { display: none; }
+  .faq .ans { display: none; }
   .faq .inline-ans { font-size: 18px; line-height: 1.4; padding: 6px 0 18px 22px; }
   .faq .q[aria-selected="true"] + .inline-ans { display: block; }
   .faq .q { padding: 10px 0; }
@@ -1147,7 +1147,7 @@ draw(still.matches ? 6 : 0);
     <ul class="qs" id="qs">
       <li><h2 id="q-h">Questions</h2></li>
     </ul>
-    <p class="pane" id="pane" aria-live="polite"></p>
+    <p class="ans" id="pane" aria-live="polite"></p>
   </div>
 </section>
 
