@@ -43,7 +43,9 @@
   --soft: #a1a1a6;
   --accent: #0a84ff;
   --accent-ink: #000000;
-  --pad: clamp(20px, 3.4vw, 48px);
+  --pad: clamp(24px, 3.4vw, 48px);
+  --r: 26px;           /* the one radius of every picture and card; pills (999px) are only buttons, chips, bullets and the header motif */
+  --max: 1400px;       /* content never gets wider than this, however big the screen */
   --font: 'General Sans', 'Inter', 'Segoe UI Variable Text', 'Segoe UI', -apple-system, 'Helvetica Neue', sans-serif;
   --step-small: clamp(0.8125rem, 0.79rem + 0.1vw, 0.875rem);
   --step-body: clamp(1.0625rem, 1rem + 0.25vw, 1.1875rem);
@@ -69,7 +71,7 @@ h1, h2, h3, p, ul, ol { margin: 0; }
 h1, h2 { font-weight: 500; letter-spacing: -0.04em; line-height: .96; text-wrap: balance; }
 ul { list-style: none; padding: 0; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-.wrap { padding-inline: var(--pad); }
+.wrap { width: 100%; max-width: calc(var(--max) + 2 * var(--pad)); margin-inline: auto; padding-inline: var(--pad); }
 
 /* buttons and chips: one shape, fully round */
 .btn {
@@ -96,26 +98,29 @@ ul { list-style: none; padding: 0; }
 
 /* navigation: wordmark, three links, one action */
 .nav { display: flex; align-items: center; justify-content: space-between; gap: 20px; height: 88px; font-size: 14px; position: relative; z-index: 3; }
-.nav .mark { display: flex; align-items: center; gap: 10px; font-weight: 500; font-size: 17px; letter-spacing: -0.01em; }
-.nav .mark img { width: 34px; height: 34px; transition: transform .5s var(--ease); }
+.nav .mark { display: flex; align-items: center; gap: 10px; height: 34px; line-height: 1; font-weight: 500; font-size: 17px; letter-spacing: -0.01em; }
+.nav .mark img { width: 34px; height: 34px; flex: none; object-fit: contain; transition: transform .5s var(--ease); }
 .nav .mark:hover img { transform: rotate(-8deg) scale(1.08); }
-.nav ul { display: flex; gap: 28px; align-items: center; color: var(--soft); }
+.nav ul { display: flex; gap: 32px; align-items: center; color: var(--soft); }
+.nav li { display: flex; align-items: center; }
 .nav ul a:not(.btn) { transition: color .25s; }
 .nav ul a:not(.btn):hover, .nav ul a[aria-current] { color: var(--ink); }
 .nav .btn { height: 40px; padding: 0 20px; font-size: 14px; }
 
 /* header: the pill, huge, flat, cropped by the viewport edge, filled with the logo's waveform */
-.top { position: relative; overflow: hidden; min-height: min(88svh, 720px); display: flex; flex-direction: column; }
-.top .copy { position: relative; z-index: 2; max-width: 56vw; padding: clamp(36px, 8vh, 96px) 0 64px; }
+.top { --sw: min(64vw, 1000px); position: relative; overflow: hidden; display: flex; flex-direction: column;
+  min-height: max(min(88svh, 720px), calc(var(--sw) / 2 + 180px)); }
+.top .copy { position: relative; z-index: 2; max-width: min(58vw, 800px); padding: clamp(36px, 8vh, 96px) 0 64px; }
 .top h1 { font-size: var(--step-display); }
 .top .lead { margin-top: 28px; max-width: 34ch; font-size: 26px; line-height: 1.3; color: var(--ink); }
 .top .actions { margin-top: 36px; display: flex; gap: 14px; flex-wrap: wrap; }
 .shape {
-  position: absolute; z-index: 1; left: 60vw; top: 21%; width: 64vw; height: 32vw; border-radius: 999px; background: var(--accent);
-  display: flex; align-items: center; gap: 1.9vw; padding-left: 4.4vw;
+  position: absolute; z-index: 1; right: calc(-1 * min(26vw, 340px)); top: 50%; translate: 0 -50%;
+  width: var(--sw); height: calc(var(--sw) / 2); border-radius: 999px; background: var(--accent);
+  display: flex; align-items: center; gap: 3%; padding-left: 7%;
 }
 .shape i, .mark-bars i { display: block; flex: none; border-radius: 999px; background: #000; transform-origin: center; animation: wave 2.6s var(--ease) infinite alternate; animation-delay: calc(var(--i) * -.32s); }
-.shape i { width: 2.5vw; height: calc(var(--h) * 1%); }
+.shape i { width: 3.9%; height: calc(var(--h) * 1%); }
 @keyframes wave { from { transform: scaleY(1); } to { transform: scaleY(.62); } }
 
 /* jump row and filter */
@@ -125,7 +130,7 @@ ul { list-style: none; padding: 0; }
 .js .filter { display: flex; }
 
 /* releases: a huge version number, then the notes in two columns */
-.rel { padding-block: clamp(72px, 11vw, 180px); }
+.rel { padding-block: clamp(72px, 8vw, 140px); }
 .rel:nth-of-type(even) { background: var(--surface); }
 .rel[hidden] { display: none; }
 .rel .in { display: grid; grid-template-columns: repeat(12, 1fr); column-gap: clamp(16px, 2vw, 32px); row-gap: 40px; }
@@ -144,27 +149,30 @@ ul { list-style: none; padding: 0; }
 .group[data-g="fixed"] li::before { background: var(--soft); }
 .group[data-g="better"] li::before { background: var(--ink); }
 .shots { grid-column: 1 / 13; margin-top: 8px; }
-.island-row { display: flex; align-items: center; justify-content: center; gap: clamp(32px, 7vw, 120px); flex-wrap: wrap; background: var(--surface-3); border-radius: clamp(40px, 7vw, 120px); padding: clamp(32px, 5vw, 80px) clamp(24px, 5vw, 88px); }
-.island-row .stack { display: grid; gap: 32px; justify-items: start; }
-.island-row figure { margin: 0; }
-.island-row img { height: auto; }
-.island-row figcaption { margin-top: 12px; color: var(--soft); font-size: 14px; }
-.stadium { margin-top: 24px; border-radius: 999px; overflow: hidden; aspect-ratio: 16 / 5; background: var(--surface-2); }
-.stadium img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 52%; }
-.whole { width: min(720px, 100%); height: auto; border-radius: clamp(36px, 5vw, 72px); margin-top: 24px; }
-.whole.wide { width: min(920px, 100%); border-radius: 999px; }
-.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 0 24px; margin-top: 24px; }
-.pair .stadium { margin-top: 0; aspect-ratio: 16 / 11; border-radius: clamp(36px, 5vw, 72px); }
-.cap { margin-top: 14px; color: var(--soft); font-size: 14px; padding-left: clamp(16px, 3vw, 48px); }
+.shot { display: block; width: 100%; max-width: 1180px; height: auto; border-radius: var(--r); background: var(--surface-2); }
+.shot.w720 { max-width: 720px; }
+.shot.w920 { max-width: 920px; }
+.island-grid, .pair { max-width: 1180px; }
+.island-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 40px 24px; align-items: start; background: var(--surface-3); border-radius: var(--r); padding: clamp(24px, 3vw, 48px); }
+.island-grid .col { display: grid; gap: 32px; align-content: start; justify-items: start; container-type: inline-size; --m: 344; }
+.island-grid .col + .col { --m: 356; }
+.island-grid figure { margin: 0; }
+.island-grid img { display: block; width: min(calc(var(--w) * 2px), calc(100cqw * var(--w) / var(--m))); height: auto; }  /* 2x when there is room, otherwise all of them shrink together */
+.island-grid figcaption { margin-top: 12px; color: var(--soft); font-size: 14px; }
+.cap { margin-top: 12px; color: var(--soft); font-size: 14px; }
+.shots > .shot { margin-top: 32px; }
+.pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px 24px; margin-top: 32px; }
+.pair figure { margin: 0; }
+.pair .shot { max-width: 100%; }
 
 /* get notified, then get OpenFlow */
-.notify { background: var(--surface-2); padding-block: clamp(72px, 10vw, 160px); }
+.notify { background: var(--surface-2); padding-block: clamp(72px, 8vw, 140px); }
 .notify .in { display: grid; grid-template-columns: repeat(12, 1fr); column-gap: 24px; row-gap: 32px; align-items: end; }
 .notify h2 { grid-column: 1 / 8; font-size: var(--step-head); }
 .notify .side { grid-column: 8 / 13; }
 .notify .side p { max-width: 36ch; }
 .notify .actions { margin-top: 24px; display: flex; gap: 12px; flex-wrap: wrap; }
-.get { background: var(--accent); color: var(--accent-ink); padding-block: clamp(80px, 12vw, 200px); }
+.get { background: var(--accent); color: var(--accent-ink); padding-block: clamp(80px, 9vw, 160px); }
 .get .in { display: grid; grid-template-columns: repeat(12, 1fr); column-gap: 24px; row-gap: 40px; align-items: end; }
 .get h2 { grid-column: 1 / 8; font-size: var(--step-version); letter-spacing: -0.06em; line-height: .86; }
 .get .side { grid-column: 8 / 13; }
@@ -175,8 +183,8 @@ ul { list-style: none; padding: 0; }
 .npx .btn { height: 40px; padding: 0 18px; font-size: 14px; flex: none; }
 
 /* footer: the waveform as a row of pills, then plain links */
-.foot { background: var(--bg); padding-block: clamp(56px, 8vw, 120px) 40px; }
-.mark-bars { display: flex; align-items: flex-end; gap: clamp(6px, 1vw, 14px); height: clamp(120px, 22vw, 320px); }
+.foot { background: var(--bg); padding-block: clamp(56px, 7vw, 100px) 40px; }
+.mark-bars { display: flex; align-items: flex-end; gap: clamp(6px, 1vw, 14px); height: clamp(120px, 16vw, 240px); }
 .mark-bars i { flex: 1; height: calc(var(--h) * 1%); background: var(--surface-3); transform-origin: bottom; animation-duration: 3.2s; }
 .foot .links { display: flex; gap: 28px; flex-wrap: wrap; margin-top: 44px; font-size: 17px; }
 .foot .links a { color: var(--soft); transition: color .25s; }
@@ -187,23 +195,21 @@ ul { list-style: none; padding: 0; }
 .js .rv { opacity: 0; transform: translateY(28px); transition: opacity .8s var(--ease), transform .8s var(--ease); transition-delay: calc(var(--d, 0) * 80ms); }
 .js .rv.show { opacity: 1; transform: none; }
 
-@media (max-width: 900px) {
+@media (max-width: 1100px) {
+  .top { --sw: min(125vw, 820px); min-height: 0; }
   .top .copy { max-width: none; padding-bottom: 32px; }
-  .top { min-height: 0; }
-  .shape { position: relative; left: auto; top: auto; width: 150vw; height: 66vw; margin-left: 16vw; margin-bottom: 0; padding-left: 8vw; gap: 4vw; }
-  .shape i { width: 5vw; }
-  .top .stagepad { overflow: hidden; margin-inline: calc(var(--pad) * -1); }
+  .stagepad { overflow: hidden; padding-bottom: 40px; }
+  .shape { position: relative; right: auto; top: auto; translate: none; margin-left: auto; margin-right: calc(var(--sw) * -0.22); }
   .nav ul li:not(:last-child) { display: none; }
   .ver { grid-column: 1 / 13; }
   .notes { grid-column: 1 / 13; columns: 1; }
-  .island-row { border-radius: 40px; }
-  .stadium { aspect-ratio: 16 / 9; border-radius: 40px; }
-  .pair { grid-template-columns: 1fr; gap: 28px; }
-  .pair .stadium { aspect-ratio: 4 / 3; }
-  .stadium img { transform: scale(1.7); transform-origin: 66% 48%; }
   .notify h2, .notify .side, .get h2, .get .side { grid-column: 1 / 13; }
 }
+@media (max-width: 760px) {
+  .island-grid, .pair { grid-template-columns: 1fr; }
+}
 @media (max-width: 520px) {
+  :root { --r: 16px; }
   .top h1 { font-size: 14.2vw; }
   .top .lead { font-size: 22px; }
   .ver h2 { font-size: 24vw; }
@@ -222,7 +228,8 @@ ul { list-style: none; padding: 0; }
 </head>
 <body>
 
-<header class="top wrap" id="top">
+<header class="top" id="top">
+  <div class="wrap">
   <nav class="nav" aria-label="Main">
     <a class="mark" href="index.html"><img src="img/icon.png" alt="" width="34" height="34">OpenFlow</a>
     <ul>
@@ -239,6 +246,7 @@ ul { list-style: none; padding: 0; }
       <a class="btn" href="#v1-3-0">See what ships next</a>
       <a class="btn quiet" href="#get">Get OpenFlow</a>
     </div>
+  </div>
   </div>
   <div class="stagepad" aria-hidden="true">
     <div class="shape">
@@ -312,19 +320,21 @@ ul { list-style: none; padding: 0; }
       </section>
     </div>
     <div class="shots rv">
-      <div class="island-row">
-        <div class="stack">
-          <figure><img src="img/island-listen.png" width="236" height="40" alt="The island while listening: a red dot, a live waveform and the language badge"><figcaption>Listening</figcaption></figure>
-          <figure><img src="img/island-pasted.png" width="160" height="40" alt="The island after pasting: a green check and the word Pasted"><figcaption>Pasted</figcaption></figure>
-          <figure><img src="img/island-mic.png" width="344" height="62" alt="The island showing a notice that a microphone was connected"><figcaption>Alerts</figcaption></figure>
+      <div class="island-grid">
+        <div class="col">
+          <figure><img src="img/island-listen-hd.png" style="--w:236" width="944" height="160" alt="The island while listening: a red dot, a live waveform and the language badge" loading="lazy"><figcaption>Listening</figcaption></figure>
+          <figure><img src="img/island-pasted-hd.png" style="--w:160" width="640" height="160" alt="The island after pasting: a green check and the word Pasted" loading="lazy"><figcaption>Pasted</figcaption></figure>
+          <figure><img src="img/island-mic-hd.png" style="--w:344" width="1376" height="248" alt="The island showing a notice that a microphone was connected" loading="lazy"><figcaption>Alerts</figcaption></figure>
         </div>
-        <figure><img src="img/island-panel.png" width="356" height="284" alt="The island opened into its settings panel with language, model, microphone and style"><figcaption>Settings, one click away</figcaption></figure>
+        <div class="col">
+          <figure><img src="img/island-panel-hd.png" style="--w:356" width="1424" height="1136" alt="The island opened into its settings panel with language, model, microphone and style" loading="lazy"><figcaption>Settings, one click away</figcaption></figure>
+        </div>
       </div>
-      <div class="stadium"><img src="img/ui-settings.png" width="1180" height="760" alt="The new dashboard: Capsule settings with style, opacity, width and height sliders" loading="lazy"></div>
+      <img class="shot" src="img/ui-settings.png" width="1180" height="760" alt="The new dashboard: Capsule settings with style, opacity, width and height sliders" loading="lazy">
       <p class="cap">The new dashboard. Capsule settings: style, opacity, width and height.</p>
       <div class="pair">
-        <div><div class="stadium"><img src="img/ui-models.png" width="1180" height="760" alt="The rebuilt Model Library with each model on its own row" loading="lazy" style="object-position:50% 50%"></div><p class="cap">The rebuilt Model Library.</p></div>
-        <div><div class="stadium"><img src="img/ui-meetings.png" width="1180" height="760" alt="Meeting notes in the new viewer: summary, decisions, action items and a transcript with one paragraph per sentence" loading="lazy" style="object-position:50% 30%"></div><p class="cap">Meeting notes, one paragraph per sentence.</p></div>
+        <figure><img class="shot" src="img/ui-models.png" width="1180" height="760" alt="The rebuilt Model Library with each model on its own row" loading="lazy"><p class="cap">The rebuilt Model Library.</p></figure>
+        <figure><img class="shot" src="img/ui-meetings.png" width="1180" height="760" alt="Meeting notes in the new viewer: summary, decisions, action items and a transcript with one paragraph per sentence" loading="lazy"><p class="cap">Meeting notes, one paragraph per sentence.</p></figure>
       </div>
     </div>
   </div>
@@ -571,7 +581,7 @@ ul { list-style: none; padding: 0; }
       </section>
     </div>
     <div class="shots rv">
-      <img class="whole" src="img/hud.png" width="720" height="624" alt="The capsule opened into its settings HUD" loading="lazy">
+      <img class="shot w720" src="img/hud.png" width="720" height="624" alt="The capsule opened into its settings HUD" loading="lazy">
       <p class="cap">The capsule HUD.</p>
     </div>
   </div>
@@ -595,7 +605,7 @@ ul { list-style: none; padding: 0; }
       </section>
     </div>
     <div class="shots rv">
-      <img class="whole wide" src="img/meeting-captions.png" width="920" height="190" alt="Live meeting captions in the capsule" loading="lazy">
+      <img class="shot w920" src="img/meeting-captions.png" width="920" height="190" alt="Live meeting captions in the capsule" loading="lazy">
       <p class="cap">Meeting mode, live captions.</p>
     </div>
   </div>
