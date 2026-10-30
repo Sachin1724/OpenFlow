@@ -707,9 +707,9 @@ node docs/figures/research/inline-data.mjs</code></pre></div>
       { n: pct(o.wer), t: 'of words wrong on 100 Odia clips. <strong>Whisper base: ' + pct(b.wer) + '.</strong>', hot: true },
       { n: o.rtf.toFixed(3) + '×', t: 'A minute of speech takes <strong>' + dur(o.rtf * 60) + '</strong> to write, on a CPU.' },
       { n: Math.round(o.odia_script) + '%', t: 'of the letters are Odia script. <strong>Whisper writes ' + Math.round(b.odia_script) + '%.</strong>' },
-      { n: s.after.with_text + ' of ' + s.recordings, t: s.before.with_text === s.after.with_text
-          ? 'silent and noisy recordings come back with invented text.'
-          : 'noise recordings come back with invented text now. <strong>It was ' + s.before.with_text + ' of ' + s.recordings + '.</strong>' }
+      { n: (s.recordings - s.after.with_text) + ' of ' + s.recordings, t: s.before.with_text === s.after.with_text
+          ? 'silent and noisy recordings stay silent: no text is invented.'
+          : 'noise recordings now stay silent. <strong>Before the guard it was ' + (s.recordings - s.before.with_text) + ' of ' + s.recordings + '.</strong>' }
     ];
     $('#stats').innerHTML = stats.map(function (s, i) {
       return '<li class="stat rv' + (s.hot ? ' hot' : '') + '" style="--d:' + i + '"><b>' + s.n + '</b><p>' + s.t + '</p></li>';
@@ -922,11 +922,11 @@ node docs/figures/research/inline-data.mjs</code></pre></div>
       ? 'We played ' + N + ' recordings with <strong>no speech in them</strong> to the speech model. ' + (a.with_text ? 'It wrote text for ' + a.with_text + ' of them.' : 'It wrote nothing for any of them.')
       : 'We played ' + N + ' recordings with <strong>no speech in them</strong> to the speech model. A model left alone writes text for ' + b.with_text + '. OpenFlow’s silence guard cut that to ' + a.with_text + '.';
     $('#si-bigs').innerHTML =
-      '<div class="big"><b>' + b.with_text + '<small>of ' + N + '</small></b><p>Recordings that came back with text before the guard. The model ran for ' + dur(b.seconds) + '.</p></div>' +
-      '<div class="big after"><b>' + a.with_text + '<small>of ' + N + '</small></b><p>With the guard. The model ran for ' + dur(a.seconds) + (b.seconds > a.seconds ? ', ' + Math.round(100 * (1 - a.seconds / b.seconds)) + '% less work.' : '.') + '</p></div>';
+      '<div class="big"><b>' + (N - b.with_text) + '<small>of ' + N + '</small></b><p>Recordings that stayed silent with the model alone. It ran for ' + dur(b.seconds) + '.</p></div>' +
+      '<div class="big after"><b>' + (N - a.with_text) + '<small>of ' + N + '</small></b><p>Stayed silent with the guard. The model ran for ' + dur(a.seconds) + (b.seconds > a.seconds ? ', ' + Math.round(100 * (1 - a.seconds / b.seconds)) + '% less work.' : '.') + '</p></div>';
     var kinds = s.kinds;
-    $('#si-kinds').innerHTML = '<div class="krow head"><span>Kind of noise</span><span>Before</span><span>With the guard</span><span></span></div>' + kinds.map(function (k) {
-      var tot = per[k] || 5, bb = b.by_kind[k] || 0, aa = a.by_kind[k] || 0;
+    $('#si-kinds').innerHTML = '<div class="krow head"><span>Kind of noise</span><span>Model alone</span><span>With the guard</span><span>Stayed silent</span></div>' + kinds.map(function (k) {
+      var tot = per[k] || 5, bb = tot - (b.by_kind[k] || 0), aa = tot - (a.by_kind[k] || 0);
       return '<div class="krow"><div class="name">' + esc(k) + '</div><div class="track"><div class="fill" style="--v:' + (100 * bb / tot) + '"></div></div><div class="track after"><div class="fill" style="--v:' + (100 * aa / tot) + '"></div></div><div class="val">' + bb + ' → ' + aa + ' of ' + tot + '</div></div>';
     }).join('');
     // the after track needs its accent colour inside the fill
@@ -937,11 +937,11 @@ node docs/figures/research/inline-data.mjs</code></pre></div>
       '<strong>The guard is deliberately cautious.</strong> It only stops dead silence (a peak below −50 dBFS) and steady low-level noise. Loud steady hiss, low rumble and clicks are passed on to the model, whose own voice detector decides; the guard never tries to be cleverer than that. ' +
       (same && !b.with_text ? 'Here that detector already catches every recording, so the guard’s job is to skip the model on the quiet ones, which saves the time shown above.' : 'Real rooms differ, so treat this as a stress test, not a promise.');
     // does the guard ever drop real speech? the answer matters more than the one above
-    var rp = s.real_speech_passed, ok = rp && typeof rp === 'object' ? rp.passed : (typeof rp === 'number' ? rp : 60), tot = rp && typeof rp === 'object' && rp.total ? rp.total : 60;
+    var rp = s.real_speech_passed, ok = rp && typeof rp === 'object' ? rp.passed : (typeof rp === 'number' ? rp : 60), tot = rp && typeof rp === 'object' && (rp.total || rp.clips) ? (rp.total || rp.clips) : 60;
     $('#si-real-bigs').innerHTML = '<div class="big' + (ok === tot ? ' after' : '') + '"><b>' + ok + '<small>of ' + tot + '</small></b><p>Real speech clips the guard let through to the model.</p></div>' +
       '<div class="big"><b>' + (tot - ok) + '<small>dropped</small></b><p>Real speech the guard wrongly treated as silence.</p></div>';
     $('#si-real-note').innerHTML = '<strong>Does the guard ever drop real speech?</strong> We checked ' + tot + ' real clips from the speech data: 30 English, 15 Hindi and 15 Odia, quiet ones included. ' + (ok === tot ? 'All ' + tot + ' passed.' : (tot - ok) + ' did not, which is a bug we are fixing.') + ' This is the check that matters most: a guard that rejects quiet speakers is worse than no guard.';
-    srTable($('#si-kinds'), 'Recordings without speech that produced text, by kind of noise', ['Kind', 'Before', 'With the guard'], kinds.map(function (k) { return [k, b.by_kind[k] || 0, a.by_kind[k] || 0]; }));
+    srTable($('#si-kinds'), 'Recordings without speech that stayed silent, by kind of noise', ['Kind', 'Model alone', 'With the guard'], kinds.map(function (k) { var tot = per[k] || 5; return [k, tot - (b.by_kind[k] || 0), tot - (a.by_kind[k] || 0)]; }));
   })();
 
   // ---------- 8. Method ----------
