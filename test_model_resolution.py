@@ -84,11 +84,12 @@ def test_odia_routes_to_indicconformer():
     assert mm._weights_file("odia") == "or/model.onnx"
 
 
-def test_hung_gpu_call_falls_back_to_cpu():
+def test_hung_gpu_call_falls_back_to_cpu(tmp_path):
     import threading
     import time
     import numpy as np
     from openflow.engine import transcriber as tr
+    hardware.CUDA_HUNG_MARK = tmp_path / "cuda_hung"  # the hang is simulated: never touch the user's real marker
 
     stuck = threading.Event()
 
