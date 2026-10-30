@@ -1,5 +1,5 @@
 from PyQt6.QtWidgets import (
-    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QTabWidget,
+    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel, QStackedWidget, QScrollArea, QButtonGroup,
     QPushButton, QTableWidget, QTableWidgetItem, QHeaderView, QLineEdit,
     QComboBox, QFrame, QMessageBox, QAbstractItemView, QDoubleSpinBox, QProgressBar,
     QListWidget, QListWidgetItem, QTextBrowser, QSplitter, QFileDialog, QInputDialog, QSlider
@@ -113,7 +113,7 @@ class HotkeyRecorder(QFrame):
         self._btn.clicked.connect(self._on_btn)
         lay.addWidget(self._btn, 0, Qt.AlignmentFlag.AlignVCenter)
         self.setStyleSheet("""
-            QFrame#HotkeyBox { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); border-radius: 10px; }
+            QFrame#HotkeyBox { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); border-radius: 8px; }
             QFrame#HotkeyBox[recording="true"] { border: 2px solid #0A84FF; background: rgba(10,132,255,0.08); }
         """)
         self._render(pretty_hotkey(hotkey))
@@ -200,6 +200,136 @@ class HotkeyRecorder(QFrame):
         super().focusOutEvent(a0)
 
 
+def _no_wheel(cls):
+    """Control that only takes the mouse wheel once focused, so scrolling a page never edits a value."""
+    class Guarded(cls):
+        def __init__(self, *a):
+            super().__init__(*a)
+            self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+
+        def wheelEvent(self, e):
+            super().wheelEvent(e) if self.hasFocus() else e.ignore()  # ignored: the page scrolls instead
+    return Guarded
+
+
+NoWheelCombo, NoWheelSlider, NoWheelSpin = _no_wheel(QComboBox), _no_wheel(QSlider), _no_wheel(QDoubleSpinBox)
+
+
+class Group(QFrame):
+    """Inset-grouped list: rounded block of rows with hairline separators."""
+
+    def __init__(self):
+        super().__init__()
+        self.setObjectName("Group")
+        self._v = QVBoxLayout(self)
+        self._v.setContentsMargins(0, 0, 0, 0)
+        self._v.setSpacing(0)
+        self._n = 0
+
+    def _sep(self):
+        if self._n:
+            inset = QWidget(self)
+            lay = QHBoxLayout(inset)
+            lay.setContentsMargins(16, 0, 0, 0)
+            line = QFrame(inset)
+            line.setObjectName("Sep")
+            lay.addWidget(line)
+            self._v.addWidget(inset)
+        self._n += 1
+
+    def add(self, label: str = "", control: QWidget = None, sub: str = ""):
+        """Row: label (and optional secondary text) left, control right. Returns the sub-label."""
+        self._sep()
+        row = QWidget(self)
+        row.setMinimumHeight(44)
+        lay = QHBoxLayout(row)
+        lay.setContentsMargins(16, 8, 16, 8)
+        lay.setSpacing(16)
+        text = QVBoxLayout()
+        text.setSpacing(2)
+        if label:
+            lbl = QLabel(label, row)
+            lbl.setObjectName("RowLabel")
+            lbl.setWordWrap(True)
+            text.addWidget(lbl)
+        sub_lbl = QLabel(sub, row)
+        sub_lbl.setObjectName("RowSub")
+        sub_lbl.setWordWrap(True)
+        sub_lbl.setVisible(bool(sub))
+        text.addWidget(sub_lbl)
+        lay.addLayout(text, 1)
+        if control is not None:
+            lay.addWidget(control, 0, Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignRight)
+        self._v.addWidget(row)
+        return sub_lbl
+
+    def add_widget(self, w: QWidget):
+        self._sep()
+        self._v.addWidget(w)
+
+    def clear(self):
+        while self._v.count():
+            w = self._v.takeAt(0).widget()
+            if w:
+                w.deleteLater()
+        self._n = 0
+
+
+def _btn(text: str, kind: str = "", small: bool = False, slot=None) -> QPushButton:
+    b = QPushButton(text)
+    b.setCursor(Qt.CursorShape.PointingHandCursor)
+    if kind:
+        b.setObjectName({"primary": "PrimaryButton", "danger": "DangerButton"}[kind])
+    if small:
+        b.setProperty("small", "true")
+    if slot:
+        b.clicked.connect(slot)
+    return b
+
+
+def _label(text: str, name: str, wrap: bool = False) -> QLabel:
+    lbl = QLabel(text)
+    lbl.setObjectName(name)
+    lbl.setWordWrap(wrap)
+    return lbl
+
+
+def _badge(text: str, kind: str = "") -> QLabel:
+    b = QLabel(text)
+    b.setProperty("badge", kind or "plain")
+    return b
+
+
+def _panel(*widgets) -> QFrame:
+    """Plain rounded block for a table or list."""
+    f = QFrame()
+    f.setObjectName("Group")
+    lay = QVBoxLayout(f)
+    lay.setContentsMargins(0, 0, 0, 0)
+    lay.setSpacing(0)
+    for w in widgets:
+        lay.addWidget(w)
+    return f
+
+
+def _style_table(t: QTableWidget):
+    t.verticalHeader().setVisible(False)
+    t.verticalHeader().setDefaultSectionSize(40)
+    t.setShowGrid(False)
+    t.setWordWrap(False)
+    t.setTextElideMode(Qt.TextElideMode.ElideRight)
+    t.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+    t.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+    t.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+    t.horizontalHeader().setHighlightSections(False)
+    t.horizontalHeader().setDefaultAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+
+
+NAV = [("Dictate", [("History", 0), ("Meeting Notes", 1), ("Vocabulary", 2)]),
+       ("Library", [("Model Library", 3)]), ("Preferences", [("Settings", 4)]), ("Insights", [("Analytics", 5)])]
+COL_W = 760  # content column; wider windows keep it readable instead of stretching rows
+
+
 class MainWindow(QMainWindow):
     config_changed = pyqtSignal(dict)
     sig_request_check_update = pyqtSignal()
@@ -217,7 +347,8 @@ class MainWindow(QMainWindow):
         self._model_progress_bars = {}
 
         self.setWindowTitle("OpenFlow")
-        self.setMinimumSize(880, 640)
+        self.setMinimumSize(760, 560)
+        self.resize(1000, 720)
         self.setStyleSheet(main_qss())
 
         icon_path = get_asset_path("app_icon_square.png")
@@ -232,169 +363,203 @@ class MainWindow(QMainWindow):
         self.refresh_stats()
         self.refresh_models()
 
+    # -- shell: sidebar + pages ---------------------------------------------
+
     def _init_ui(self):
         central = QWidget(self)
-        central.setObjectName("CentralWidget")
+        central.setObjectName("Content")
         self.setCentralWidget(central)
+        outer = QHBoxLayout(central)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(0)
 
-        main_layout = QVBoxLayout(central)
-        main_layout.setContentsMargins(24, 20, 24, 20)
-        main_layout.setSpacing(16)
+        self.stack = QStackedWidget(self)
+        for page in (self._create_history_tab(), self._create_meetings_tab(), self._create_dictionary_tab(),
+                     self._create_models_tab(), self._create_settings_tab(), self._create_stats_tab(),
+                     self._create_about_tab()):
+            self.stack.addWidget(page)
+        outer.addWidget(self._build_sidebar())
 
-        # Header Section
-        header_layout = QHBoxLayout()
+        right = QVBoxLayout()
+        right.setContentsMargins(0, 0, 0, 0)
+        right.setSpacing(0)
+        # Model download progress (hidden unless a model is downloading)
+        self.dl_box = QWidget(self)
+        dl_lay = QHBoxLayout(self.dl_box)
+        dl_lay.setContentsMargins(28, 12, 28, 0)
+        dl_lay.setSpacing(12)
+        self.dl_label = QLabel("", self)
+        self.dl_label.setObjectName("PageSub")
+        self.dl_bar = QProgressBar(self)
+        self.dl_bar.setRange(0, 100)
+        self.dl_bar.setTextVisible(False)
+        dl_lay.addWidget(self.dl_label)
+        dl_lay.addWidget(self.dl_bar, 1)
+        self.dl_box.hide()
+        right.addWidget(self.dl_box)
+        right.addWidget(self.stack, 1)
+        outer.addLayout(right, 1)
+        self.select_page(0)
 
-        # Logo thumbnail or vector mark
-        logo_label = QLabel(self)
+    def _build_sidebar(self) -> QFrame:
+        bar = QFrame(self)
+        bar.setObjectName("Sidebar")
+        bar.setFixedWidth(200)
+        v = QVBoxLayout(bar)
+        v.setContentsMargins(12, 20, 12, 12)
+        v.setSpacing(2)
+
+        brand = QHBoxLayout()
+        brand.setContentsMargins(6, 0, 6, 8)
+        brand.setSpacing(10)
         icon_path = get_asset_path("app_icon_square.png")
         if not os.path.exists(icon_path):
             icon_path = get_asset_path("logo.jpg")
         if os.path.exists(icon_path):
-            pix = QPixmap(icon_path).scaled(42, 42, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
-            logo_label.setPixmap(pix)
-            logo_label.setStyleSheet("border-radius: 8px;")
-            header_layout.addWidget(logo_label)
+            logo = QLabel(bar)
+            logo.setPixmap(get_squircle_pixmap(icon_path, size=28, radius=7.0))
+            brand.addWidget(logo)
+        brand.addWidget(_label("OpenFlow", "AppName"))
+        brand.addStretch()
+        v.addLayout(brand)
 
-        header_title_layout = QVBoxLayout()
-        header_title_layout.setSpacing(3)
+        self._nav_group = QButtonGroup(self)
+        self._nav_btns = {}
 
-        title_label = QLabel("OpenFlow", self)
-        title_label.setStyleSheet("font-size: 24px; font-weight: 400; color: #ffffff;")
+        def nav(text, idx):
+            b = QPushButton(text, bar)
+            b.setProperty("nav", "true")
+            b.setCheckable(True)
+            b.setCursor(Qt.CursorShape.PointingHandCursor)
+            b.clicked.connect(lambda _=False, i=idx: self.select_page(i))
+            self._nav_group.addButton(b)
+            self._nav_btns[idx] = b
+            v.addWidget(b)
 
-        subtitle_label = QLabel("Private, unlimited voice dictation. Runs on your device.", self)
-        subtitle_label.setStyleSheet(f"font-size: 13px; color: {COLORS['text_secondary']};")
-
-        header_title_layout.addWidget(title_label)
-        header_title_layout.addWidget(subtitle_label)
-        header_layout.addLayout(header_title_layout)
-        header_layout.addStretch()
-
-        # Hotkey badge card
-        hotkey_badge = QFrame(self)
-        hotkey_badge.setObjectName("HotkeyBadge")
-        hotkey_badge.setStyleSheet("QFrame#HotkeyBadge { background: rgba(255, 255, 255, 0.08); border-radius: 14px; }")
-        badge_layout = QHBoxLayout(hotkey_badge)
-        badge_layout.setContentsMargins(8, 4, 8, 4)
-        self.hotkey_badge_text = QLabel(self)
-        self.hotkey_badge_text.setStyleSheet("color: #ffffff; font-size: 12px;")
+        for caption, items in NAV:
+            v.addWidget(_label(caption.upper(), "NavCaption"))
+            for text, idx in items:
+                nav(text, idx)
+        v.addStretch()
+        nav("About", 6)
+        self.hotkey_badge_text = _label("", "HotkeyHint")
         self._update_hotkey_badge()
-        badge_layout.addWidget(self.hotkey_badge_text)
-        header_layout.addWidget(hotkey_badge)
+        v.addWidget(self.hotkey_badge_text)
+        return bar
 
-        main_layout.addLayout(header_layout)
+    def select_page(self, i: int):
+        self.stack.setCurrentIndex(i)
+        self._nav_btns[i].setChecked(True)
+        self.stack.currentWidget().setFocus()
 
-        # Model download progress (hidden unless a model is downloading)
-        self.dl_box = QWidget(self)
-        dl_lay = QHBoxLayout(self.dl_box)
-        dl_lay.setContentsMargins(0, 0, 0, 0)
-        dl_lay.setSpacing(14)
-        self.dl_label = QLabel("", self)
-        self.dl_label.setStyleSheet(f"color: {COLORS['text_secondary']};")
-        self.dl_bar = QProgressBar(self)
-        self.dl_bar.setRange(0, 100)
-        self.dl_bar.setTextVisible(False)
-        self.dl_bar.setFixedHeight(4)
-        self.dl_bar.setStyleSheet("QProgressBar { background: rgba(255,255,255,0.10); border: none; border-radius: 2px; }"
-                                  "QProgressBar::chunk { background: #ffffff; border-radius: 2px; }")
-        dl_lay.addWidget(self.dl_label)
-        dl_lay.addWidget(self.dl_bar, 1)
-        self.dl_box.hide()
-        main_layout.addWidget(self.dl_box)
+    def _page(self, title: str, sub: str = "", actions=(), scroll: bool = True):
+        """Page = fixed title row + (scrolling) body. Returns (root, body layout, subtitle label)."""
+        root = QWidget()
+        root.setFocusPolicy(Qt.FocusPolicy.ClickFocus)  # takes focus on page change, so no field starts with a ring
+        v = QVBoxLayout(root)
+        v.setContentsMargins(28, 28, 28, 0 if scroll else 24)
+        v.setSpacing(0)
+        head = QHBoxLayout()
+        head.setSpacing(12)
+        head.setContentsMargins(0, 0, 14 if scroll else 0, 0)  # scrollbar track width, so edges line up
+        col = QVBoxLayout()
+        col.setSpacing(2)
+        col.addWidget(_label(title, "PageTitle"))
+        sub_lbl = _label(sub, "PageSub", wrap=True)
+        sub_lbl.setVisible(bool(sub))
+        col.addWidget(sub_lbl)
+        head.addLayout(col, 1)
+        for a in actions:
+            head.addWidget(a, 0, Qt.AlignmentFlag.AlignTop)
+        v.addLayout(head)
+        v.addSpacing(16)
+        if not scroll:
+            return root, v, sub_lbl
+        area = QScrollArea(root)
+        area.setWidgetResizable(True)
+        area.setFrameShape(QFrame.Shape.NoFrame)
+        area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOn)
+        inner = QWidget()
+        inner.setMaximumWidth(COL_W)
+        body = QVBoxLayout(inner)
+        body.setContentsMargins(0, 0, 0, 32)
+        body.setSpacing(24)
+        body.setAlignment(Qt.AlignmentFlag.AlignTop)
+        area.setWidget(inner)
+        v.addWidget(area, 1)
+        return root, body, sub_lbl
 
-        # Tabs
-        self.tabs = QTabWidget(self)
-        self.tabs.addTab(self._create_history_tab(), "History")
-        self.tabs.addTab(self._create_meetings_tab(), "Meeting Notes")
-        self.tabs.addTab(self._create_dictionary_tab(), "Vocabulary")
-        self.tabs.addTab(self._create_models_tab(), "Model Library")
-        self.tabs.addTab(self._create_settings_tab(), "Settings")
-        self.tabs.addTab(self._create_stats_tab(), "Analytics")
-        self.tabs.addTab(self._create_about_tab(), "About")
+    def _section(self, body, header: str = "", footer: str = "", action: QWidget = None):
+        """Header + Group + footer note. Returns (group, footer label)."""
+        box = QVBoxLayout()
+        box.setSpacing(6)
+        if header or action:
+            row = QHBoxLayout()
+            row.addWidget(_label(header.upper(), "SectionHeader"))
+            row.addStretch()
+            if action:
+                row.addWidget(action)
+            box.addLayout(row)
+        g = Group()
+        box.addWidget(g)
+        foot = _label(footer, "SectionFooter", wrap=True)
+        foot.setVisible(bool(footer))
+        box.addWidget(foot)
+        body.addLayout(box)
+        return g, foot
 
-        main_layout.addWidget(self.tabs)
-
-    def set_download(self, percent: int, model: str):
-        """Shows or hides the download bar under the header and in the model card."""
-        clean_name = model.replace(".en", "").lower()
-        if hasattr(self, "_model_progress_bars"):
-            for mid, bar in self._model_progress_bars.items():
-                if mid in clean_name:
-                    if percent < 100:
-                        bar.show()
-                        bar.setValue(percent)
-                    else:
-                        bar.setValue(100)
-                        QTimer.singleShot(1500, bar.hide)
-
-        if percent >= 100:
-            self.dl_box.hide()
-            self.refresh_models()
-            return
-        self.dl_label.setText(f"Downloading {model} model  {percent}%")
-        self.dl_bar.setValue(percent)
-        self.dl_box.show()
+    # -- history ------------------------------------------------------------
 
     def _create_history_tab(self) -> QWidget:
-        widget = QWidget()
-        layout = QVBoxLayout(widget)
-        layout.setContentsMargins(16, 16, 16, 16)
-        layout.setSpacing(12)
+        root, body, _ = self._page("History", "Everything you have dictated, newest first.", scroll=False)
 
-        # Search Bar & Actions
-        search_layout = QHBoxLayout()
+        bar = QHBoxLayout()
+        bar.setSpacing(8)
         self.history_search = QLineEdit(self)
         self.history_search.setPlaceholderText("Search history")
+        self.history_search.setClearButtonEnabled(True)
         self.history_search.textChanged.connect(self.refresh_history)
-        search_layout.addWidget(self.history_search)
+        bar.addWidget(self.history_search, 1)
+        bar.addWidget(_btn("Refresh", small=True, slot=self.refresh_history))
+        bar.addWidget(_btn("Clear All", "danger", small=True, slot=self._clear_history))
+        body.addLayout(bar)
+        body.addSpacing(12)
 
-        refresh_btn = QPushButton("Refresh", self)
-        refresh_btn.clicked.connect(self.refresh_history)
-        search_layout.addWidget(refresh_btn)
-
-        clear_btn = QPushButton("Clear All", self)
-        clear_btn.clicked.connect(self._clear_history)
-        search_layout.addWidget(clear_btn)
-
-        layout.addLayout(search_layout)
-
-        # Table
         self.history_table = QTableWidget(0, 5, self)
-        self.history_table.setHorizontalHeaderLabels(["Time", "Target App", "Words", "Speed", "Transcribed Text"])
-        self.history_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
-        self.history_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
-        self.history_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
-        self.history_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
-        self.history_table.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeMode.Stretch)
-        self.history_table.verticalHeader().setVisible(False)
-        self.history_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
-        self.history_table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
-
+        self.history_table.setHorizontalHeaderLabels(["Time", "App", "Words", "Speed", "Text"])
+        hh = self.history_table.horizontalHeader()
+        for c, w in enumerate((106, 100, 68, 84)):  # fixed so the text column keeps the rest of the width
+            hh.setSectionResizeMode(c, QHeaderView.ResizeMode.Fixed)
+            hh.resizeSection(c, w)
+        hh.setSectionResizeMode(4, QHeaderView.ResizeMode.Stretch)
+        _style_table(self.history_table)
         self.history_table.cellDoubleClicked.connect(self._copy_history_row)
-        layout.addWidget(self.history_table)
-
-        hint = QLabel("Double-click a row to copy its text.", self)
-        hint.setStyleSheet(f"color: {COLORS['text_muted']}; font-size: 11px;")
-        layout.addWidget(hint)
-
-        return widget
+        self.history_empty = _label("", "Empty")
+        self.history_empty.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        body.addWidget(_panel(self.history_table, self.history_empty), 1)
+        body.addSpacing(8)
+        body.addWidget(_label("Double-click a row to copy its text.", "SectionFooter"))
+        return root
 
     def refresh_history(self):
         query = self.history_search.text().strip() if hasattr(self, "history_search") else ""
         rows = self.db.get_history(limit=150, query=query)
         self.history_table.setRowCount(len(rows))
+        self.history_table.setVisible(bool(rows))
+        self.history_empty.setVisible(not rows)
+        self.history_empty.setText("No matches." if query else "Nothing dictated yet.\nHold your hotkey in any app and start talking.")
 
         for idx, row in enumerate(rows):
-            ts = row["timestamp"][:19].replace("T", " ") if "T" in row["timestamp"] else row["timestamp"]
+            ts = row["timestamp"][5:16].replace("T", " ")
             app = row["target_app"] or "Desktop"
             words = str(row["word_count"] or len(row["formatted_text"].split()))
-            latency = f"{row['latency_ms']}ms" if row["latency_ms"] else "-"
+            latency = f"{row['latency_ms']} ms" if row["latency_ms"] else "-"
             text = row["formatted_text"]
-
-            self.history_table.setItem(idx, 0, QTableWidgetItem(ts))
-            self.history_table.setItem(idx, 1, QTableWidgetItem(app))
-            self.history_table.setItem(idx, 2, QTableWidgetItem(words))
-            self.history_table.setItem(idx, 3, QTableWidgetItem(latency))
-            self.history_table.setItem(idx, 4, QTableWidgetItem(text))
+            for col, val in enumerate((ts, app, words, latency, text)):
+                item = QTableWidgetItem(val)
+                if col == 4:
+                    item.setToolTip(text)
+                self.history_table.setItem(idx, col, item)
 
     def _copy_history_row(self, row, col):
         item = self.history_table.item(row, 4)
@@ -410,37 +575,39 @@ class MainWindow(QMainWindow):
             self.refresh_history()
             self.refresh_stats()
 
-    def _create_meetings_tab(self) -> QWidget:
-        widget = QWidget()
-        layout = QVBoxLayout(widget)
-        layout.setContentsMargins(16, 16, 16, 16)
-        layout.setSpacing(12)
+    # -- meeting notes ------------------------------------------------------
 
-        actions = QHBoxLayout()
+    def _create_meetings_tab(self) -> QWidget:
+        root, body, _ = self._page("Meeting Notes", "Captions and notes from calls and anything your speakers play.", scroll=False)
+
+        bar = QHBoxLayout()
+        bar.setSpacing(8)
         for label, slot in [("Rename Speaker", self._rename_speaker), ("Copy Markdown", self._copy_meeting),
-                            ("Export to .md", self._export_meeting), ("Delete", self._delete_meeting),
-                            ("Refresh", self.refresh_meetings)]:
-            btn = QPushButton(label, self)
-            btn.clicked.connect(slot)
-            actions.addWidget(btn)
-        actions.addStretch(1)
-        layout.addLayout(actions)
+                            ("Export .md", self._export_meeting), ("Refresh", self.refresh_meetings)]:
+            bar.addWidget(_btn(label, small=True, slot=slot))
+        bar.addStretch(1)
+        bar.addWidget(_btn("Delete", "danger", small=True, slot=self._delete_meeting))
+        body.addLayout(bar)
+        body.addSpacing(12)
 
         split = QSplitter(Qt.Orientation.Horizontal, self)
+        split.setChildrenCollapsible(False)
         self.meeting_list = QListWidget(self)
+        self.meeting_list.setMinimumWidth(190)
         self.meeting_list.currentItemChanged.connect(self._show_meeting)
         self.meeting_view = QTextBrowser(self)
         self.meeting_view.setOpenExternalLinks(True)
         split.addWidget(self.meeting_list)
         split.addWidget(self.meeting_view)
-        split.setSizes([240, 560])
-        layout.addWidget(split, 1)
-
-        hint = QLabel("When a call is using your mic, the capsule offers to take notes.", self)
-        hint.setStyleSheet(f"color: {COLORS['text_muted']}; font-size: 11px;")
-        layout.addWidget(hint)
+        split.setSizes([220, 460])
+        self.meeting_empty = _label("No meeting notes yet.\nStart one from the capsule menu or when a call uses your microphone.", "Empty")
+        self.meeting_empty.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.meeting_split = split
+        body.addWidget(_panel(split, self.meeting_empty), 1)
+        body.addSpacing(8)
+        body.addWidget(_label("When a call is using your mic, the capsule offers to take notes.", "SectionFooter"))
         self.refresh_meetings()
-        return widget
+        return root
 
     def refresh_meetings(self):
         self._meetings = {n["id"]: n for n in self.db.get_meeting_notes()}
@@ -450,10 +617,10 @@ class MainWindow(QMainWindow):
             item = QListWidgetItem(f"{n['title']}\n{n['timestamp'][:16].replace('T', ' ')} · {mins} min")
             item.setData(Qt.ItemDataRole.UserRole, n["id"])
             self.meeting_list.addItem(item)
+        self.meeting_split.setVisible(bool(self.meeting_list.count()))
+        self.meeting_empty.setVisible(not self.meeting_list.count())
         if self.meeting_list.count():
             self.meeting_list.setCurrentRow(0)
-        else:
-            self.meeting_view.setHtml("<div style='color:#64748b; padding:20px; font-family:sans-serif;'>No meeting notes yet.</div>")
 
     def _current_meeting(self):
         item = self.meeting_list.currentItem()
@@ -525,55 +692,54 @@ class MainWindow(QMainWindow):
             self.db.delete_meeting_note(n["id"])
             self.refresh_meetings()
 
+    # -- vocabulary ---------------------------------------------------------
+
     def _create_dictionary_tab(self) -> QWidget:
-        widget = QWidget()
-        layout = QVBoxLayout(widget)
-        layout.setContentsMargins(16, 16, 16, 16)
-        layout.setSpacing(12)
+        root, body, _ = self._page("Vocabulary", "Add names, acronyms and terms. OpenFlow corrects them as you speak.", scroll=False)
 
-        desc = QLabel("Add custom terms, acronyms, or names. OpenFlow will automatically correct them in your speech.", self)
-        desc.setStyleSheet(f"color: {COLORS['text_secondary']}; font-size: 13px;")
-        layout.addWidget(desc)
-
-        form_frame = QFrame(self)
-        form_frame.setProperty("class", "Card")
-        form_layout = QHBoxLayout(form_frame)
-        form_layout.setContentsMargins(12, 10, 12, 10)
-
+        form = Group()
         self.dict_phrase = QLineEdit(self)
-        self.dict_phrase.setPlaceholderText("Phrase spoken (e.g. 'pi torch', 'open flow')")
+        self.dict_phrase.setPlaceholderText("e.g. pi torch")
         self.dict_replace = QLineEdit(self)
-        self.dict_replace.setPlaceholderText("Replace with (e.g. 'PyTorch', 'OpenFlow')")
-
-        self.dict_case = Switch("Case sensitive", self)
-        add_btn = QPushButton("Add Word", self)
-        add_btn.setObjectName("PrimaryButton")
-        add_btn.clicked.connect(self._add_dictionary_word)
-
-        form_layout.addWidget(self.dict_phrase, 2)
-        form_layout.addWidget(self.dict_replace, 2)
-        form_layout.addWidget(self.dict_case)
-        form_layout.addWidget(add_btn)
-        layout.addWidget(form_frame)
+        self.dict_replace.setPlaceholderText("e.g. PyTorch")
+        for e in (self.dict_phrase, self.dict_replace):
+            e.setMinimumWidth(240)
+        self.dict_case = Switch("", self)
+        form.add("When I say", self.dict_phrase)
+        form.add("Write", self.dict_replace)
+        form.add("Match case", self.dict_case)
+        body.addWidget(form)
+        add_row = QHBoxLayout()
+        add_row.addStretch()
+        add_row.addWidget(_btn("Add Word", "primary", slot=self._add_dictionary_word))
+        body.addSpacing(8)
+        body.addLayout(add_row)
+        body.addSpacing(16)
 
         self.dict_table = QTableWidget(0, 4, self)
-        self.dict_table.setHorizontalHeaderLabels(["ID", "Spoken Match", "Replaced With", "Case Sensitive"])
-        self.dict_table.verticalHeader().setVisible(False)
-        self.dict_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
-        self.dict_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
-        self.dict_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
-        self.dict_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
-        layout.addWidget(self.dict_table)
-
-        del_btn = QPushButton("Delete Selected", self)
-        del_btn.clicked.connect(self._delete_dictionary_word)
-        layout.addWidget(del_btn)
-
-        return widget
+        self.dict_table.setHorizontalHeaderLabels(["ID", "When I say", "Write", "Match case"])
+        hh = self.dict_table.horizontalHeader()
+        hh.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        hh.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        hh.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
+        hh.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
+        _style_table(self.dict_table)
+        self.dict_table.hideColumn(0)  # id stays in the table for delete
+        self.dict_empty = _label("No words yet.\nAdd one above and it applies to your next dictation.", "Empty")
+        self.dict_empty.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        body.addWidget(_panel(self.dict_table, self.dict_empty), 1)
+        body.addSpacing(12)
+        del_row = QHBoxLayout()
+        del_row.addStretch()
+        del_row.addWidget(_btn("Delete Selected", "danger", small=True, slot=self._delete_dictionary_word))
+        body.addLayout(del_row)
+        return root
 
     def refresh_dictionary(self):
         rows = self.db.get_dictionary()
         self.dict_table.setRowCount(len(rows))
+        self.dict_table.setVisible(bool(rows))
+        self.dict_empty.setVisible(not rows)
         for idx, row in enumerate(rows):
             self.dict_table.setItem(idx, 0, QTableWidgetItem(str(row["id"])))
             self.dict_table.setItem(idx, 1, QTableWidgetItem(row["phrase_match"]))
@@ -599,194 +765,99 @@ class MainWindow(QMainWindow):
             self.db.delete_dictionary_entry(entry_id)
             self.refresh_dictionary()
 
-    def refresh_devices(self):
-        if not hasattr(self, "mic_combo"):
-            return
-        self.mic_combo.blockSignals(True)
-        curr = self.config.get("input_device_index")
-        recents = self.config.get("recent_mics", [])
-        self.mic_combo.clear()
-        self.mic_combo.addItem("Default System Microphone", None)
-        self.mic_devices = list_microphones()
-        for dev in self.mic_devices:
-            is_active = (dev["index"] == curr)
-            is_recent = dev["name"] in recents
-            tag = " ● [Active]" if is_active else (" ↺ [Recent]" if is_recent else "")
-            self.mic_combo.addItem(f"{dev['name']}{tag} (Ch: {dev['channels']})", dev["index"])
-            if curr == dev["index"]:
-                self.mic_combo.setCurrentIndex(self.mic_combo.count() - 1)
-        self.mic_combo.blockSignals(False)
+    # -- model library ------------------------------------------------------
 
     def _create_models_tab(self) -> QWidget:
-        widget = QWidget()
-        layout = QVBoxLayout(widget)
-        layout.setContentsMargins(16, 16, 16, 16)
-        layout.setSpacing(14)
+        root, body, self.lbl_model_status_info = self._page(
+            "Model Library", "", scroll=True,
+            actions=[_btn("Show Cache", small=True, slot=self._open_cache_folder),
+                     _btn("Clean Up", small=True, slot=self._clean_temp_blobs)])
+        self.btn_open_cache = None
+        self.models_group, _ = self._section(
+            body, "Speech and AI models",
+            "Models run 100% on this PC. Picking a model never downloads it; use the Download button.")
+        return root
 
-        # Overview Banner Card
-        top_card = QFrame(self)
-        top_card.setProperty("class", "Card")
-        top_lay = QVBoxLayout(top_card)
-        top_lay.setContentsMargins(16, 14, 16, 14)
-        top_lay.setSpacing(8)
+    def _model_row(self, m: dict) -> QWidget:
+        row = QWidget()
+        g = QGridLayout(row)
+        g.setContentsMargins(16, 12, 16, 12)
+        g.setHorizontalSpacing(16)
+        g.setVerticalSpacing(4)
+        g.setColumnStretch(0, 1)
 
-        t_row = QHBoxLayout()
-        self.lbl_active_model_title = QLabel("Speech & AI Model Library", self)
-        self.lbl_active_model_title.setStyleSheet("font-size: 15px; font-weight: 600; color: #ffffff;")
-        t_row.addWidget(self.lbl_active_model_title)
-        t_row.addStretch()
+        title = QHBoxLayout()
+        title.setSpacing(8)
+        name = _label(m["name"], "RowLabel")
+        name.setStyleSheet("font-weight: 600;")
+        title.addWidget(name)
+        if m["is_active"]:
+            title.addWidget(_badge("Active", "active"))
+        if m.get("recommended"):
+            title.addWidget(_badge("Recommended", "accent"))
+        title.addStretch()
+        g.addLayout(title, 0, 0)
+        g.addWidget(_label(m["description"], "RowSub", wrap=True), 1, 0)
+        size = m["disk_size_str"] if m["is_downloaded"] else m["expected_size_str"]
+        meta = _label(f"Speed {m['speed']}  ·  Accuracy {m['accuracy']}  ·  {size}", "RowSub")
+        meta.setStyleSheet("color: rgba(235,235,245,0.38);")
+        g.addWidget(meta, 2, 0)
 
-        self.btn_open_cache = QPushButton("Open Cache Folder", self)
-        self.btn_open_cache.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_open_cache.clicked.connect(self._open_cache_folder)
-        t_row.addWidget(self.btn_open_cache)
+        acts = QHBoxLayout()
+        acts.setSpacing(8)
+        mid = m["id"]
+        if m["is_active"]:
+            b = _btn("In use", small=True)
+            b.setEnabled(False)
+            acts.addWidget(b)
+        elif m["is_downloaded"]:
+            acts.addWidget(_btn("Use", "primary", True, lambda _=False, i=mid: self._on_switch_model(i)))
+            acts.addWidget(_btn("Delete", "danger", True, lambda _=False, i=mid, n=m["name"]: self._on_delete_model(i, n)))
+        else:
+            acts.addWidget(_btn("Download", "primary", True, lambda _=False, i=mid: self._on_download_model(i)))
+        g.addLayout(acts, 0, 1, 3, 1, Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignRight)
 
-        self.btn_clean_temp = QPushButton("Clean Temporary Blobs", self)
-        self.btn_clean_temp.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_clean_temp.clicked.connect(self._clean_temp_blobs)
-        t_row.addWidget(self.btn_clean_temp)
-
-        top_lay.addLayout(t_row)
-
-        hw = hardware.detect()
-        curr_m = self.config.get("model_size", "base").replace(".en", "").title()
-        self.lbl_model_status_info = QLabel(
-            f"Active: <b>{curr_m}</b> · Running on: <b>{hw.get('device', 'cpu').upper()}</b> · "
-            f"Speech models operate 100% locally on your machine with zero cloud roundtrips.",
-            self
-        )
-        self.lbl_model_status_info.setStyleSheet(f"color: {COLORS['text_secondary']}; font-size: 12px;")
-        top_lay.addWidget(self.lbl_model_status_info)
-
-        layout.addWidget(top_card)
-
-        # Container for Model Cards
-        self.models_container = QWidget(self)
-        self.models_layout = QVBoxLayout(self.models_container)
-        self.models_layout.setContentsMargins(0, 0, 0, 0)
-        self.models_layout.setSpacing(10)
-        layout.addWidget(self.models_container)
-        layout.addStretch()
-
-        return widget
+        bar = QProgressBar()  # hidden until a download starts
+        bar.setRange(0, 100)
+        bar.setTextVisible(False)
+        bar.hide()
+        g.addWidget(bar, 3, 0, 1, 2)
+        self._model_progress_bars[mid] = bar
+        return row
 
     def refresh_models(self):
-        if not hasattr(self, "models_layout"):
+        if not hasattr(self, "models_group"):
             return
-
-        # Clear existing cards
-        while self.models_layout.count():
-            item = self.models_layout.takeAt(0)
-            w = item.widget()
-            if w:
-                w.deleteLater()
-
-        curr_model = self.config.get("model_size", "base").replace(".en", "").lower()
-        models = model_manager.list_available_models(active_model=curr_model)
-
-        hw = hardware.detect()
-        curr_m_disp = self.config.get("model_size", "base").replace(".en", "").title()
-        if hasattr(self, "lbl_model_status_info"):
-            self.lbl_model_status_info.setText(
-                f"Active: <b>{curr_m_disp}</b> · Running on: <b>{hw.get('device', 'cpu').upper()}</b> · "
-                f"Speech models operate 100% locally on your machine with zero cloud roundtrips."
-            )
-
+        self.models_group.clear()
         self._model_progress_bars = {}
+        curr_model = self.config.get("model_size", "base").replace(".en", "").lower()
+        hw = hardware.detect()
+        self.lbl_model_status_info.setText(f"Active: <b>{curr_model.title()}</b>  ·  Running on <b>{hw.get('device', 'cpu').upper()}</b>")
+        self.lbl_model_status_info.show()
+        for m in model_manager.list_available_models(active_model=curr_model):
+            self.models_group.add_widget(self._model_row(m))
 
-        for m in models:
-            m_id = m["id"]
-            card = QFrame(self)
-            card.setProperty("class", "Card")
-            c_lay = QVBoxLayout(card)
-            c_lay.setContentsMargins(16, 12, 16, 12)
-            c_lay.setSpacing(8)
+    def set_download(self, percent: int, model: str):
+        """Shows or hides the download bar under the header and in the model card."""
+        clean_name = model.replace(".en", "").lower()
+        for mid, bar in self._model_progress_bars.items():
+            if mid in clean_name:
+                if percent < 100:
+                    bar.show()
+                    bar.setValue(percent)
+                else:
+                    bar.setValue(100)
+                    QTimer.singleShot(1500, bar.hide)
 
-            header = QHBoxLayout()
-            name_lbl = QLabel(m["name"], card)
-            name_lbl.setStyleSheet("font-size: 14px; font-weight: 600; color: #ffffff;")
-            header.addWidget(name_lbl)
-
-            if m.get("recommended"):
-                rec_badge = QLabel("RECOMMENDED", card)
-                rec_badge.setStyleSheet("background: rgba(255, 255, 255, 0.15); color: #ffffff; "
-                                        "border-radius: 4px; padding: 2px 6px; font-size: 10px; font-weight: 700;")
-                header.addWidget(rec_badge)
-
-            header.addStretch()
-
-            # Status Badge
-            if m["is_active"]:
-                badge = QLabel("ACTIVE · IN USE", card)
-                badge.setStyleSheet("background: rgba(52, 199, 89, 0.18); color: #32d74b; "
-                                    "border: 1px solid rgba(52, 199, 89, 0.40); border-radius: 6px; "
-                                    "padding: 3px 8px; font-size: 11px; font-weight: 600;")
-            elif m["is_downloaded"]:
-                badge = QLabel(f"DOWNLOADED ({m['disk_size_str']})", card)
-                badge.setStyleSheet("background: rgba(10, 132, 255, 0.18); color: #0a84ff; "
-                                    "border: 1px solid rgba(10, 132, 255, 0.40); border-radius: 6px; "
-                                    "padding: 3px 8px; font-size: 11px; font-weight: 600;")
-            else:
-                badge = QLabel(f"AVAILABLE ({m['expected_size_str']})", card)
-                badge.setStyleSheet("background: rgba(255, 255, 255, 0.08); color: rgba(255, 255, 255, 0.45); "
-                                    "border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 6px; "
-                                    "padding: 3px 8px; font-size: 11px; font-weight: 500;")
-
-            header.addWidget(badge)
-            c_lay.addLayout(header)
-
-            desc = QLabel(m["description"], card)
-            desc.setStyleSheet(f"color: {COLORS['text_secondary']}; font-size: 12px;")
-            c_lay.addWidget(desc)
-
-            # Details & Actions Row
-            act_row = QHBoxLayout()
-            perf = QLabel(f"Speed: <b>{m['speed']}</b>  ·  Accuracy: <b>{m['accuracy']}</b>", card)
-            perf.setStyleSheet(f"color: {COLORS['text_muted']}; font-size: 11px;")
-            act_row.addWidget(perf)
-            act_row.addStretch()
-
-            if m["is_active"]:
-                btn_active = QPushButton("Currently Active", card)
-                btn_active.setEnabled(False)
-                act_row.addWidget(btn_active)
-            elif m["is_downloaded"]:
-                btn_use = QPushButton("Use This Model", card)
-                btn_use.setObjectName("PrimaryButton")
-                btn_use.setCursor(Qt.CursorShape.PointingHandCursor)
-                btn_use.clicked.connect(lambda ch, mid=m_id: self._on_switch_model(mid))
-                act_row.addWidget(btn_use)
-
-                btn_del = QPushButton("Delete Model", card)
-                btn_del.setObjectName("DangerButton")
-                btn_del.setCursor(Qt.CursorShape.PointingHandCursor)
-                btn_del.clicked.connect(lambda ch, mid=m_id, name=m['name']: self._on_delete_model(mid, name))
-                act_row.addWidget(btn_del)
-            else:
-                btn_dl = QPushButton(f"Download ({m['expected_size_str']})", card)
-                btn_dl.setObjectName("PrimaryButton")
-                btn_dl.setCursor(Qt.CursorShape.PointingHandCursor)
-                btn_dl.clicked.connect(lambda ch, mid=m_id: self._on_download_model(mid))
-                act_row.addWidget(btn_dl)
-
-            c_lay.addLayout(act_row)
-
-            # In-card progress bar (hidden by default)
-            p_bar = QProgressBar(card)
-            p_bar.setRange(0, 100)
-            p_bar.setValue(0)
-            p_bar.setFixedHeight(4)
-            p_bar.setTextVisible(False)
-            p_bar.setStyleSheet("QProgressBar { background: rgba(255,255,255,0.10); border: none; border-radius: 2px; }"
-                                "QProgressBar::chunk { background: #55ff99; border-radius: 2px; }")
-            p_bar.hide()
-            c_lay.addWidget(p_bar)
-            self._model_progress_bars[m_id] = p_bar
-
-            self.models_layout.addWidget(card)
+        if percent >= 100:
+            self.dl_box.hide()
+            self.refresh_models()
+            return
+        self.dl_label.setText(f"Downloading {model} model  {percent}%")
+        self.dl_bar.setValue(percent)
+        self.dl_box.show()
 
     def _open_cache_folder(self):
-        import os
         cache_dir = os.path.expanduser("~/.cache/huggingface/hub")
         os.makedirs(cache_dir, exist_ok=True)
         try:
@@ -816,365 +887,161 @@ class MainWindow(QMainWindow):
         if reply == QMessageBox.StandardButton.Yes:
             self.sig_model_delete_requested.emit(model_id)
 
-    def _create_settings_tab(self) -> QWidget:
-        widget = QWidget()
-        layout = QVBoxLayout(widget)
-        layout.setContentsMargins(18, 16, 18, 20)
-        layout.setSpacing(16)
+    # -- settings -----------------------------------------------------------
 
-        LABEL_W = 190
-
-        def _make_card(title: str, subtitle: str) -> tuple[QFrame, QVBoxLayout]:
-            card = QFrame(self)
-            card.setStyleSheet("""
-                QFrame.SettingsCard {
-                    background: rgba(255, 255, 255, 0.035);
-                    border: 1px solid rgba(255, 255, 255, 0.08);
-                    border-radius: 12px;
-                }
-            """)
-            card.setProperty("class", "SettingsCard")
-            c_lay = QVBoxLayout(card)
-            c_lay.setContentsMargins(18, 16, 18, 16)
-            c_lay.setSpacing(12)
-
-            t_lbl = QLabel(title, card)
-            t_lbl.setStyleSheet("font-size: 13.5px; font-weight: 600; color: #ffffff;")
-            s_lbl = QLabel(subtitle, card)
-            s_lbl.setStyleSheet("font-size: 11px; color: rgba(255, 255, 255, 0.48); margin-top: -6px;")
-            c_lay.addWidget(t_lbl)
-            c_lay.addWidget(s_lbl)
-
-            sep = QFrame(card)
-            sep.setFixedHeight(1)
-            sep.setStyleSheet("background: rgba(255, 255, 255, 0.06); margin: 2px 0 6px 0;")
-            c_lay.addWidget(sep)
-            return card, c_lay
-
-        def _make_row(label_text: str, ctrl_widget: QWidget) -> QHBoxLayout:
-            r = QHBoxLayout()
-            r.setSpacing(12)
-            lbl = QLabel(label_text, widget)
-            lbl.setFixedWidth(LABEL_W)
-            lbl.setStyleSheet("font-weight: 500; font-size: 12.5px; color: rgba(255, 255, 255, 0.88);")
-            lbl.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
-            r.addWidget(lbl)
-            r.addWidget(ctrl_widget, 1)
-            return r
-
-        # -------------------------------------------------------------------------
-        # CARD 1: AI Speech Engine & Hardware Stack
-        # -------------------------------------------------------------------------
-        card1, c1_layout = _make_card(
-            "⚡ AI Speech Engine & Hardware Stack",
-            "Local speech-to-text inference models and neural acceleration"
-        )
-        hw = hardware.detect()
-        self.hw_note = QLabel(hw["note"], card1)
-        self.hw_note.setWordWrap(True)
-        self.hw_note.setStyleSheet(f"color: {COLORS['text_secondary']}; font-size: 11.5px; margin-bottom: 4px;")
-        c1_layout.addWidget(self.hw_note)
-
-        # Speech model
-        self.model_combo = QComboBox(card1)
-        for key, label in [
-            ("auto", f"Automatic (recommended: {hw['model_size']})"),
-            ("tiny", "Tiny: fastest, lowest accuracy (~39 MB)"),
-            ("base", "Base: balanced (~74 MB)"),
-            ("small", "Small: high accuracy (~244 MB)"),
-            ("medium", "Medium: best accuracy, wants a GPU (~769 MB)"),
-        ]:
-            self.model_combo.addItem(label, key)
-        curr_m = self.config.get("model_size", "auto").replace(".en", "")
-        for i in range(self.model_combo.count()):
-            if self.model_combo.itemData(i) == curr_m:
-                self.model_combo.setCurrentIndex(i)
+    @staticmethod
+    def _combo(items, current, width: int = 232) -> QComboBox:
+        c = NoWheelCombo()
+        for label, key in items:
+            c.addItem(label, key)
+        for i in range(c.count()):
+            if c.itemData(i) == current:
+                c.setCurrentIndex(i)
                 break
-        c1_layout.addLayout(_make_row("Speech model:", self.model_combo))
+        c.setFixedWidth(width)
+        return c
 
-        # Compute device
-        self.device_combo = QComboBox(card1)
-        self.device_combo.addItem("Automatic (recommended)", "auto")
+    def _switch(self, g: Group, label: str, key: str, default: bool, sub: str = "") -> Switch:
+        s = Switch("", self)
+        s.setChecked(self.config.get(key, default))
+        g.add(label, s, sub)
+        return s
+
+    def _create_settings_tab(self) -> QWidget:
+        save = _btn("Save Settings", "primary", slot=self._save_settings)
+        root, body, _ = self._page("Settings", "Changes to the hotkey and capsule opacity apply at once; the rest on Save.",
+                                   actions=[save])
+        hw = hardware.detect()
+
+        # Speech
+        g, foot = self._section(body, "Speech", hw["note"])
+        self.hw_note = foot
+        self.model_combo = self._combo([
+            (f"Automatic ({hw['model_size']})", "auto"), ("Tiny · fastest (~39 MB)", "tiny"),
+            ("Base · balanced (~74 MB)", "base"), ("Small · accurate (~244 MB)", "small"),
+            ("Medium · best, wants a GPU (~769 MB)", "medium")], self.config.get("model_size", "auto").replace(".en", ""))
+        g.add("Speech model", self.model_combo)
+        devices = [("Automatic", "auto")]
         if importlib.util.find_spec("openvino_genai"):
-            self.device_combo.addItem("NPU (Intel AI Boost, low power)", "npu")
-        self.device_combo.addItem("GPU (NVIDIA CUDA)", "cuda")
-        self.device_combo.addItem("CPU", "cpu")
-        curr_d = self.config.get("device", "auto")
-        for i in range(self.device_combo.count()):
-            if self.device_combo.itemData(i) == curr_d:
-                self.device_combo.setCurrentIndex(i)
-        c1_layout.addLayout(_make_row("Run on:", self.device_combo))
+            devices.append(("NPU (Intel AI Boost)", "npu"))
+        devices += [("GPU (NVIDIA CUDA)", "cuda"), ("CPU", "cpu")]
+        self.device_combo = self._combo(devices, self.config.get("device", "auto"))
+        g.add("Run on", self.device_combo)
 
-        # Hardware diagnostics container
-        stack_hdr = QHBoxLayout()
-        stack_title = QLabel("Hardware Diagnostics & Pipeline", card1)
-        stack_title.setStyleSheet("font-weight: 500; font-size: 12px; color: rgba(255,255,255,0.7);")
-        stack_hdr.addWidget(stack_title)
-        stack_hdr.addStretch()
-
-        self.btn_refresh_stack = QPushButton("Refresh Status", card1)
-        self.btn_refresh_stack.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_refresh_stack.setStyleSheet("""
-            QPushButton { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.85); border: 1px solid rgba(255,255,255,0.14); border-radius: 6px; padding: 3px 8px; font-size: 11px; }
-            QPushButton:hover { background: rgba(255,255,255,0.14); }
-        """)
-        self.btn_refresh_stack.clicked.connect(self._refresh_system_stack)
-        stack_hdr.addWidget(self.btn_refresh_stack)
-        c1_layout.addLayout(stack_hdr)
-
-        self.stack_box = QFrame(card1)
-        self.stack_box.setStyleSheet("background: rgba(0, 0, 0, 0.25); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px;")
-        self.stack_box_layout = QVBoxLayout(self.stack_box)
-        self.stack_box_layout.setContentsMargins(12, 10, 12, 10)
-        self.stack_box_layout.setSpacing(6)
-        c1_layout.addWidget(self.stack_box)
+        self.btn_refresh_stack = _btn("Refresh", small=True, slot=self._refresh_system_stack)
+        self.stack_group, _ = self._section(body, "Hardware", action=self.btn_refresh_stack)
         self._refresh_system_stack()
 
-        layout.addWidget(card1)
+        # Capsule
+        g, _ = self._section(body, "Capsule")
+        self.capsule_style_combo = self._combo([
+            ("Compact (148 px)", "compact"), ("Standard (360 px)", "standard"),
+            ("Micro (88 px)", "micro"), ("Dynamic Island (top notch)", "island")], self.config.get("capsule_style", "compact"))
+        g.add("Style", self.capsule_style_combo)
+        self.island_pos_combo = self._combo([("Top (tucks up when idle)", "top"), ("Bottom", "bottom")],
+                                            self.config.get("island_position", "top"))
+        g.add("Island position", self.island_pos_combo)
 
-        # -------------------------------------------------------------------------
-        # CARD 2: Floating Capsule & Multi-Monitor Display
-        # -------------------------------------------------------------------------
-        card2, c2_layout = _make_card(
-            "🪄 Floating Capsule & Multi-Monitor Display",
-            "Desktop presence, sizing styles, and automatic screen following"
-        )
-
-        self.capsule_style_combo = QComboBox(card2)
-        self.capsule_style_combo.addItem("Option A: Compact / Wispr Flow (148 px) — Minimal & Floating Speech Bubble", "compact")
-        self.capsule_style_combo.addItem("Standard Capsule (360 px) — Full Controls & Action Hints", "standard")
-        self.capsule_style_combo.addItem("Option C: Micro Capsule (88 px) — Ultra-Minimal Waveform Only", "micro")
-        self.capsule_style_combo.addItem("Option D: Dynamic Island (top notch) — Springs open for dictation, alerts & settings", "island")
-
-        curr_style = self.config.get("capsule_style", "compact")
-        for i in range(self.capsule_style_combo.count()):
-            if self.capsule_style_combo.itemData(i) == curr_style:
-                self.capsule_style_combo.setCurrentIndex(i)
-                break
-        c2_layout.addLayout(_make_row("Capsule Style:", self.capsule_style_combo))
-
-        self.island_pos_combo = QComboBox(card2)
-        self.island_pos_combo.addItem("Top of the screen (tucks up when idle)", "top")
-        self.island_pos_combo.addItem("Bottom of the screen", "bottom")
-        self.island_pos_combo.setCurrentIndex(1 if self.config.get("island_position", "top") == "bottom" else 0)
-        c2_layout.addLayout(_make_row("Island Position:", self.island_pos_combo))
-
-        self.opacity_slider = QSlider(Qt.Orientation.Horizontal, card2)
+        self.opacity_slider = NoWheelSlider(Qt.Orientation.Horizontal)
         self.opacity_slider.setRange(30, 100)  # below 30% the capsule is easy to lose
         self.opacity_slider.setValue(round(float(self.config.get("capsule_opacity", 1.0)) * 100))
-        self.opacity_label = QLabel(f"{self.opacity_slider.value()}%", card2)
+        self.opacity_slider.setFixedWidth(176)
+        self.opacity_label = _label(f"{self.opacity_slider.value()}%", "RowValue")
         self.opacity_label.setFixedWidth(40)
-        opacity_row = QHBoxLayout()
-        opacity_row.addWidget(self.opacity_slider, 1)
-        opacity_row.addWidget(self.opacity_label)
-        opacity_box = QWidget(card2)
-        opacity_box.setLayout(opacity_row)
-        opacity_row.setContentsMargins(0, 0, 0, 0)
+        self.opacity_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        pair = QWidget()
+        pl = QHBoxLayout(pair)
+        pl.setContentsMargins(0, 0, 0, 0)
+        pl.setSpacing(8)
+        pl.addWidget(self.opacity_slider)
+        pl.addWidget(self.opacity_label)
         self.opacity_slider.valueChanged.connect(self._on_opacity_changed)
         self.opacity_slider.sliderReleased.connect(lambda: save_config(self.config))
-        c2_layout.addLayout(_make_row("Capsule Opacity:", opacity_box))
+        g.add("Opacity", pair)
+        self.cb_follow_mouse = self._switch(g, "Follow the cursor", "follow_mouse_screen", True, "Moves the capsule to the screen you are working on.")
+        self.cb_realtime = self._switch(g, "Live preview", "realtime_preview", True, "Shows words above the capsule while you speak.")
+        self.cb_hide_idle = self._switch(g, "Hide when idle", "hide_capsule_when_idle", False, "No resting pill on the desktop.")
 
-        self.cb_follow_mouse = Switch("Follow mouse cursor to active monitor with smooth fade (multi-screen)", card2)
-        self.cb_follow_mouse.setChecked(self.config.get("follow_mouse_screen", True))
-        c2_layout.addWidget(self.cb_follow_mouse)
-
-        self.cb_realtime = Switch("Show live preview of words above capsule while dictating", card2)
-        self.cb_realtime.setChecked(self.config.get("realtime_preview", True))
-        c2_layout.addWidget(self.cb_realtime)
-
-        self.cb_hide_idle = Switch("Hide capsule completely when idle (don't show snooze pill on desktop)", card2)
-        self.cb_hide_idle.setChecked(self.config.get("hide_capsule_when_idle", False))
-        c2_layout.addWidget(self.cb_hide_idle)
-
-        layout.addWidget(card2)
-
-        # -------------------------------------------------------------------------
-        # CARD 3: Audio & Voice Capture
-        # -------------------------------------------------------------------------
-        card3, c3_layout = _make_card(
-            "🎙️ Audio & Voice Capture",
-            "Microphone hardware selection and automatic silence gating"
-        )
-
-        self.mic_combo = QComboBox(card3)
-        self.mic_devices = list_microphones()
-        self.mic_combo.addItem("Default System Microphone", None)
-        curr_dev = self.config.get("input_device_index")
-        for dev in self.mic_devices:
-            self.mic_combo.addItem(f"{dev['name']} (Ch: {dev['channels']})", dev["index"])
-            if curr_dev == dev["index"]:
-                self.mic_combo.setCurrentIndex(self.mic_combo.count() - 1)
-        c3_layout.addLayout(_make_row("Microphone:", self.mic_combo))
-
-        self.active_mic_lbl = QLabel("Active Input: Default System Microphone", card3)
-        self.active_mic_lbl.setStyleSheet(f"color: {COLORS['text_muted']}; font-size: 11.5px; margin-top: -6px; margin-left: 4px;")
-        c3_layout.addWidget(self.active_mic_lbl)
-
-        self.silence_spin = QDoubleSpinBox(card3)
+        # Audio
+        self.mic_combo = NoWheelCombo()
+        self.mic_combo.setFixedWidth(280)
+        self.mic_devices = []
+        g, self.active_mic_lbl = self._section(body, "Audio", "Active input: Default System Microphone")
+        g.add("Microphone", self.mic_combo)
+        self.refresh_devices()
+        self.silence_spin = NoWheelSpin()
         self.silence_spin.setRange(0.6, 3.5)
         self.silence_spin.setSingleStep(0.1)
+        self.silence_spin.setSuffix(" s")
         self.silence_spin.setValue(float(self.config.get("silence_duration", 1.1)))
-        c3_layout.addLayout(_make_row("Auto-Write Pause (sec):", self.silence_spin))
+        self.silence_spin.setFixedWidth(88)
+        self.silence_spin.setAlignment(Qt.AlignmentFlag.AlignRight)
+        g.add("Pause before writing", self.silence_spin)
+        self.cb_autowrite = self._switch(g, "Write when I pause", "auto_write_on_silence", True)
+        self.cb_sound = self._switch(g, "Sound feedback", "sound_feedback", True, "Short tones on start and finish.")
+        self.cb_voice_edits = self._switch(g, "Voice edits", "voice_edits", False,
+                                           "Select text and say \"make this formal\". Downloads a 1.5 GB writing model once.")
 
-        self.cb_autowrite = Switch("Write automatically when you pause speaking", card3)
-        self.cb_autowrite.setChecked(self.config.get("auto_write_on_silence", True))
-        c3_layout.addWidget(self.cb_autowrite)
-
-        self.cb_sound = Switch("Play audio feedback tones on start and finish", card3)
-        self.cb_sound.setChecked(self.config.get("sound_feedback", True))
-        c3_layout.addWidget(self.cb_sound)
-
-        self.cb_voice_edits = Switch("Voice edits: select text and say \"make this formal\" (downloads a 1.5 GB writing model once)", card3)
-        self.cb_voice_edits.setChecked(self.config.get("voice_edits", False))
-        c3_layout.addWidget(self.cb_voice_edits)
-
-        layout.addWidget(card3)
-
-        # -------------------------------------------------------------------------
-        # CARD 4: Shortcuts, Text Output & System
-        # -------------------------------------------------------------------------
-        card4, c4_layout = _make_card(
-            "⌨️ Shortcuts, Text Output & System",
-            "Global activation hotkey, text injection, and application behavior"
-        )
-
-        self.hotkey_input = HotkeyRecorder(self.config.get("hotkey", "ctrl+shift"), card4)
+        # Output
+        g, _ = self._section(body, "Output")
+        self.hotkey_input = HotkeyRecorder(self.config.get("hotkey", "ctrl+shift"))
+        self.hotkey_input.setFixedHeight(32)
+        self.hotkey_input.setMinimumWidth(168)
         self.hotkey_input.sig_recording.connect(self.sig_hotkey_recording.emit)
         self.hotkey_input.sig_changed.connect(self._on_hotkey_recorded)
-        c4_layout.addLayout(_make_row("Global Hotkey:", self.hotkey_input))
+        g.add("Hotkey", self.hotkey_input, "Click, then press the shortcut you want.")
+        self.inj_combo = self._combo([("Instant paste (clipboard)", "clipboard"), ("Type-in effect (word by word)", "typein"),
+                                      ("Direct typing (no clipboard)", "type")], self.config.get("injection_method", "clipboard"))
+        g.add("Writing method", self.inj_combo)
+        self.tone_combo = self._combo([
+            ("Auto (matches the app)", "auto"), ("Smart Clean", "smart_clean"), ("Developer / Code", "developer"),
+            ("Email & Professional", "email"), ("Bullet Points", "bullets"), ("Raw Verbatim", "verbatim")],
+            self.config.get("tone_preset", "auto"))
+        g.add("Formatting", self.tone_combo)
+        self.cb_restore_clip = self._switch(g, "Restore clipboard", "restore_clipboard", True, "Puts your previous clipboard back after pasting.")
 
-        self.inj_combo = QComboBox(card4)
-        self.inj_combo.addItem("Instant Paste (Clipboard - Fastest)", "clipboard")
-        self.inj_combo.addItem("Type-In Effect (Word by Word - No Clipboard)", "typein")
-        self.inj_combo.addItem("Direct Typewriter (Unicode Emulation - No Clipboard)", "type")
-        curr_inj = self.config.get("injection_method", "clipboard")
-        for i in range(self.inj_combo.count()):
-            if self.inj_combo.itemData(i) == curr_inj:
-                self.inj_combo.setCurrentIndex(i)
-                break
-        c4_layout.addLayout(_make_row("Writing Method:", self.inj_combo))
-
-        self.tone_combo = QComboBox(card4)
-        self.tone_combo.addItem("Auto (Matches the app you are typing in)", "auto")
-        self.tone_combo.addItem("Smart Clean (Removes fillers, natural sentences)", "smart_clean")
-        self.tone_combo.addItem("Developer / Code (Variable casing, technical syntax)", "developer")
-        self.tone_combo.addItem("Email & Professional (Structured greeting & signoff)", "email")
-        self.tone_combo.addItem("Bullet Points (Thought outline)", "bullets")
-        self.tone_combo.addItem("Raw Verbatim (No modification)", "verbatim")
-        curr_tone = self.config.get("tone_preset", "auto")
-        for i in range(self.tone_combo.count()):
-            if self.tone_combo.itemData(i) == curr_tone:
-                self.tone_combo.setCurrentIndex(i)
-                break
-        c4_layout.addLayout(_make_row("Formatting Preset:", self.tone_combo))
-
-        self.cb_restore_clip = Switch("Restore previous clipboard after paste", card4)
-        self.cb_restore_clip.setChecked(self.config.get("restore_clipboard", True))
-        c4_layout.addWidget(self.cb_restore_clip)
-
-        self.cb_autostart = Switch("Start OpenFlow automatically when I sign in", card4)
-        self.cb_autostart.setChecked(self.config.get("autostart", False))
-        c4_layout.addWidget(self.cb_autostart)
-
-        # Save Button
-        save_btn = QPushButton("Save Settings", card4)
-        save_btn.setObjectName("PrimaryButton")
-        save_btn.setFixedHeight(38)
-        save_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        save_btn.clicked.connect(self._save_settings)
-        c4_layout.addWidget(save_btn)
-
-        # Updates Section
-        up_sep = QFrame(card4)
-        up_sep.setFixedHeight(1)
-        up_sep.setStyleSheet("background: rgba(255, 255, 255, 0.08); margin: 6px 0;")
-        c4_layout.addWidget(up_sep)
-
-        up_layout = QHBoxLayout()
-        up_layout.setSpacing(12)
+        # System & updates
         try:
             from .. import __version__
         except (ImportError, ValueError):
             from __init__ import __version__
-        self.ver_label = QLabel(f"Version: <b>v{__version__}</b>", card4)
-        self.ver_label.setStyleSheet(f"color: {COLORS['text_secondary']}; font-size: 13px;")
-        up_layout.addWidget(self.ver_label)
-
-        self.update_status_label = QLabel("", card4)
-        self.update_status_label.setStyleSheet(f"color: {COLORS['text_muted']}; font-size: 12px;")
-        up_layout.addWidget(self.update_status_label, 1)
-
-        self.btn_check_update = QPushButton("Check for Updates", card4)
-        self.btn_check_update.clicked.connect(self._on_check_update_clicked)
-        up_layout.addWidget(self.btn_check_update)
-
-        self.btn_install_update = QPushButton("Download & Install", card4)
-        self.btn_install_update.setObjectName("PrimaryButton")
+        g, _ = self._section(body, "System")
+        self.cb_autostart = self._switch(g, "Open at login", "autostart", False)
+        self.btn_check_update = _btn("Check for Updates", small=True, slot=self._on_check_update_clicked)
+        self.btn_install_update = _btn("Install", "primary", True, lambda: self.sig_request_install_update.emit())
         self.btn_install_update.hide()
-        self.btn_install_update.clicked.connect(lambda: self.sig_request_install_update.emit())
-        up_layout.addWidget(self.btn_install_update)
-
-        c4_layout.addLayout(up_layout)
-
-        layout.addWidget(card4)
-        layout.addStretch()
-
-        # the tab is taller than the minimum window; let it scroll instead of clipping
-        from PyQt6.QtWidgets import QScrollArea
-        scroll = QScrollArea(self)
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QFrame.Shape.NoFrame)
-        scroll.setStyleSheet("QScrollArea { background: transparent; border: none; }"
-                             "QScrollArea > QWidget > QWidget { background: transparent; }")
-        scroll.setWidget(widget)
-        return scroll
+        buttons = QWidget()
+        bl = QHBoxLayout(buttons)
+        bl.setContentsMargins(0, 0, 0, 0)
+        bl.setSpacing(8)
+        bl.addWidget(self.btn_install_update)
+        bl.addWidget(self.btn_check_update)
+        self.update_status_label = g.add(f"Version {__version__}", buttons)
+        self.update_status_label.setText("")
+        self.ver_label = None
+        return root
 
     def _refresh_system_stack(self):
-        while self.stack_box_layout.count():
-            item = self.stack_box_layout.takeAt(0)
-            if item.widget():
-                item.widget().deleteLater()
-            elif item.layout():
-                sub_layout = item.layout()
-                while sub_layout.count():
-                    sub_item = sub_layout.takeAt(0)
-                    if sub_item.widget():
-                        sub_item.widget().deleteLater()
-
+        g = self.stack_group
+        g.clear()
         stack = hardware.get_system_stack(self.config)
+        ok, info, off = "#30d158", "#0a84ff", "rgba(235,235,245,0.38)"
 
-        # Active Pipeline Badge Row
-        pipe_row = QHBoxLayout()
-        lbl_pipe_title = QLabel("Active Engine:", self.stack_box)
-        lbl_pipe_title.setStyleSheet("font-size: 11px; color: rgba(255,255,255,0.6);")
-        pipe_row.addWidget(lbl_pipe_title)
+        def value(text, color):
+            lbl = _label(text, "RowValue")
+            lbl.setStyleSheet(f"color: {color};")
+            return lbl
 
-        pipe_badge = QLabel(f" {stack['pipeline']} ", self.stack_box)
-        pipe_badge.setStyleSheet("background: rgba(48, 209, 88, 0.16); color: #30D158; border: 1px solid rgba(48, 209, 88, 0.35); border-radius: 4px; font-weight: 600; font-size: 11px; padding: 2px 6px;")
-        pipe_row.addWidget(pipe_badge)
-        pipe_row.addStretch()
-        self.stack_box_layout.addLayout(pipe_row)
-
-        # GPU Line
+        g.add("Active engine", _badge(stack["pipeline"], "active"))
         gpu = stack["gpu"]
-        gpu_color = "#30D158" if gpu["is_active"] else ("#0A84FF" if gpu["cuda_available"] else "rgba(255,255,255,0.4)")
-        lbl_gpu = QLabel(f"• <b>GPU Acceleration:</b> {gpu['name']} ({gpu['vram_gb']} GB VRAM) — <span style='color:{gpu_color}; font-weight:600;'>{gpu['status']}</span> [{gpu['backend']}]", self.stack_box)
-        lbl_gpu.setStyleSheet("font-size: 11px; color: rgba(255,255,255,0.85);")
-        self.stack_box_layout.addWidget(lbl_gpu)
-
-        # NPU Line
+        g.add("GPU", value(gpu["status"], ok if gpu["is_active"] else (info if gpu["cuda_available"] else off)),
+              f"{gpu['name']} · {gpu['vram_gb']} GB VRAM · {gpu['backend']}")
         npu = stack["npu"]
-        npu_color = "#30D158" if npu["is_active"] else ("#0A84FF" if npu["detected"] else "rgba(255,255,255,0.4)")
-        lbl_npu = QLabel(f"• <b>NPU Neural Core:</b> {npu['name']} — <span style='color:{npu_color}; font-weight:600;'>{npu['status']}</span> [{npu['acceleration']}]", self.stack_box)
-        lbl_npu.setStyleSheet("font-size: 11px; color: rgba(255,255,255,0.85);")
-        self.stack_box_layout.addWidget(lbl_npu)
-
-        # CPU Line
+        g.add("NPU", value(npu["status"], ok if npu["is_active"] else (info if npu["detected"] else off)),
+              f"{npu['name']} · {npu['acceleration']}")
         cpu = stack["cpu"]
-        cpu_color = "#30D158" if cpu["is_active"] else "rgba(255,255,255,0.5)"
-        lbl_cpu = QLabel(f"• <b>CPU Host:</b> {cpu['processor']} ({cpu['cores']} Cores, {cpu['ram_gb']} GB RAM) — <span style='color:{cpu_color}; font-weight:600;'>{cpu['status']}</span>", self.stack_box)
-        lbl_cpu.setStyleSheet("font-size: 11px; color: rgba(255,255,255,0.85);")
-        self.stack_box_layout.addWidget(lbl_cpu)
+        g.add("CPU", value(cpu["status"], ok if cpu["is_active"] else off),
+              f"{cpu['processor']} · {cpu['cores']} cores · {cpu['ram_gb']} GB RAM")
 
     def _save_settings(self):
         model_choice = self.model_combo.currentData()
@@ -1248,83 +1115,52 @@ class MainWindow(QMainWindow):
         self.mic_devices = list_microphones()
         self.mic_combo.blockSignals(True)
         self.mic_combo.clear()
-
-        def_title = f"Default System Microphone (Active: {active_mic_name})" if active_mic_name else "Default System Microphone"
-        self.mic_combo.addItem(def_title, None)
+        self.mic_combo.addItem("Default system microphone", None)
         curr_dev = self.config.get("input_device_index")
-
         for dev in self.mic_devices:
-            is_active = (active_mic_name and dev["name"] == active_mic_name)
-            tag = " [ACTIVE]" if is_active else ""
-            self.mic_combo.addItem(f"{dev['name']}{tag} (Ch: {dev['channels']})", dev["index"])
+            tag = "  ● Active" if active_mic_name and dev["name"] == active_mic_name else ""
+            self.mic_combo.addItem(f"{dev['name']}{tag}", dev["index"])
             if curr_dev == dev["index"]:
                 self.mic_combo.setCurrentIndex(self.mic_combo.count() - 1)
         self.mic_combo.blockSignals(False)
-
         if hasattr(self, "active_mic_lbl") and active_mic_name:
-            self.active_mic_lbl.setText(f"Active Input: {active_mic_name}")
+            self.active_mic_lbl.setText(f"Active input: {active_mic_name}")
+            self.active_mic_lbl.show()
+
+    # -- analytics ----------------------------------------------------------
 
     def _create_stats_tab(self) -> QWidget:
-        widget = QWidget()
-        layout = QVBoxLayout(widget)
-        layout.setContentsMargins(16, 16, 16, 16)
-        layout.setSpacing(16)
-
-        grid_layout = QHBoxLayout()
-        self.card_dictations = self._make_metric_card("Total Dictations", "0", "#ffffff")
-        self.card_words = self._make_metric_card("Total Words Spoken", "0", "#ffffff")
-        self.card_saved = self._make_metric_card("Typing Time Saved", "0 hrs", "#ffffff")
-        self.card_speed = self._make_metric_card("Effective Speed", "150 WPM", "#ffffff")
-
-        grid_layout.addWidget(self.card_dictations)
-        grid_layout.addWidget(self.card_words)
-        grid_layout.addWidget(self.card_saved)
-        grid_layout.addWidget(self.card_speed)
-        layout.addLayout(grid_layout)
-
-        comp_card = QFrame(self)
-        comp_card.setProperty("class", "Card")
-        comp_layout = QVBoxLayout(comp_card)
-        comp_layout.setSpacing(10)
-
-        comp_title = QLabel("Why OpenFlow", self)
-        comp_title.setStyleSheet("font-size: 15px; font-weight: 500; color: #ffffff;")
-        comp_layout.addWidget(comp_title)
+        root, body, _ = self._page("Analytics", "Your dictation so far, kept on this PC.")
+        grid = QGridLayout()
+        grid.setSpacing(12)
+        self.card_dictations = self._make_metric_card("Dictations", "0")
+        self.card_words = self._make_metric_card("Words spoken", "0")
+        self.card_saved = self._make_metric_card("Typing time saved", "0 hrs")
+        self.card_speed = self._make_metric_card("Effective speed", "150 WPM")
+        for i, c in enumerate((self.card_dictations, self.card_words, self.card_saved, self.card_speed)):
+            grid.addWidget(c, i // 2, i % 2)
+        body.addLayout(grid)
 
         hw_info = hardware.detect()
         gpu_label = hw_info.get("gpu_name") or ("NVIDIA GPU" if hw_info.get("cuda_ok") else "CPU / Local Hardware")
-        reasons = [
+        g, _ = self._section(body, "Why OpenFlow")
+        for title, detail in [
             ("No usage limits", f"Runs 100% locally on your computer with your {gpu_label}. No monthly minute quotas or tier limits."),
-            ("Fully private", "Zero audio or clipboard data is sent over the internet. Everything stays strictly on your local disk."),
-            ("Low latency", "Using faster-whisper CTranslate2 float16, dictation finishes in ~100-200 milliseconds."),
+            ("Fully private", "Zero audio or clipboard data is sent over the internet. Everything stays on your local disk."),
+            ("Low latency", "Using faster-whisper CTranslate2 float16, dictation finishes in about 100-200 milliseconds."),
             ("Free", "No subscriptions, credit card prompts, or paywalls."),
-        ]
+        ]:
+            g.add(title, None, detail)
+        return root
 
-        for title, detail in reasons:
-            item_lbl = QLabel(f"<b>{title}</b>: {detail}", self)
-            item_lbl.setStyleSheet(f"font-size: 12px; color: {COLORS['text_secondary']};")
-            comp_layout.addWidget(item_lbl)
-
-        layout.addWidget(comp_card)
-        layout.addStretch()
-        return widget
-
-    def _make_metric_card(self, title: str, value: str, color: str) -> QFrame:
+    def _make_metric_card(self, title: str, value: str) -> QFrame:
         card = QFrame(self)
-        card.setProperty("class", "Card")
-        c_layout = QVBoxLayout(card)
-        c_layout.setContentsMargins(14, 14, 14, 14)
-        c_layout.setSpacing(6)
-
-        t_lbl = QLabel(title, card)
-        t_lbl.setStyleSheet(f"color: {COLORS['text_secondary']}; font-size: 12px; font-weight: 500;")
-
-        v_lbl = QLabel(value, card)
-        v_lbl.setObjectName("MetricValue")
-        v_lbl.setStyleSheet(f"color: {color}; font-size: 28px; font-weight: 500;")
-
-        c_layout.addWidget(t_lbl)
-        c_layout.addWidget(v_lbl)
+        card.setObjectName("Group")
+        lay = QVBoxLayout(card)
+        lay.setContentsMargins(16, 14, 16, 14)
+        lay.setSpacing(4)
+        lay.addWidget(_label(title, "RowSub"))
+        lay.addWidget(_label(value, "MetricValue"))
         return card
 
     def refresh_stats(self):
@@ -1333,135 +1169,80 @@ class MainWindow(QMainWindow):
         self.card_words.findChild(QLabel, "MetricValue").setText(f"{stats['total_words']:,}")
         self.card_saved.findChild(QLabel, "MetricValue").setText(f"{stats['time_saved_hours']} hrs")
 
+    # -- updates ------------------------------------------------------------
+
     def _on_check_update_clicked(self):
         self.show_update_checking()
         self.sig_request_check_update.emit()
 
     def show_update_checking(self):
         self.update_status_label.setText("Checking for updates...")
+        self.update_status_label.show()
         self.btn_check_update.setEnabled(False)
 
     def show_update_available(self, version: str, notes: str = ""):
         self.btn_check_update.setEnabled(True)
         self.update_status_label.setText(f"Update available: <b>v{version}</b>")
+        self.update_status_label.show()
         self.btn_install_update.setText(f"Install v{version}")
         self.btn_install_update.show()
 
     def show_up_to_date(self, version: str = ""):
         self.btn_check_update.setEnabled(True)
         self.update_status_label.setText("OpenFlow is up to date.")
+        self.update_status_label.show()
         self.btn_install_update.hide()
 
     def show_update_error(self, message: str):
         self.btn_check_update.setEnabled(True)
         self.update_status_label.setText(f"Update check: {message}")
+        self.update_status_label.show()
+
+    # -- about --------------------------------------------------------------
 
     def _create_about_tab(self) -> QWidget:
-        widget = QWidget()
-        layout = QVBoxLayout(widget)
-        layout.setContentsMargins(16, 16, 16, 16)
-        layout.setSpacing(14)
-
-        # Header card
-        header_card = QFrame(self)
-        header_card.setProperty("class", "Card")
-        h_layout = QHBoxLayout(header_card)
-        h_layout.setContentsMargins(18, 18, 18, 18)
-        h_layout.setSpacing(16)
-
-        logo_path = get_asset_path("app_icon_square.png")
-        if not os.path.exists(logo_path):
-            logo_path = get_asset_path("logo.jpg")
-        logo_label = QLabel(header_card)
-        if os.path.exists(logo_path):
-            logo_label.setPixmap(get_squircle_pixmap(logo_path, size=52, radius=12.0))
-        h_layout.addWidget(logo_label)
-
-        title_col = QVBoxLayout()
-        title_col.setSpacing(4)
         try:
             from .. import __version__
         except (ImportError, ValueError):
             from __init__ import __version__
-        app_title = QLabel(f"OpenFlow <span style='font-size: 13px; color: #55ff99; font-weight: normal;'>v{__version__}</span>", header_card)
-        app_title.setStyleSheet("font-size: 20px; font-weight: 600; color: #ffffff;")
-        app_sub = QLabel("Private, unlimited voice dictation & speech-to-writing system · 100% On-Device AI", header_card)
-        app_sub.setStyleSheet(f"font-size: 13px; color: {COLORS['text_secondary']};")
-        title_col.addWidget(app_title)
-        title_col.addWidget(app_sub)
-        h_layout.addLayout(title_col, 1)
+        root, body, _ = self._page("About")
 
-        layout.addWidget(header_card)
+        head = QHBoxLayout()
+        head.setSpacing(16)
+        logo_path = get_asset_path("app_icon_square.png")
+        if not os.path.exists(logo_path):
+            logo_path = get_asset_path("logo.jpg")
+        if os.path.exists(logo_path):
+            logo = QLabel()
+            logo.setPixmap(get_squircle_pixmap(logo_path, size=64, radius=15.0))
+            head.addWidget(logo, 0, Qt.AlignmentFlag.AlignTop)
+        col = QVBoxLayout()
+        col.setSpacing(2)
+        name = _label(f"OpenFlow  <span style='font-size:13px; color:rgba(235,235,245,0.6); font-weight:400;'>v{__version__}</span>", "PageTitle")
+        name.setStyleSheet("font-size: 20px;")
+        col.addWidget(name)
+        col.addWidget(_label("Private, unlimited voice dictation and speech-to-writing. 100% on-device AI.", "PageSub", wrap=True))
+        head.addLayout(col, 1)
+        body.addLayout(head)
 
-        # Developer & Contact Card
-        dev_card = QFrame(self)
-        dev_card.setProperty("class", "Card")
-        d_layout = QVBoxLayout(dev_card)
-        d_layout.setContentsMargins(18, 18, 18, 18)
-        d_layout.setSpacing(12)
+        def link(url):
+            return lambda: QDesktopServices.openUrl(QUrl(url))
 
-        dev_title = QLabel("Developer & Contact", dev_card)
-        dev_title.setStyleSheet("font-size: 15px; font-weight: 600; color: #ffffff;")
-        d_layout.addWidget(dev_title)
+        g, _ = self._section(
+            body, "Developer",
+            "Developed by Sachidananda as a private, offline alternative to cloud dictation tools: "
+            "dictate into any app with no cloud latency and no subscription.")
+        g.add("GitHub repository", _btn("Open", small=True, slot=link("https://github.com/Sachin1724/OpenFlow")))
+        g.add("Project website", _btn("Open", small=True, slot=link("https://sachin1724.github.io/OpenFlow/")))
+        g.add("Contact or report an issue", _btn("Email", "primary", True, link(
+            "mailto:fakesachin.19@gmail.com?subject=OpenFlow%20Feedback%20%2F%20Issue%20Report")))
 
-        dev_desc = QLabel(
-            "Developed with passion by <b>Sachidananda</b>.<br>"
-            "OpenFlow is designed as a genuine, 100% private and offline alternative to cloud speech tools like Wispr Flow. "
-            "Dictate naturally into any application with zero cloud latency and no subscriptions.",
-            dev_card
-        )
-        dev_desc.setStyleSheet(f"font-size: 13px; color: {COLORS['text_secondary']}; line-height: 1.5;")
-        dev_desc.setWordWrap(True)
-        d_layout.addWidget(dev_desc)
-
-        btn_row = QHBoxLayout()
-        btn_row.setSpacing(10)
-
-        btn_gh = QPushButton("GitHub Repository", dev_card)
-        btn_gh.setObjectName("SecondaryButton")
-        btn_gh.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn_gh.clicked.connect(lambda: QDesktopServices.openUrl(QUrl("https://github.com/Sachin1724/OpenFlow")))
-        btn_row.addWidget(btn_gh)
-
-        btn_web = QPushButton("Project Website", dev_card)
-        btn_web.setObjectName("SecondaryButton")
-        btn_web.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn_web.clicked.connect(lambda: QDesktopServices.openUrl(QUrl("https://sachin1724.github.io/OpenFlow/")))
-        btn_row.addWidget(btn_web)
-
-        btn_mail = QPushButton("Contact / Report Issue", dev_card)
-        btn_mail.setObjectName("PrimaryButton")
-        btn_mail.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn_mail.clicked.connect(lambda: QDesktopServices.openUrl(QUrl("mailto:fakesachin.19@gmail.com?subject=OpenFlow%20Feedback%20%2F%20Issue%20Report")))
-        btn_row.addWidget(btn_mail)
-
-        btn_row.addStretch()
-        d_layout.addLayout(btn_row)
-        layout.addWidget(dev_card)
-
-        # Privacy Policy & Local Guarantee Card
-        priv_card = QFrame(self)
-        priv_card.setProperty("class", "Card")
-        p_layout = QVBoxLayout(priv_card)
-        p_layout.setContentsMargins(18, 18, 18, 18)
-        p_layout.setSpacing(10)
-
-        priv_title = QLabel("Privacy Policy & Local Security Guarantee", priv_card)
-        priv_title.setStyleSheet("font-size: 15px; font-weight: 600; color: #ffffff;")
-        p_layout.addWidget(priv_title)
-
-        guarantees = [
-            ("100% On-Device Transcription", "Every word is processed locally in RAM/VRAM via Whisper & CTranslate2. Zero audio bytes ever leave your device."),
-            ("Zero Cloud Telemetry", "OpenFlow contains no cloud tracking, analytics, or external API dependencies."),
-            ("Local SQLite Database", "Your transcription history and custom vocabulary reside strictly on your PC in %USERPROFILE%\\.openflow\\openflow.db."),
-            ("Complete User Control", "Delete downloaded models, purge vocabulary, or clear your history at any time with a single click.")
-        ]
-        for g_title, g_desc in guarantees:
-            lbl = QLabel(f"<b>{g_title}</b> — {g_desc}", priv_card)
-            lbl.setStyleSheet(f"font-size: 12px; color: {COLORS['text_secondary']};")
-            lbl.setWordWrap(True)
-            p_layout.addWidget(lbl)
-
-        layout.addWidget(priv_card)
-        layout.addStretch()
-        return widget
+        g, _ = self._section(body, "Privacy")
+        for title, detail in [
+            ("On-device transcription", "Every word is processed locally via Whisper and CTranslate2. No audio leaves your device."),
+            ("No telemetry", "OpenFlow has no cloud tracking, analytics, or external API dependencies."),
+            ("Local database", "Your history and vocabulary live on this PC in %USERPROFILE%\\.openflow\\openflow.db."),
+            ("You are in control", "Delete models, purge vocabulary, or clear your history at any time."),
+        ]:
+            g.add(title, None, detail)
+        return root
