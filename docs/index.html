@@ -417,6 +417,13 @@ section { position: relative; }
 .call:not([data-phase="notes"]) .notes { display: none; }
 
 /* new: big statements, one per change */
+.log h2 { font-size: var(--step-head); max-width: 14ch; }
+.logs { margin-top: 56px; max-width: 720px; }
+.logs details { border-top: 1px solid rgba(128,128,128,.25); padding: 18px 0; }
+.logs summary { cursor: pointer; display: flex; gap: 16px; align-items: baseline; font-size: 20px; list-style: none; }
+.logs summary span { color: var(--soft); font-size: 15px; }
+.logs ul { margin: 12px 0 0 1.1em; color: var(--soft); font-size: 17px; display: grid; gap: 6px; }
+.logs code { font-size: .9em; }
 .new h2 { font-size: var(--step-head); max-width: 14ch; }
 .new ul { list-style: none; padding: 0; margin-top: 80px; display: grid; gap: 72px; }
 .new li { display: grid; grid-template-columns: repeat(12, 1fr); column-gap: 24px; align-items: baseline; }
@@ -557,6 +564,7 @@ section { position: relative; }
       <li><a href="#research">Research</a></li>
       <li><a href="#meetings">Meetings</a></li>
       <li><a href="#new">What's new</a></li>
+      <li><a href="#versions">Versions</a></li>
       <li><a href="#hardware">No GPU</a></li>
       <li><a href="#faq">Questions</a></li>
       <li><a class="btn" href="https://github.com/Sachin1724/OpenFlow/releases/latest/download/OpenFlow-Setup.exe">Download</a></li>
@@ -933,6 +941,24 @@ draw(still.matches ? 6 : 0);
     <li class="rv"><h3>Press-to-record hotkey box.</h3><p>Set custom hotkeys by simply clicking and pressing your keys. Automatically pauses global listeners during recording to prevent shortcut capture collisions.</p></li>
     <li class="rv"><h3>Deterministic model downloads.</h3><p>Zero unsolicited background downloads. OpenFlow strictly downloads only the exact variant you select, and transparently substitutes cached local models.</p></li>
   </ul>
+</section>
+
+<section class="log pad" id="versions" aria-labelledby="v-h">
+  <h2 id="v-h" class="rv">Version log</h2>
+  <div class="logs">
+    <details class="rv" open><summary><b>v1.2.0</b><span>Fixes</span></summary><ul><li>No more frozen tray, taskbar or Start menu after the app has been running a while.</li><li>If the app ever stops responding, it logs why and restarts itself.</li><li>Faster first dictation after idle: the model stays loaded on CPU and NPU.</li></ul></details>
+    <details class="rv"><summary><b>v1.1.9</b><span>Fixes</span></summary><ul><li>Hotkey works again after the app has been idle for 10 minutes.</li><li>Intel NPU is picked automatically on Core Ultra PCs.</li><li>A GPU that froze stays off on the next start.</li><li>Install with <code>npx github:Sachin1724/OpenFlow</code>.</li><li>Landing page demo fits on phones.</li></ul></details>
+    <details class="rv"><summary><b>v1.1.8</b><span>Fixes</span></summary><ul><li>Odia always uses the Odia model, even with Whisper selected.</li><li>Odia word language model: WER 21.1% to 20.1%, CER 5.8% to 5.5%.</li><li>Odia output is limited to Odia script.</li></ul></details>
+    <details class="rv"><summary><b>v1.1.7</b><span>Fixes</span></summary><ul><li>Dictation pastes again on Windows builds that dropped batched Ctrl+V.</li><li>A frozen GPU call no longer causes an endless spinner; it falls back to the CPU after 10 s.</li><li>Accidental hotkey taps under 0.35 s are ignored.</li><li>Dashboard no longer opens at boot.</li><li>Capsule opacity slider, 30 to 100%.</li></ul></details>
+    <details class="rv"><summary><b>v1.1.6</b><span>Highlights</span></summary><ul><li>Smoother, sharper capsule on high-DPI screens with a live audio waveform.</li><li>Native Odia dictation and offline Odia to English translation.</li><li>Meeting notes and voice edits with a local Qwen2.5 model.</li></ul></details>
+    <details class="rv"><summary><b>v1.1.5</b><span>Highlights</span></summary><ul><li>Fixed the startup crash from relative imports.</li><li>Reliable Windows packaging in CI.</li><li>About 65% faster CPU dictation on laptops without a GPU.</li><li>The app relaunches itself after a silent update.</li></ul></details>
+    <details class="rv"><summary><b>v1.1.4</b><span>Highlights</span></summary><ul><li>Faster CPU inference on AMD Ryzen and Intel laptops.</li><li>Fixed the <code>No module named 'openflow'</code> startup crash.</li><li>Relaunch after silent updates.</li></ul></details>
+    <details class="rv"><summary><b>v1.1.3</b><span>Highlights</span></summary><ul><li>Fixed packaging so every module is bundled in the Windows build.</li></ul></details>
+    <details class="rv"><summary><b>v1.1.2</b><span>Highlights</span></summary><ul><li>Fixed the package-resolution crash introduced in v1.1.1.</li></ul></details>
+    <details class="rv"><summary><b>v1.1.1</b><span>Highlights</span></summary><ul><li>In-app auto-update no longer re-prompts or hits file locks.</li><li>Automatic detection of WhatsApp Desktop calls and browser meetings.</li><li>Better Indian English, Hinglish and Odia accuracy.</li></ul></details>
+    <details class="rv"><summary><b>v1.1.0</b><span>Highlights</span></summary><ul><li>Intel NPU acceleration at under 2 W.</li><li>Apple-style capsule HUD redesign.</li><li>Silent capsule-first boot.</li><li>Press-to-record hotkey box.</li><li>Models download only when you pick them.</li></ul></details>
+    <details class="rv"><summary><b>v1.0.0</b><span>First release</span></summary><ul><li>Single-file Windows installer, no admin needed.</li><li>GPU-accelerated live dictation with a floating capsule.</li><li>Automatic meeting notes.</li><li>Microphone hotplug detection.</li><li>Tone presets: Smart Clean, Developer, Email, Bullets, Verbatim.</li><li>99+ languages.</li></ul></details>
+  </div>
 </section>
 
 <section class="how field-light pad" id="how" aria-labelledby="h-h">

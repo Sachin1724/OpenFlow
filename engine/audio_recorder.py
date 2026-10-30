@@ -84,8 +84,8 @@ class AudioRecorder:
     def set_device(self, device_index: Optional[int]):
         if device_index != self.device_index:
             self.device_index = device_index
-            if not self._is_recording:
-                self.close_stream()
+            if not self._is_recording:  # PortAudio can block; never on the UI thread
+                threading.Thread(target=self.close_stream, daemon=True).start()
 
     def open_stream(self):
         """Keep the mic open between dictations: opening takes ~230 ms, which swallowed the first

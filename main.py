@@ -1,6 +1,8 @@
 import sys
 import os
 import datetime
+import faulthandler
+import subprocess
 import threading
 import time
 import traceback
@@ -81,7 +83,7 @@ except Exception:
         try:
             from __init__ import __version__
         except Exception:
-            __version__ = "1.1.9"
+            __version__ = "1.2.0"
 
 _BOOT_T0 = time.perf_counter()
 
@@ -312,6 +314,7 @@ class OpenFlowApp(QObject):
         self._housekeeping = QTimer(self)
         self._housekeeping.timeout.connect(self._housekeep)
         self._housekeeping.start(5000)
+        self._start_ui_watchdog()
 
         # Dedicated mic hotplug poller (runs every 1500 ms for immediate responsiveness)
         self._mic_poll_timer = QTimer(self)
@@ -631,13 +634,14 @@ class OpenFlowApp(QObject):
             self.act_hide_idle.setChecked(new_cfg.get("hide_capsule_when_idle", False))
             self.act_hide_idle.blockSignals(False)
 
-    IDLE_UNLOAD_SEC = 600
+    IDLE_UNLOAD_SEC = 3600  # only a GPU model holds scarce VRAM; CPU/NPU models stay loaded (instant next press)
 
     def _housekeep(self):
         now = time.monotonic()
         if now - self._last_tick > 30:  # a 5s timer that slept >30s means system sleep/resume
             print("[OpenFlow] Resumed from sleep: restarting hotkey")
-            self.audio_recorder.close_stream()  # the old stream can be dead after sleep; reopened on next use
+            # PortAudio can block forever on a dead device after sleep: never on the UI thread
+            threading.Thread(target=self.audio_recorder.close_stream, daemon=True).start()  # reopened on next use
             self.hotkey_mgr.stop()
             self.hotkey_mgr.start()
         self._last_tick = now
@@ -647,10 +651,41 @@ class OpenFlowApp(QObject):
         self._gpu_tick = getattr(self, "_gpu_tick", 0) + 1
         if self._gpu_tick % 6 == 0 and not busy and self.config.get("device", "auto") == "auto":
             threading.Thread(target=self._check_gpu, daemon=True).start()  # every ~30 s
-        if not busy and self.transcriber.model is not None and now - self._last_activity > self.IDLE_UNLOAD_SEC:
+        if (not busy and self.transcriber.model is not None and self.transcriber.device == "cuda"
+                and now - self._last_activity > self.IDLE_UNLOAD_SEC):
             print("[OpenFlow] Idle: unloading model, releasing microphone")
-            self.transcriber.unload()
-            self.audio_recorder.close_stream()
+            # freeing a CUDA model / closing the stream can block on the driver; keep the UI thread free
+            threading.Thread(target=self._release_idle, daemon=True).start()
+
+    def _release_idle(self):
+        self.transcriber.unload()
+        self.audio_recorder.close_stream()
+
+    def _start_ui_watchdog(self):
+        """If the UI thread stops pumping events (tray/taskbar/Start do nothing), log every thread's
+        stack for diagnosis and relaunch, so the user never has to kill the process by hand."""
+        self._ui_beat = time.monotonic()
+        beat = QTimer(self)
+        beat.timeout.connect(lambda: setattr(self, "_ui_beat", time.monotonic()))
+        beat.start(1000)
+        self._ui_beat_timer = beat
+
+        def watch():
+            while True:
+                time.sleep(5)
+                if time.monotonic() - self._ui_beat < UI_FROZEN_SEC:
+                    continue
+                try:
+                    with open(os.path.join(os.path.expanduser("~"), ".openflow", "freeze.log"), "a") as fh:
+                        fh.write(f"\n--- UI frozen {time.strftime('%Y-%m-%d %H:%M:%S')} ---\n")
+                        faulthandler.dump_traceback(file=fh, all_threads=True)
+                except Exception:
+                    pass
+                args = sys.argv[1:] if getattr(sys, "frozen", False) else sys.argv
+                subprocess.Popen([sys.executable, *args], env={**os.environ, "OPENFLOW_RESTART": "1"})
+                os._exit(0)
+
+        threading.Thread(target=watch, daemon=True, name="openflow-ui-watchdog").start()
 
     def _check_meeting(self):
         app = active_meeting_app()
@@ -772,7 +807,7 @@ class OpenFlowApp(QObject):
 
                 # Refresh PortAudio so internal device cache is synchronized
                 if not self.audio_recorder.is_recording:
-                    self.audio_recorder.refresh_devices()
+                    threading.Thread(target=self.audio_recorder.refresh_devices, daemon=True).start()
 
                 if added:
                     for name in added:
@@ -1140,6 +1175,7 @@ class OpenFlowApp(QObject):
 
 
 SINGLE_INSTANCE_KEY = "openflow-single-instance"
+UI_FROZEN_SEC = 20
 
 
 def _already_running() -> bool:
@@ -1222,6 +1258,8 @@ def _ask_running_instance_to_show() -> bool:
 def main():
     _setup_logging()
     qt_app = QApplication.instance() or QApplication(sys.argv)
+    if os.environ.pop("OPENFLOW_RESTART", None):
+        time.sleep(2)  # let the frozen copy exit and release its mutex/socket
     first, _mutex = _acquire_instance_lock()  # keep _mutex referenced for the process lifetime
     if not first:
         if _ask_running_instance_to_show():

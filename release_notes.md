@@ -1,3 +1,17 @@
+# OpenFlow v1.2.0 — Standalone Windows Release
+
+### Zero-Limit · 100% Offline · Local AI Voice Dictation & Meeting Intelligence for Windows
+**Architected and Created by Sachidananda**
+
+---
+
+### Fixes in v1.2.0
+- **No more frozen app**: the tray, taskbar and Start menu stopped responding after a while because idle model unload, mic refresh and stream close could block the UI thread. They now run in the background.
+- **Self-recovery**: if the UI ever stops responding for 20 s, OpenFlow saves every thread's stack to `~/.openflow/freeze.log` and restarts itself.
+- **Faster after idle**: the model is kept loaded on CPU and NPU, and unloaded from the GPU only after 1 hour idle (was 10 minutes).
+
+---
+
 # OpenFlow v1.1.9 — Standalone Windows Release
 
 ### Zero-Limit · 100% Offline · Local AI Voice Dictation & Meeting Intelligence for Windows
