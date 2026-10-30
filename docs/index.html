@@ -413,6 +413,19 @@ section { position: relative; }
 .hw .col3 p b { display: block; font-weight: 500; font-size: 24px; letter-spacing: -0.02em; margin-bottom: 6px; color: #fff; }
 .hw .col3.lit p b { color: #000; }
 
+/* android */
+.android h2 { font-size: var(--step-head); max-width: 14ch; }
+.android .lead-android { margin-top: 24px; color: var(--soft); max-width: 52ch; font-size: 18px; }
+.android .cols { margin-top: 64px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.android .col-card { background: var(--surface); border-radius: var(--radius); padding: 32px 28px; min-height: 280px; display: flex; flex-direction: column; justify-content: space-between; gap: 24px; }
+.android .col-card.lit { background: #fff; color: #000; }
+.android .col-card h3 { font-size: 24px; font-weight: 500; letter-spacing: -0.02em; line-height: 1.15; }
+.android .col-card p { font-size: 16px; color: var(--soft); line-height: 1.55; }
+.android .col-card.lit p { color: var(--light-soft); }
+.android .col-card b { color: #fff; font-weight: 500; }
+.android .col-card.lit b { color: #000; }
+.android-actions { margin-top: 48px; display: flex; gap: 14px; flex-wrap: wrap; align-items: center; }
+
 /* faq */
 .faq .layout { display: grid; grid-template-columns: repeat(12, 1fr); column-gap: 24px; }
 .faq .qs { grid-column: 1 / 6; list-style: none; padding: 0; display: grid; gap: 18px; align-content: start; }
@@ -594,7 +607,7 @@ section[id] { scroll-margin-top: 24px; }
   .call { padding: 12px; }
   .who .face { width: 40px; height: 40px; font-size: 16px; margin-bottom: 14px; }
   .who .name { font-size: 14px; left: 8px; bottom: 6px; }
-  .steps3, .hw .cols, .shots { grid-template-columns: 1fr; }
+  .steps3, .hw .cols, .android .cols, .shots { grid-template-columns: 1fr; }
   .hw .col3 { min-height: 0; }
   .proof ul { min-width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 28px 24px; }
   .faq .qs { grid-column: 1 / -1; gap: 4px; }
@@ -674,6 +687,7 @@ section[id] { scroll-margin-top: 24px; }
         <li><a href="#odia">Odia</a></li>
         <li><a href="research.html">Research</a></li>
         <li><a href="#meetings">Meetings</a></li>
+        <li><a href="#android">Android (beta)</a></li>
         <li><a href="changelog.html">Versions</a></li>
         <li><a class="btn" href="#get">Get</a></li>
       </ul>
@@ -1159,6 +1173,38 @@ draw(still.matches ? 6 : 0);
   </div>
 </section>
 
+<section class="android pad" id="android" aria-labelledby="a-h">
+  <h2 id="a-h" class="rv">OpenFlow for Android (beta).</h2>
+  <p class="lead-android rv" style="--i:1">Private, on-device voice typing on your phone. A compact Dynamic Island capsule appears beside your text field, listens with on-device AI, and types directly into any app. Audio never leaves your device.</p>
+  <div class="cols">
+    <div class="col-card lit rv">
+      <div>
+        <h3>What works now</h3>
+        <p><b>Odia speech model (ARM64 NEON)</b><br>Trained specifically for mobile with 4-bit quantization. Floating Dynamic Island capsule, on-device history, and model management.</p>
+      </div>
+      <p class="small">Tested on Android 10 through 14.</p>
+    </div>
+    <div class="col-card rv" style="--i:1">
+      <div>
+        <h3>What's coming</h3>
+        <p><b>English &amp; Hindi models</b><br>Multi-lingual dictation with automatic code-mixing, live meeting notes recorder, and direct custom keyboard IME integration.</p>
+      </div>
+      <p class="small">Arriving in beta updates over the air.</p>
+    </div>
+    <div class="col-card rv" style="--i:2">
+      <div>
+        <h3>Quick install</h3>
+        <p><b>3 simple steps:</b><br>1. Download the signed APK.<br>2. Tap to install (select "Install anyway" if prompted).<br>3. Enable OpenFlow in Accessibility settings.</p>
+      </div>
+      <p class="small">Requires Android 8.0+ (ARM64 recommended).</p>
+    </div>
+  </div>
+  <div class="android-actions rv" style="--i:3">
+    <a class="btn big" href="https://github.com/Sachin1724/OpenFlow/releases/download/android-v0.1.0-beta/OpenFlow-android-beta-0.1.0.apk">Download Android Beta (.apk)</a>
+    <a class="btn big quiet-light" href="changelog.html#v0-1-0-android">Read release notes</a>
+  </div>
+</section>
+
 <section class="get pad" id="get" aria-labelledby="g-h">
   <div class="grid">
     <div class="g-copy">
@@ -1166,6 +1212,7 @@ draw(still.matches ? 6 : 0);
       <p class="rv" style="--i:1">Free, offline and no account. For Windows 10 or 11, 64-bit. A graphics card is optional.</p>
       <div class="row2 rv" style="--i:2">
         <a class="btn on-light big" href="https://github.com/Sachin1724/OpenFlow/releases/latest/download/OpenFlow-Setup.exe">Download for Windows (.exe)</a>
+        <a class="btn big quiet-light" href="https://github.com/Sachin1724/OpenFlow/releases/download/android-v0.1.0-beta/OpenFlow-android-beta-0.1.0.apk">Get Android Beta (.apk)</a>
         <a class="btn big quiet-light" href="changelog.html">Every version, in detail</a>
       </div>
       <p class="small rv" style="--i:3">Windows says it is not commonly downloaded? That is normal for a new free app. <a href="#faq">Here is why, and what to click.</a></p>
@@ -1193,7 +1240,7 @@ draw(still.matches ? 6 : 0);
     <svg viewBox="0 0 56 56" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 42L42 14M20 14h22v22"/></svg></a>
   <div class="links">
     <p>Voice dictation that stays on your computer.</p>
-    <ul><li><a href="changelog.html">Versions</a></li><li><a href="#island">Island</a></li><li><a href="#dashboard">Dashboard</a></li><li><a href="research.html">Research</a></li><li><a href="#meetings">Meetings</a></li><li><a href="#faq">Questions</a></li><li><a href="https://github.com/Sachin1724/OpenFlow">Source</a></li></ul>
+    <ul><li><a href="changelog.html">Versions</a></li><li><a href="#island">Island</a></li><li><a href="#dashboard">Dashboard</a></li><li><a href="#android">Android</a></li><li><a href="research.html">Research</a></li><li><a href="#meetings">Meetings</a></li><li><a href="#faq">Questions</a></li><li><a href="https://github.com/Sachin1724/OpenFlow">Source</a></li></ul>
   </div>
 </footer>
 
