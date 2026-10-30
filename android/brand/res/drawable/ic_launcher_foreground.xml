@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- OpenFlow mark: an O cut across the middle, the halves shifted apart, a blue pill (the voice) in the cut.
+     Drawn inside the 66 dp adaptive-icon safe zone. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+    <path android:pathData="M27.6,51.5A22,22 0 0 1 71.4,51.5" android:strokeColor="#FFFFFF" android:strokeWidth="12" android:fillColor="#00000000"/>
+    <path android:pathData="M36.6,56.5A22,22 0 0 0 80.4,56.5" android:strokeColor="#FFFFFF" android:strokeWidth="12" android:fillColor="#00000000"/>
+    <path android:pathData="M44.6,52.4h18.8a1.6,1.6 0 0 1 0,3.2h-18.8a1.6,1.6 0 0 1 0,-3.2z" android:fillColor="#0A84FF"/>
+</vector>
