@@ -70,6 +70,16 @@ def silence_set():
     return sets
 
 
+def guard_on_real_speech():
+    """The silence guard must never drop real speech: how many real FLEURS clips it lets through."""
+    from openflow.engine.transcriber import _has_speech
+    total = passed = 0
+    for lang, n in (("en_us", 30), ("hi_in", 15), ("or_in", 15)):
+        cl = clips(lang, n)
+        total, passed = total + len(cl), passed + sum(_has_speech(a) for a, _ in cl)
+    return {"clips": total, "passed": passed}
+
+
 def job(spec):
     """One model in a fresh process: returns its measurements."""
     from openflow.engine.transcriber import Transcriber
@@ -144,13 +154,16 @@ def main():
         summary[phase] = {"with_text": len(texts), "seconds": round(sum(s for _, _, s in rows), 1),
                           "examples": sorted({x for _, x in texts})[:6],
                           "by_kind": {k: sum(1 for kk, x in texts if kk == k) for k in summary["kinds"]}}
+    summary["real_speech_passed"] = guard_on_real_speech()
     result["silence"] = summary
     print("  ", {k: (v if k not in ("kinds",) else "…") for k, v in summary.items()}, flush=True)
 
     print("odia clips", flush=True)
     odia = clips("or_in", 30)
     per_clip = [{"ref": ref, "engines": {}, "wer": {}} for _, ref in odia]
-    for label, model in (("Whisper base", "base"), ("Whisper small", "small"), ("OpenFlow Odia", "odia")):
+    # Only the Odia engine here: since v1.1.8 the app routes every Odia request to it, so a "Whisper" row built
+    # through Transcriber would silently be the same engine. Whisper's own Odia output: docs/figures/research/odia-clips.py
+    for label, model in (("OpenFlow Odia", "odia"),):
         out = run({"kind": "asr", "model": model, "lang": "or", "clips": odia})
         for pc, (_, ref), row in zip(per_clip, odia, out["rows"]):
             r, h = norm(ref), norm(row["hyp"])
