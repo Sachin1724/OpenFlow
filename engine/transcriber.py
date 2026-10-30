@@ -145,15 +145,16 @@ def _too_many_words(text: str, seconds: float) -> bool:
     return len(text.split()) > 4 * seconds + 3
 
 
-def _has_speech(audio: np.ndarray, floor: float = 0.008, min_ms: int = 160) -> bool:
-    """False for silence and steady room noise. Whisper invents text ("Thank you. Thank you...") from those.
-    floor is the recorder's own speaking threshold; non-stop speech still passes (the gate caps at half the loud frames)."""
+def _has_speech(audio: np.ndarray) -> bool:
+    """False only for clear non-speech: silence or a dead microphone, and steady low-level noise (hiss, hum).
+    Deliberately conservative: quiet speech must always pass (it has loud and soft moments; steady noise does not),
+    and anything doubtful goes on to the model, whose own voice detector decides."""
     n = 320  # 20 ms frames
-    if len(audio) < n * 4:
+    if len(audio) < n * 4 or float(np.abs(audio).max()) < 0.003:  # shorter than 80 ms, or nothing above -50 dBFS
         return False
     rms = np.sqrt((audio[: len(audio) // n * n].reshape(-1, n) ** 2).mean(axis=1))
-    gate = max(floor, min(3.0 * float(np.percentile(rms, 10)), 0.5 * float(np.percentile(rms, 95))))
-    return int((rms > gate).sum()) * 20 >= min_ms
+    loud, soft = float(np.percentile(rms, 95)), float(np.percentile(rms, 10))
+    return not (loud < 0.02 and loud < 3.0 * soft)  # quiet AND flat: noise, not a voice
 
 
 def _loop_at(text: str):
