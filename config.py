@@ -18,6 +18,9 @@ DEFAULT_CONFIG = {
     "show_floating_pill": True,          # Show floating minimal capsule
     "capsule_style": "compact",          # "standard" (360px full), "compact" (138px Wispr Flow), "micro" (88px minimal), "island" (top notch)
     "island_position": "top",            # island only: "top" or "bottom" screen edge
+    "capsule_width_pct": 100,            # 50-200: capsule / island length, % of the style's default
+    "capsule_height_pct": 100,           # 50-200
+    "capsule_auto_scale": True,          # grow on screens wider than 1920 px
     "capsule_opacity": 1.0,              # 0.3-1.0, set from Settings
     "hide_capsule_when_idle": False,     # Hide capsule completely when idle (don't show minimized bar on desktop)
     "follow_mouse_screen": True,         # Automatically follow mouse cursor to active display with smooth ease-in/out

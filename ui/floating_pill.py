@@ -57,6 +57,11 @@ GREEN = "#30D158"
 RED = "#FF453A"
 
 
+def screen_scale(screen) -> float:
+    """Bigger screens get a proportionally bigger capsule, never a smaller one: 1920 px wide = 1x, 2560 = 1.33x."""
+    return max(1.0, min(1.5, screen.geometry().width() / 1920.0)) if screen else 1.0
+
+
 def get_squircle_pixmap(image_path: str, size: int = 26, radius: float = 6.0) -> QPixmap:
     """Renders a high-DPI squircle brand emblem with smooth anti-aliasing and hairline rim."""
     dest = QPixmap(size, size)
@@ -1277,6 +1282,7 @@ class FloatingPill(QWidget):
         self._is_snoozed = False
         self._mode = "capsule"   # "capsule", "line", "hud"
         self.opacity = 1.0  # resting opacity; Settings > Capsule Opacity
+        self._size = (1.0, 1.0, False)  # width factor, height factor, grow with the screen; Settings > Capsule
         self._is_line_hovered = False
         self._dl = -1            # model download percent, -1 when not downloading
         self._anchor = QPoint()  # bottom-centre of the window during a morph
@@ -1484,11 +1490,26 @@ class FloatingPill(QWidget):
             self.capsule_layout.setContentsMargins(8, 0, 8, 0)
             self.capsule_layout.setSpacing(6)
 
+        auto = self._size[2]
+        k = screen_scale(self.current_screen or self.screen() or QApplication.primaryScreen()) if auto else 1.0
+        wf, hf = self._size[0] * k, self._size[1] * k
+        if (wf, hf) != (1.0, 1.0):
+            self._cap_w, self._cap_h = round(self._cap_w * wf), round(self._cap_h * hf)
+            self._snooze_w, self._snooze_h = round(self._snooze_w * wf), round(self._snooze_h * hf)
+            self.capsule_widget.setFixedSize(self._cap_w, self._cap_h)
+            self.visualizer.setFixedSize(round(self.visualizer.width() * hf), round(self.visualizer.height() * hf))
+
         if not self.is_expanded_hud:
             self._snooze_t = 0.0
             self._is_snoozed = False
             self._apply_t(0.0)
             self.position_bottom_center()
+
+    def set_capsule_size(self, wf: float, hf: float, auto: bool):
+        """Width and height as fractions of the style's default, plus 'grow with the screen'."""
+        self._size = (wf, hf, auto)
+        if hasattr(self, "capsule_layout"):
+            self.set_capsule_style(self.capsule_style)
 
     def _row(self, title: str, widget: QWidget, trailing: bool = False) -> QWidget:
         """iOS settings row; trailing=True pins a compact control (switch) to the right edge."""
@@ -2128,6 +2149,8 @@ class FloatingPill(QWidget):
             except Exception:
                 pass
             self.current_screen = target_screen
+            if self._size[2]:
+                self.set_capsule_style(self.capsule_style)  # a bigger or smaller screen changes the capsule size
             self.position_bottom_center(target_screen)
             _force_topmost(self)
             self.screen_fade_anim.setDuration(220)

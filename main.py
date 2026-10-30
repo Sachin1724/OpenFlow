@@ -268,6 +268,7 @@ class OpenFlowApp(QObject):
         island = IslandPill(position=self.config.get("island_position", "top"), **pill_args)
         self.floating_pill = CapsuleRouter(pill, island, style, self.config.get("follow_mouse_screen", True))
         self.floating_pill.set_opacity(float(self.config.get("capsule_opacity", 1.0)))
+        self._apply_capsule_size()
         self.floating_pill.populate_mics(recents)
         self.floating_pill.populate_models(curr_model)
         self.floating_pill.sig_mic_changed.connect(self._on_capsule_mic_changed)
@@ -282,6 +283,7 @@ class OpenFlowApp(QObject):
         self.main_window.refresh_devices(initial_mic)
         self.main_window.config_changed.connect(self._on_config_changed)
         self.main_window.sig_capsule_opacity.connect(self.floating_pill.set_opacity)
+        self.main_window.sig_capsule_size.connect(self._apply_capsule_size)
         self.main_window.sig_model_switch_requested.connect(self._on_request_switch_model)
         self.main_window.sig_model_download_requested.connect(self._on_request_download_model)
         self.main_window.sig_model_delete_requested.connect(self._on_request_delete_model)
@@ -347,6 +349,11 @@ class OpenFlowApp(QObject):
         self._meeting_timer = QTimer(self)
         self._meeting_timer.timeout.connect(self._check_meeting)
         self._meeting_timer.start(3000)
+
+    def _apply_capsule_size(self):
+        c = self.config
+        self.floating_pill.set_capsule_size(c.get("capsule_width_pct", 100) / 100, c.get("capsule_height_pct", 100) / 100,
+                                            c.get("capsule_auto_scale", True))
 
     def _active_msg(self) -> str:
         return f"OpenFlow Active · Hold {hotkey_label(self.config)} to Speak"

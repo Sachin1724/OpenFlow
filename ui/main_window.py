@@ -352,6 +352,7 @@ class MainWindow(QMainWindow):
     sig_model_delete_requested = pyqtSignal(str)
     sig_hotkey_recording = pyqtSignal(bool)
     sig_capsule_opacity = pyqtSignal(float)  # live while the slider moves
+    sig_capsule_size = pyqtSignal()          # width / height / auto-scale changed; read the values from config
 
     def __init__(self, db: Database, config: dict):
         super().__init__()
@@ -967,6 +968,13 @@ class MainWindow(QMainWindow):
         self.opacity_slider.valueChanged.connect(self._on_opacity_changed)
         self.opacity_slider.sliderReleased.connect(lambda: save_config(self.config))
         g.add("Opacity", pair)
+        self.width_slider, wpair = self._pct_slider("capsule_width_pct")
+        g.add("Width", wpair)
+        self.height_slider, hpair = self._pct_slider("capsule_height_pct")
+        g.add("Height", hpair)
+        self.cb_auto_scale = self._switch(g, "Grow on big screens", "capsule_auto_scale", True,
+                                          "Scales the capsule up on screens wider than 1920 px, and back down on smaller ones.")
+        self.cb_auto_scale.toggled.connect(lambda _: self._on_size_changed())
         self.cb_follow_mouse = self._switch(g, "Follow the cursor", "follow_mouse_screen", True, "Moves the capsule to the screen you are working on.")
         self.cb_realtime = self._switch(g, "Live preview", "realtime_preview", True, "Shows words above the capsule while you speak.")
         self.cb_hide_idle = self._switch(g, "Hide when idle", "hide_capsule_when_idle", False, "No resting pill on the desktop.")
@@ -1091,6 +1099,33 @@ class MainWindow(QMainWindow):
         self.config_changed.emit(self.config)
         self._refresh_system_stack()
         QMessageBox.information(self, "Saved", "Settings updated.")
+
+    def _pct_slider(self, key: str):
+        """Slider (50-200 %) with a value label; applies live like the opacity slider."""
+        slider = NoWheelSlider(Qt.Orientation.Horizontal)
+        slider.setRange(50, 200)
+        slider.setValue(int(self.config.get(key, 100)))
+        slider.setFixedWidth(176)
+        label = _label(f"{slider.value()}%", "RowValue")
+        label.setFixedWidth(40)
+        label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        box = QWidget()
+        lay = QHBoxLayout(box)
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.setSpacing(8)
+        lay.addWidget(slider)
+        lay.addWidget(label)
+        slider.valueChanged.connect(lambda v: (label.setText(f"{v}%"), self._on_size_changed()))
+        slider.sliderReleased.connect(lambda: save_config(self.config))
+        return slider, box
+
+    def _on_size_changed(self):
+        self.config["capsule_width_pct"] = self.width_slider.value()
+        self.config["capsule_height_pct"] = self.height_slider.value()
+        self.config["capsule_auto_scale"] = self.cb_auto_scale.isChecked()
+        self.sig_capsule_size.emit()
+        if not (self.width_slider.isSliderDown() or self.height_slider.isSliderDown()):
+            save_config(self.config)
 
     def _on_opacity_changed(self, value: int):
         """Applies at once, like the hotkey; no Save needed."""

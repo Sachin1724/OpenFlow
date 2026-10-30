@@ -22,7 +22,7 @@ except ImportError:
         from engine import model_manager
         from engine.audio_recorder import list_microphones
 
-W, H = 380, 300            # the window is fixed; the shape inside it grows and shrinks
+W0, H0 = 380, 300          # window size at 1x; the shape inside it grows and shrinks
 PEEK = 5                   # px of the island left showing when it has tucked up
 SNOOZE_AFTER_MS = 3500
 INK, DIM = QColor("#ffffff"), QColor("#9a9fa9")
@@ -50,7 +50,11 @@ class IslandPill(QWidget):
         self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
         self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.setMouseTracking(True)
-        self.resize(W, H)
+        self.W, self.H = W0, H0
+        self._wf = self._hf = 1.0     # user's width/height percent / 100
+        self._auto = False            # grow with the screen: 1920 px wide = 1x, never below
+        self._wk = self._hk = 1.0     # the factors in force on the current screen
+        self.resize(self.W, self.H)
 
         self.font_family = ui_font_family()
         self.current_mic_name, self.current_language, self.current_model = current_mic_name, current_language, current_model
@@ -200,8 +204,9 @@ class IslandPill(QWidget):
         scr = self._target_screen()
         self._screen = scr
         g = scr.geometry()
-        y = g.top() if self.position == "top" else g.bottom() + 1 - H
-        self.move(g.center().x() - W // 2, y)
+        self._refresh_scale()
+        y = g.top() if self.position == "top" else g.bottom() + 1 - self.H
+        self.move(g.center().x() - self.W // 2, y)
 
     def set_position(self, position):
         self.position = "bottom" if position == "bottom" else "top"
@@ -209,11 +214,34 @@ class IslandPill(QWidget):
         self._apply_mask()
         self.update()
 
+    def _refresh_scale(self):
+        """Effective width/height factors on the current screen, and a window big enough to hold the widest shape."""
+        k = 1.0
+        if self._auto and self._screen is not None:
+            k = max(1.0, min(1.5, self._screen.geometry().width() / 1920.0))
+        self._wk, self._hk = self._wf * k, self._hf * k
+        W = max(W0, round(344 * self._wk) + 36)
+        if W != self.W:
+            self.W = W
+            self.resize(self.W, self.H)
+            if self._screen is not None:
+                self.move(self._screen.geometry().center().x() - self.W // 2, self.y())
+        self.wave.setFixedSize(round(48 * self._hk), round(22 * self._hk))
+
+    def set_capsule_size(self, wf, hf, auto):
+        """Width and height as fractions of the default, plus 'grow with the screen'. Shows a short preview."""
+        self._wf, self._hf, self._auto = wf, hf, auto
+        self._screen = self._screen or self._target_screen()
+        self._refresh_scale()
+        if self._state == "idle" and self.isVisible():
+            self._go("listen")
+            self._done_timer.start(1400)  # back to rest, which also re-snoozes
+
     def _shape_rect(self, dims=None, snooze=None):
         w, h, _ = dims or self._dims
-        x = (W - w) / 2
+        x = (self.W - w) / 2
         shift = (self._snooze if snooze is None else snooze) * (h - PEEK)
-        y = -shift if self.position == "top" else H - h + shift
+        y = -shift if self.position == "top" else self.H - h + shift
         return QRectF(x, y, w, h)
 
     def _apply_mask(self, also=None):
@@ -222,7 +250,7 @@ class IslandPill(QWidget):
         r = self._shape_rect().toAlignedRect()
         if also is not None:
             r = r.united(also.toAlignedRect())
-        self.setMask(QRegion(r.intersected(QRect(0, 0, W, H))))
+        self.setMask(QRegion(r.intersected(QRect(0, 0, self.W, self.H))))
 
     # -- state machine ------------------------------------------------------
 
@@ -232,9 +260,14 @@ class IslandPill(QWidget):
         self._snooze_anim.stop()
         self._snooze = 0.0
         self._state = state
-        target = dims or DIMS[state]
+        if state == "idle" or not self.isVisible():
+            self._screen = self._target_screen()  # a screen change is picked up while resting
+            self._refresh_scale()
+        w, h, r = dims or DIMS[state]
+        if state != "panel":  # the settings panel keeps its size; everything else follows the size settings
+            w, h, r = w * self._wk, h * self._hk, r * self._hk
         self._from = self._dims
-        self._to = tuple(float(v) for v in target)
+        self._to = (float(w), float(h), float(r))
         self._prev_face, self._face = self._face, ("msg" if state == "msg" else state)
         self._face_anim.stop()
         self._face_t = 0.0
@@ -353,7 +386,8 @@ class IslandPill(QWidget):
             width = QFont(self.font_family)
             width.setPixelSize(14)
             tw = QFontMetrics(width).horizontalAdvance(title)
-            self._go("msg", (max(200, min(W - 24, tw + 78)), 44, 22))
+            need = (tw + 78) * max(self._wk, self._hk) / self._wk  # contents grow with the height: keep the text in view
+            self._go("msg", (max(200, min((self.W - 24) / self._wk, need)), 44, 22))
 
     def _finish_note(self):
         self._to_idle()
@@ -394,6 +428,7 @@ class IslandPill(QWidget):
 
     def show_listening(self, preset_name="Listening"):
         if self._state == "listen":
+            self._done_timer.stop()  # a size preview may be showing this state: real dictation must not be cut short
             return
         self._preempt()
         self._go("listen")
@@ -494,7 +529,7 @@ class IslandPill(QWidget):
         self._draw_face(p, self._face, r, fade_in if self._prev_face != self._face else 1.0)
         self.wave.setVisible(self._state == "listen" and fade_in > 0.4)
         if self.wave.isVisible():
-            self.wave.move(int(r.center().x() - 24), int(r.center().y() - 11))
+            self.wave.move(int(r.center().x() - self.wave.width() / 2), int(r.center().y() - self.wave.height() / 2))
 
     def _font(self, px, weight=QFont.Weight.Medium):
         f = QFont(self.font_family)
@@ -507,6 +542,12 @@ class IslandPill(QWidget):
             return
         p.save()
         p.setOpacity(a)
+        s = 1.0 if face == "panel" else self._hk  # contents grow with the height; the width factor only adds room
+        if s != 1.0:
+            c = r.center()
+            p.translate(c)
+            p.scale(s, s)
+            r = QRectF(-r.width() / (2 * s), -r.height() / (2 * s), r.width() / s, r.height() / s)
         cy = r.center().y()
         top = self.position == "top"
         if face == "idle":
@@ -697,6 +738,10 @@ class CapsuleRouter(QObject):
 
     def set_island_position(self, position):
         self._island.set_position(position)
+
+    def set_capsule_size(self, wf, hf, auto):
+        self._pill.set_capsule_size(wf, hf, auto)
+        self._island.set_capsule_size(wf, hf, auto)
 
     def geometry(self):
         return QRect() if self._on_island else self._pill.geometry()  # the meeting bar then uses its default spot
