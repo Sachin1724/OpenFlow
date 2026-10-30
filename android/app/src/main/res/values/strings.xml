@@ -1,0 +1,3 @@
+<resources>
+    <string name="service_description">OpenFlow shows a small button next to the text box you are typing in, so you can dictate instead. It only looks at which text box is focused, and it only types the words you dictate. Nothing is stored or sent anywhere.</string>
+</resources>
