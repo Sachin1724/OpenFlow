@@ -145,6 +145,42 @@ def _too_many_words(text: str, seconds: float) -> bool:
     return len(text.split()) > 4 * seconds + 3
 
 
+def _has_speech(audio: np.ndarray, floor: float = 0.008, min_ms: int = 160) -> bool:
+    """False for silence and steady room noise. Whisper invents text ("Thank you. Thank you...") from those.
+    floor is the recorder's own speaking threshold; non-stop speech still passes (the gate caps at half the loud frames)."""
+    n = 320  # 20 ms frames
+    if len(audio) < n * 4:
+        return False
+    rms = np.sqrt((audio[: len(audio) // n * n].reshape(-1, n) ** 2).mean(axis=1))
+    gate = max(floor, min(3.0 * float(np.percentile(rms, 10)), 0.5 * float(np.percentile(rms, 95))))
+    return int((rms > gate).sum()) * 20 >= min_ms
+
+
+def _loop_at(text: str):
+    """Word index where a repeated phrase starts looping (a word 4x, a 2-4 word phrase 3x in a row), else None."""
+    w = [re.sub(r"\W+", "", x.lower()) for x in text.split()]
+    for i in range(len(w)):
+        for size in (1, 2, 3, 4):
+            reps = 4 if size == 1 else 3
+            chunk = w[i:i + size]
+            if all(chunk) and len(chunk) == size and all(w[i + k * size:i + (k + 1) * size] == chunk for k in range(reps)):
+                return i
+    return None
+
+
+def _drop_loop(text: str) -> str:
+    """Keeps the words before a loop plus its first pass; a text that is only a loop is a hallucination: ''."""
+    at = _loop_at(text)
+    if at is None:
+        return text
+    if at == 0:
+        return ""
+    words = text.split()
+    w = [re.sub(r"\W+", "", x.lower()) for x in words]
+    size = next(sz for sz in (1, 2, 3, 4) if w[at:at + sz] and w[at:at + sz] == w[at + sz:at + 2 * sz])
+    return " ".join(words[:at + size]).strip()
+
+
 class Transcriber:
     def __init__(self, model_size: str = "base.en", device: str = "cuda", compute_type: str = "float16", language: str = "en", preload: bool = True):
         self.model_size = model_size
@@ -389,7 +425,7 @@ class Transcriber:
 
     def transcribe_partial(self, audio: np.ndarray) -> str:
         """Fast real-time preview (beam_size=1, greedy) for streaming into the capsule."""
-        if self.model is None or self._preview_slow or len(audio) < 8000:
+        if self.model is None or self._preview_slow or len(audio) < 8000 or not _has_speech(audio[-16000 * 3:]):
             return ""
         lock = self._lock
         if not lock.acquire(blocking=False):  # model is swapping, skip preview
@@ -400,7 +436,7 @@ class Transcriber:
             # Slicing the last 3.0 seconds (48,000 samples) instead of 8s keeps decode latency under 80ms
             sample = audio[-16000 * 3:]
             if self._current_loaded_name in ("parakeet", "odia"):
-                return self._parakeet_text(sample, beam=False)
+                return _drop_loop(self._parakeet_text(sample, beam=False))
             segments, _ = self.model.transcribe(
                 sample,
                 **_whisper_args(self.language),
@@ -409,7 +445,7 @@ class Transcriber:
                 condition_on_previous_text=False,
                 vad_filter=False
             )
-            return " ".join([s.text.strip() for s in segments]).strip()
+            return _drop_loop(" ".join([s.text.strip() for s in segments]).strip())
         except Exception:
             return ""
         finally:
@@ -442,6 +478,8 @@ class Transcriber:
         """
         if len(audio) < 1600:
             return "", 0.0, 0, self.language
+        if not _has_speech(audio):  # nothing was said: don't let the model make something up
+            return "", len(audio) / 16000.0, 0, self.language
 
         if self.model is None:  # unloaded while idle
             self._load_model()
@@ -488,6 +526,7 @@ class Transcriber:
                 vad_filter=vad,
                 vad_parameters=dict(min_silence_duration_ms=300) if vad else None,
                 condition_on_previous_text=False,
+                repetition_penalty=1.1,  # discourages the phrase loops Whisper falls into on near-silence
                 without_timestamps=True,  # we only join the text; skipping timestamp tokens is ~5% faster
                 initial_prompt=initial_prompt,
             )
@@ -500,7 +539,7 @@ class Transcriber:
                     from .odia_mix import to_mixed
                     full_text = to_mixed(full_text, getattr(self.model, "lm", None))
             latency_ms = int((time.perf_counter() - start_time) * 1000)
-            return full_text, duration_seconds, latency_ms, lang
+            return _drop_loop(full_text), duration_seconds, latency_ms, lang
 
         with self._locked():
             try:
@@ -521,12 +560,13 @@ class Transcriber:
 
             # Whisper hallucinates loops ("1, 2, 3, 4, 1, 2, ...") on short clips, often seeded by the
             # prompt. Nobody says more than ~4 words a second: retry without the prompt, else drop it.
-            if _too_many_words(full_text, duration_seconds):
+            if _too_many_words(full_text, duration_seconds) or _loop_at(full_text) is not None:
                 print(f"[OpenFlow] Discarding hallucination: {full_text[:60]!r}")
                 initial_prompt = None
                 full_text, info = _run(vad=True)
                 if _too_many_words(full_text, duration_seconds):
                     full_text = ""
+            full_text = _drop_loop(full_text)
 
             # Check if Whisper mistook Hindi / Odia / Indian speech as Urdu, Arabic, Persian, or Pashto,
             # or if any Perso-Arabic unicode characters were produced:

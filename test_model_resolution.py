@@ -1,6 +1,12 @@
 """Self-check: a cached base.en counts as "base", so auto never picks a bigger model to download.
 Run from the repo's parent: python -m openflow.test_model_resolution"""
+import numpy as np
 from openflow.engine import hardware, model_manager as mm
+
+
+def _voice(n):
+    """A steady tone: loud enough that the silence gate treats it as speech."""
+    return (np.sin(np.arange(n) * 0.1) * 0.2).astype(np.float32)
 
 
 def test_only_base_en_cached():
@@ -32,7 +38,7 @@ def test_slow_preview_turns_itself_off():
 
     t = tr.Transcriber(preload=False)
     t.model = SlowModel()
-    audio = np.zeros(16000, np.float32)
+    audio = _voice(16000)
     t.transcribe_partial(audio)
     t.transcribe_partial(audio)
     assert SlowModel.calls == 1, "slow preview kept running and would delay the final text"
@@ -106,10 +112,10 @@ def test_hung_gpu_call_falls_back_to_cpu():
     real_hung = tr._HUNG_S
     tr._HUNG_S = 0.2
     try:
-        threading.Thread(target=t.transcribe_partial, args=(np.zeros(16000, np.float32),), daemon=True).start()
+        threading.Thread(target=t.transcribe_partial, args=(_voice(16000),), daemon=True).start()
         time.sleep(0.05)
         session = tr.StreamingSession(t, "en", None)
-        text = session.finish(np.zeros(32000, np.float32))[0]
+        text = session.finish(_voice(32000))[0]
     finally:
         tr._HUNG_S = real_hung
         stuck.set()
