@@ -121,3 +121,7 @@ Yes. OpenFlow automatically detects hardware at launch. If an NVIDIA GPU with CU
 - **Direct Download**: https://github.com/Sachin1724/OpenFlow/releases/download/v1.0.0/OpenFlow-Setup.exe
 - **License**: MIT
 - **Author**: Sachidananda
+
+## Changelog
+- **Every version in plain words** (what is new, better and fixed in each release, 1.0.0 onward): https://sachin1724.github.io/OpenFlow/changelog.html
+- Release feed: https://github.com/Sachin1724/OpenFlow/releases.atom

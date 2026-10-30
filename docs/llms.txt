@@ -35,3 +35,7 @@ OpenFlow is a high-performance Windows desktop application that enables users to
 - [Official Website](https://sachin1724.github.io/OpenFlow/)
 - [GitHub Repository](https://github.com/Sachin1724/OpenFlow)
 - [Releases & Installer](https://github.com/Sachin1724/OpenFlow/releases)
+
+## Changelog
+- **Every version in plain words** (what is new, better and fixed in each release, 1.0.0 onward): https://sachin1724.github.io/OpenFlow/changelog.html
+- Release feed: https://github.com/Sachin1724/OpenFlow/releases.atom
