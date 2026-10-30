@@ -419,8 +419,8 @@ class MeetingSession:
 
 def group_speaker_turns(lines: List[Tuple[float, str, str]]) -> List[dict]:
     """
-    Groups consecutive utterances by the same speaker within 30 seconds into clean dialog turns.
-    Prevents single-sentence fragmentation and run-together text.
+    Groups consecutive utterances by the same speaker into dialog turns. A pause over 30 s, or a turn
+    running past a minute, starts a new one, so a long monologue still gets a heading and time tag each minute.
     """
     turns: List[dict] = []
     for t, who, text in lines:
@@ -428,7 +428,7 @@ def group_speaker_turns(lines: List[Tuple[float, str, str]]) -> List[dict]:
             continue
         cleaned = text.strip()
         # If the same speaker spoke again within 30 seconds, append to the current turn
-        if turns and turns[-1]["who"] == who and (t - turns[-1]["t_end"] <= 30.0):
+        if turns and turns[-1]["who"] == who and (t - turns[-1]["t_end"] <= 30.0) and (t - turns[-1]["t_start"] <= 60.0):
             turns[-1]["t_end"] = t
             turns[-1]["texts"].append(cleaned)
         else:
@@ -452,7 +452,7 @@ def transcript_text(lines: List[Tuple[float, str, str]]) -> str:
         s_min, s_sec = int(turn["t_start"]) // 60, int(turn["t_start"]) % 60
         e_min, e_sec = int(turn["t_end"]) // 60, int(turn["t_end"]) % 60
         time_tag = f"[{s_min:02d}:{s_sec:02d}]" if turn["t_start"] == turn["t_end"] else f"[{s_min:02d}:{s_sec:02d} - {e_min:02d}:{e_sec:02d}]"
-        speech = " ".join(turn["texts"])
+        speech = "\n\n".join(turn["texts"])  # one paragraph per utterance, never run together
         blocks.append(f"### {turn['who']} · {time_tag}\n\n{speech}")
     return "\n\n".join(blocks)
 
@@ -594,7 +594,7 @@ def render_meeting_html(markdown_notes: str, app_name: str = "Meeting") -> str:
         if not current_speech:
             return
         theme = speaker_theme(current_who)
-        text_body = esc(" ".join(current_speech))
+        text_body = "<br><br>".join(esc(x) for x in current_speech)
         turn_cards_html.append(
             f'<div style="margin-bottom: 12px; background: #131720; border-left: 4px solid {theme["color"]}; '
             f'border-radius: 8px; padding: 10px 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.2);">'

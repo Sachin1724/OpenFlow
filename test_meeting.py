@@ -87,3 +87,12 @@ if __name__ == "__main__":
         if name.startswith("test_"):
             fn()
             print("ok", name)
+
+
+def test_transcript_keeps_utterances_as_separate_paragraphs():
+    lines = [(3, "You", "Hi everyone."), (9, "Them", "We decided to ship Friday."), (14, "Them", "Rahul follows up."),
+             (22, "Them", "Budget is approved."), (80, "Them", "New topic.")]
+    raw = m.transcript_text(lines)
+    assert "We decided to ship Friday.\n\nRahul follows up.\n\nBudget is approved." in raw  # not one run-on paragraph
+    assert raw.count("###") == 3  # You, Them, then Them again once a minute has passed
+    assert "\n\nRahul follows up.\n\n" in m.format_meeting_notes(raw, "Meeting")
