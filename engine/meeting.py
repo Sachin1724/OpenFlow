@@ -561,181 +561,51 @@ def render_meeting_html(markdown_notes: str, app_name: str = "Meeting") -> str:
 
     transcript_raw = "\n".join(transcript_lines).strip()
 
-    # Build HTML blocks
-    # 1. Decisions HTML
-    if decisions_list:
-        decisions_html = "".join(f'<li style="margin-bottom: 6px; color: #e2e8f0;">{esc(d)}</li>' for d in decisions_list)
-    else:
-        decisions_html = '<div style="color: #64748b; font-style: italic;">None recorded</div>'
+    # Qt rich text has no flexbox or grid, so this is plain headings, paragraphs and lists in the dashboard's own greys.
+    muted = "#8e8e93"
 
-    # 2. Actions HTML
-    if actions_list:
-        actions_html = "".join(
-            f'<div style="margin-bottom: 8px; color: #e2e8f0; display: flex; align-items: flex-start;">'
-            f'<span style="display:inline-block; width:16px; height:16px; margin-right:8px; margin-top:2px; border: 1.5px solid #38bdf8; border-radius: 4px; background: rgba(56,189,248,0.1);"></span>'
-            f'<span>{esc(a)}</span></div>'
-            for a in actions_list
-        )
-    else:
-        actions_html = '<div style="color: #64748b; font-style: italic;">None recorded</div>'
+    def section(title: str, body: str) -> str:
+        return f'<p style="margin:22px 0 6px 0;"><span style="font-size:12px;font-weight:600;color:{muted};">{title}</span></p>{body}'
 
-    # 3. Transcript Cards with Color-Coded Speaker Badges
-    turn_cards_html = []
-    # Match both format types: '### Speaker · [Time]' or old '[Time] Speaker:'
+    empty = f'<p style="color:{muted};margin:0;">None recorded</p>'
+    decisions_html = ("<ul style='margin:0 0 0 18px;padding:0;'>" + "".join(f"<li style='margin:0 0 4px 0;'>{esc(d)}</li>" for d in decisions_list) + "</ul>") if decisions_list else empty
+    actions_html = "".join(f"<p style='margin:0 0 6px 0;'><span style='color:#0a84ff;'>&#9744;</span>&nbsp; {esc(x)}</p>" for x in actions_list) or empty
+
+    # Transcript: a heading line per speaker turn, then one paragraph per utterance
     pattern_turn = re.compile(r"###\s+([^·\n]+)\s*·\s*(\[[^\]]+\])")
     pattern_old = re.compile(r"^\[(\d+:\d+)\]\s*([^:]+):\s*(.*)$")
-
-    current_who = "You"
-    current_time = ""
-    current_speech: List[str] = []
-
-    def flush_turn():
-        nonlocal current_speech
-        if not current_speech:
-            return
-        theme = speaker_theme(current_who)
-        text_body = "<br><br>".join(esc(x) for x in current_speech)
-        turn_cards_html.append(
-            f'<div style="margin-bottom: 12px; background: #131720; border-left: 4px solid {theme["color"]}; '
-            f'border-radius: 8px; padding: 10px 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.2);">'
-            f'  <div style="margin-bottom: 6px; display: flex; align-items: center;">'
-            f'    <span style="background: {theme["bg"]}; color: {theme["color"]}; font-weight: 700; '
-            f'font-size: 11px; padding: 3px 10px; border-radius: 12px; border: 1px solid {theme["border"]}; '
-            f'letter-spacing: 0.3px;">{esc(current_who)}</span>'
-            f'    <span style="color: #64748b; font-size: 11px; margin-left: 10px; font-family: monospace;">{esc(current_time)}</span>'
-            f'  </div>'
-            f'  <div style="color: #f1f5f9; font-size: 13.5px; line-height: 1.6; word-break: break-word;">'
-            f'    {text_body}'
-            f'  </div>'
-            f'</div>'
-        )
-        current_speech = []
-
+    turns: List[Tuple[str, str, List[str]]] = []
     for line in transcript_raw.split("\n"):
         line_s = line.strip()
         if not line_s:
             continue
         m_turn = pattern_turn.match(line_s)
-        if m_turn:
-            flush_turn()
-            current_who = m_turn.group(1).strip()
-            current_time = m_turn.group(2).strip()
-            continue
         m_old = pattern_old.match(line_s)
-        if m_old:
-            flush_turn()
-            current_time = f"[{m_old.group(1)}]"
-            current_who = m_old.group(2).strip()
-            current_speech.append(m_old.group(3).strip())
+        if m_turn:
+            turns.append((m_turn.group(1).strip(), m_turn.group(2).strip(), []))
+        elif m_old:
+            turns.append((m_old.group(2).strip(), f"[{m_old.group(1)}]", [m_old.group(3).strip()]))
+        elif turns:
+            turns[-1][2].append(line_s)
+        else:
+            turns.append(("You", "", [line_s]))
+    parts = []
+    for who, when, speech in turns:
+        if not speech:
             continue
-        current_speech.append(line_s)
+        parts.append(
+            f'<p style="margin:16px 0 4px 0;"><b style="color:{speaker_theme(who)["color"]};">{esc(who)}</b>'
+            f'&nbsp; <span style="color:{muted};font-size:12px;">{esc(when)}</span></p>'
+            + "".join(f'<p style="margin:0 0 8px 0;">{esc(x)}</p>' for x in speech))
+    transcript_html = "".join(parts) or f'<p style="color:{muted};">No transcript recorded</p>'
 
-    flush_turn()
-
-    if not turn_cards_html:
-        turn_cards_html.append(f'<div style="color: #64748b; font-style: italic;">{esc(transcript_raw) or "No transcript recorded"}</div>')
-
-    full_transcript_rendered = "".join(turn_cards_html)
-
-    return f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="utf-8">
-      <style>
-        body {{
-          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-          background-color: #0b0e14;
-          color: #f8fafc;
-          padding: 16px 20px;
-          margin: 0;
-          line-height: 1.5;
-        }}
-        h1 {{
-          font-size: 22px;
-          font-weight: 700;
-          color: #ffffff;
-          margin-top: 0;
-          margin-bottom: 16px;
-          display: flex;
-          align-items: center;
-        }}
-        .badge {{
-          background: rgba(56, 189, 248, 0.15);
-          color: #38bdf8;
-          border: 1px solid rgba(56, 189, 248, 0.4);
-          font-size: 12px;
-          font-weight: 600;
-          padding: 3px 10px;
-          border-radius: 12px;
-          margin-left: 10px;
-        }}
-        .card {{
-          background: #11151f;
-          border: 1px solid #1e2638;
-          border-radius: 10px;
-          padding: 14px 16px;
-          margin-bottom: 16px;
-        }}
-        .card-header {{
-          font-size: 13px;
-          font-weight: 700;
-          text-transform: uppercase;
-          letter-spacing: 0.6px;
-          color: #94a3b8;
-          margin-bottom: 10px;
-          display: flex;
-          align-items: center;
-        }}
-        .card-header-icon {{
-          display: inline-block;
-          width: 8px;
-          height: 8px;
-          border-radius: 50%;
-          background: #38bdf8;
-          margin-right: 8px;
-        }}
-        .summary-text {{
-          color: #e2e8f0;
-          font-size: 13.5px;
-          line-height: 1.6;
-        }}
-      </style>
-    </head>
-    <body>
-      <h1>
-        {esc(app_name)} Meeting Notes
-        <span class="badge">Wispr Flow Mode</span>
-      </h1>
-
-      <div class="card">
-        <div class="card-header"><span class="card-header-icon" style="background:#38bdf8;"></span>Executive Summary</div>
-        <div class="summary-text">{esc(summary_text) or "No summary available."}</div>
-      </div>
-
-      <div class="card">
-        <div class="card-header"><span class="card-header-icon" style="background:#10b981;"></span>Key Decisions</div>
-        <ul style="margin: 0; padding-left: 20px;">
-          {decisions_html}
-        </ul>
-      </div>
-
-      <div class="card">
-        <div class="card-header"><span class="card-header-icon" style="background:#f59e0b;"></span>Action Items</div>
-        <div>
-          {actions_html}
-        </div>
-      </div>
-
-      <div style="margin-top: 22px; margin-bottom: 10px; display: flex; align-items: center;">
-        <span style="font-size: 15px; font-weight: 700; color: #ffffff;">Diarized Transcript by Speaker</span>
-        <span style="font-size: 11px; color: #64748b; margin-left: 12px;">Identified distinct voices</span>
-      </div>
-
-      <div>
-        {full_transcript_rendered}
-      </div>
-    </body>
-    </html>
-    """
-
+    return (
+        '<html><head><meta charset="utf-8"></head>'
+        '<body style="background:#1c1c1e;color:#f5f5f7;font-family:Inter,Segoe UI,sans-serif;font-size:13px;'
+        'line-height:150%;margin:0;padding:6px 12px;">'
+        f'<h1 style="font-size:20px;font-weight:600;margin:6px 0 0 0;">{esc(app_name)} notes</h1>'
+        + section("Summary", f"<p style='margin:0;'>{esc(summary_text) or 'Nothing was transcribed.'}</p>")
+        + section("Decisions", decisions_html)
+        + section("Action items", actions_html)
+        + section("Transcript", transcript_html)
+        + "</body></html>")
