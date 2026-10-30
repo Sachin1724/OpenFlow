@@ -1,4 +1,5 @@
 import os
+import platform
 import subprocess
 from pathlib import Path
 from functools import lru_cache
@@ -76,20 +77,38 @@ def gpu_changed() -> bool:
     return True
 
 
+def _probe_npu(conn):
+    """Child process: OpenVINO enumerates every GPU and loads their drivers (~190 MB on AMD); keep that out of the app."""
+    try:
+        import openvino as ov
+        core = ov.Core()
+        devices = core.available_devices
+        conn.send((str(core.get_property("NPU", "FULL_DEVICE_NAME")) if "NPU" in devices else "", devices))
+    except Exception as e:
+        conn.send(("", f"probe failed: {e}"))
+
+
 @lru_cache(maxsize=1)
 def npu_name() -> str:
     """Intel NPU (Core Ultra "AI Boost") usable through OpenVINO, else ''.
     AMD Ryzen AI and Qualcomm Hexagon need runtimes this x64 build doesn't ship, so they read as ''."""
+    if "Intel" not in platform.processor():  # only Intel CPUs have this NPU; don't even load OpenVINO elsewhere
+        return ""
+    import multiprocessing as mp
+    ctx = mp.get_context("spawn")
+    rx, tx = ctx.Pipe(duplex=False)
+    proc = ctx.Process(target=_probe_npu, args=(tx,), daemon=True)
+    proc.start()
+    tx.close()
     try:
-        import openvino as ov
-        core = ov.Core()
-        if "NPU" in core.available_devices:
-            return str(core.get_property("NPU", "FULL_DEVICE_NAME"))
-        print(f"[OpenFlow] No Intel NPU visible to OpenVINO (devices: {core.available_devices}). "
+        name, devices = rx.recv() if rx.poll(30) else ("", "probe timed out")
+    except EOFError:
+        name, devices = "", "probe crashed"
+    proc.kill()
+    if not name:
+        print(f"[OpenFlow] No Intel NPU visible to OpenVINO ({devices}). "
               "On a Core Ultra PC, update the Intel NPU driver.")
-    except Exception as e:
-        print(f"[OpenFlow] NPU probe failed: {e}")
-    return ""
+    return name
 
 
 def _npu_has_build(size: str) -> bool:

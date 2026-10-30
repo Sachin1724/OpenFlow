@@ -25,6 +25,7 @@ try:
         get_live_hardware_microphones, clean_device_name
     )
     from openflow.engine.transcriber import Transcriber, engine_model_name, StreamingSession
+    from openflow.engine.remote_transcriber import RemoteTranscriber
     from openflow.engine.formatter import TextFormatter
     from openflow.engine.injector import WindowInjector
     from openflow.engine.hotkey_manager import GlobalHotkeyManager
@@ -47,6 +48,7 @@ except Exception:
             get_live_hardware_microphones, clean_device_name
         )
         from .engine.transcriber import Transcriber, engine_model_name, StreamingSession
+        from .engine.remote_transcriber import RemoteTranscriber
         from .engine.formatter import TextFormatter
         from .engine.injector import WindowInjector
         from .engine.hotkey_manager import GlobalHotkeyManager
@@ -68,6 +70,7 @@ except Exception:
             get_live_hardware_microphones, clean_device_name
         )
         from engine.transcriber import Transcriber, engine_model_name, StreamingSession
+        from engine.remote_transcriber import RemoteTranscriber
         from engine.formatter import TextFormatter
         from engine.injector import WindowInjector
         from engine.hotkey_manager import GlobalHotkeyManager
@@ -209,13 +212,12 @@ class OpenFlowApp(QObject):
         self.injector = WindowInjector()
         self.formatter = TextFormatter(self.db.get_dictionary())
         rt = hardware.resolve(self.config)
-        self.transcriber = Transcriber(
-            model_size=rt["model_size"],
-            device=rt["device"],
-            compute_type=rt["compute_type"],
-            language=self.config.get("language", "en"),
-            preload=False,  # loaded in the background below so a missing model never freezes startup
-        )
+        engine_args = dict(model_size=rt["model_size"], device=rt["device"], compute_type=rt["compute_type"],
+                           language=self.config.get("language", "en"))
+        if self.config.get("engine_inprocess", False):  # escape hatch: old single-process engine
+            self.transcriber = Transcriber(preload=False, **engine_args)  # loaded in the background below
+        else:  # model + AI libraries live in a child process: UI stays small and can't hang on a GPU call
+            self.transcriber = RemoteTranscriber(**engine_args)
         print(f"[OpenFlow] {rt['hw']['note']} Model: {rt['model_size']}")
         self.transcriber.on_status = self.bridge.sig_status.emit
         self.transcriber.on_progress = self.bridge.sig_download.emit
@@ -634,7 +636,7 @@ class OpenFlowApp(QObject):
             self.act_hide_idle.setChecked(new_cfg.get("hide_capsule_when_idle", False))
             self.act_hide_idle.blockSignals(False)
 
-    IDLE_UNLOAD_SEC = 3600  # only a GPU model holds scarce VRAM; CPU/NPU models stay loaded (instant next press)
+    IDLE_UNLOAD_SEC = 600  # unload ends the engine process: all its RAM/VRAM returns; the next press reloads
 
     def _housekeep(self):
         now = time.monotonic()
@@ -651,8 +653,7 @@ class OpenFlowApp(QObject):
         self._gpu_tick = getattr(self, "_gpu_tick", 0) + 1
         if self._gpu_tick % 6 == 0 and not busy and self.config.get("device", "auto") == "auto":
             threading.Thread(target=self._check_gpu, daemon=True).start()  # every ~30 s
-        if (not busy and self.transcriber.model is not None and self.transcriber.device == "cuda"
-                and now - self._last_activity > self.IDLE_UNLOAD_SEC):
+        if not busy and self.transcriber.model is not None and now - self._last_activity > self.IDLE_UNLOAD_SEC:
             print("[OpenFlow] Idle: unloading model, releasing microphone")
             # freeing a CUDA model / closing the stream can block on the driver; keep the UI thread free
             threading.Thread(target=self._release_idle, daemon=True).start()

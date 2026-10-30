@@ -63,6 +63,9 @@ else:
     if basedir not in sys.path:
         sys.path.insert(0, basedir)
 
+import multiprocessing
+multiprocessing.freeze_support()  # the engine child process ends here, before the heavy UI imports below
+
 main = None
 try:
     from openflow.main import main
