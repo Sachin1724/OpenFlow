@@ -34,6 +34,7 @@ try:
     from openflow.engine.updater import AppUpdater
     from openflow.engine.meeting import MeetingSession, active_meeting_app, format_meeting_notes, transcript_text, watch_mic
     from openflow.ui.floating_pill import FloatingPill, MeetingBar, ui_font_family
+    from openflow.ui.island import IslandPill, CapsuleRouter
     from openflow.ui.main_window import MainWindow
     from openflow.ui.setup_dialog import SetupDialog
     from openflow.autostart import set_autostart
@@ -57,6 +58,7 @@ except Exception:
         from .engine.updater import AppUpdater
         from .engine.meeting import MeetingSession, active_meeting_app, format_meeting_notes, transcript_text, watch_mic
         from .ui.floating_pill import FloatingPill, MeetingBar, ui_font_family
+        from .ui.island import IslandPill, CapsuleRouter
         from .ui.main_window import MainWindow
         from .ui.setup_dialog import SetupDialog
         from .autostart import set_autostart
@@ -79,6 +81,7 @@ except Exception:
         from engine.updater import AppUpdater
         from engine.meeting import MeetingSession, active_meeting_app, format_meeting_notes, transcript_text, watch_mic
         from ui.floating_pill import FloatingPill, MeetingBar, ui_font_family
+        from ui.island import IslandPill, CapsuleRouter
         from ui.main_window import MainWindow
         from ui.setup_dialog import SetupDialog
         from autostart import set_autostart
@@ -253,14 +256,17 @@ class OpenFlowApp(QObject):
             save_config(self.config)
 
         curr_model = self.config.get("model_size", "base")
-        self.floating_pill = FloatingPill(
+        style = self.config.get("capsule_style", "compact")
+        pill_args = dict(
             current_mic_name=initial_mic,
             current_language=self.config.get("language", "en"),
             current_model=curr_model,
             hide_when_idle=self.config.get("hide_capsule_when_idle", False),
-            capsule_style=self.config.get("capsule_style", "compact"),
             follow_mouse_screen=self.config.get("follow_mouse_screen", True),
         )
+        pill = FloatingPill(capsule_style="compact" if style == "island" else style, **pill_args)
+        island = IslandPill(position=self.config.get("island_position", "top"), **pill_args)
+        self.floating_pill = CapsuleRouter(pill, island, style, self.config.get("follow_mouse_screen", True))
         self.floating_pill.set_opacity(float(self.config.get("capsule_opacity", 1.0)))
         self.floating_pill.populate_mics(recents)
         self.floating_pill.populate_models(curr_model)
@@ -628,6 +634,7 @@ class OpenFlowApp(QObject):
         if hasattr(self, "floating_pill"):
             self.floating_pill.set_hide_when_idle(new_cfg.get("hide_capsule_when_idle", False))
             if "capsule_style" in new_cfg:
+                self.floating_pill.set_island_position(new_cfg.get("island_position", "top"))
                 self.floating_pill.set_capsule_style(new_cfg.get("capsule_style", "compact"))
             if "follow_mouse_screen" in new_cfg:
                 self.floating_pill.set_follow_mouse_screen(new_cfg.get("follow_mouse_screen", True))

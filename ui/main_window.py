@@ -944,6 +944,7 @@ class MainWindow(QMainWindow):
         self.capsule_style_combo.addItem("Option A: Compact / Wispr Flow (148 px) — Minimal & Floating Speech Bubble", "compact")
         self.capsule_style_combo.addItem("Standard Capsule (360 px) — Full Controls & Action Hints", "standard")
         self.capsule_style_combo.addItem("Option C: Micro Capsule (88 px) — Ultra-Minimal Waveform Only", "micro")
+        self.capsule_style_combo.addItem("Option D: Dynamic Island (top notch) — Springs open for dictation, alerts & settings", "island")
 
         curr_style = self.config.get("capsule_style", "compact")
         for i in range(self.capsule_style_combo.count()):
@@ -951,6 +952,12 @@ class MainWindow(QMainWindow):
                 self.capsule_style_combo.setCurrentIndex(i)
                 break
         c2_layout.addLayout(_make_row("Capsule Style:", self.capsule_style_combo))
+
+        self.island_pos_combo = QComboBox(card2)
+        self.island_pos_combo.addItem("Top of the screen (tucks up when idle)", "top")
+        self.island_pos_combo.addItem("Bottom of the screen", "bottom")
+        self.island_pos_combo.setCurrentIndex(1 if self.config.get("island_position", "top") == "bottom" else 0)
+        c2_layout.addLayout(_make_row("Island Position:", self.island_pos_combo))
 
         self.opacity_slider = QSlider(Qt.Orientation.Horizontal, card2)
         self.opacity_slider.setRange(30, 100)  # below 30% the capsule is easy to lose
@@ -1187,6 +1194,8 @@ class MainWindow(QMainWindow):
         self.config["compute_type"] = compute_type
         if hasattr(self, "capsule_style_combo"):
             self.config["capsule_style"] = self.capsule_style_combo.currentData()
+        if hasattr(self, "island_pos_combo"):
+            self.config["island_position"] = self.island_pos_combo.currentData()
         self.config["input_device_index"] = dev_idx
         self.config["injection_method"] = self.inj_combo.currentData()
         self.config["hotkey"] = hotkey
