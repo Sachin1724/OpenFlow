@@ -18,7 +18,7 @@ try:
     from ..engine.audio_recorder import list_microphones
     from ..engine.meeting import render_meeting_html
     from .styles import main_qss, COLORS
-    from .floating_pill import get_squircle_pixmap, Switch
+    from .floating_pill import Switch
 except (ImportError, ValueError):
     from config import load_config, save_config, get_asset_path
     from database import Database
@@ -26,7 +26,7 @@ except (ImportError, ValueError):
     from engine.audio_recorder import list_microphones
     from engine.meeting import render_meeting_html
     from ui.styles import main_qss, COLORS
-    from ui.floating_pill import get_squircle_pixmap, Switch
+    from ui.floating_pill import Switch
 
 
 # Windows virtual-key codes -> names GlobalHotkeyManager understands
@@ -287,6 +287,19 @@ def _btn(text: str, kind: str = "", small: bool = False, slot=None) -> QPushButt
     return b
 
 
+def _logo_label(height: int, parent=None):
+    """The bare logo mark (transparent PNG): no tile, no border. None if the asset is missing."""
+    path = get_asset_path("logo_mark.png")
+    if not os.path.exists(path):
+        return None
+    ratio = 2.0  # sharp on high-DPI screens
+    pm = QPixmap(path).scaledToHeight(round(height * ratio), Qt.TransformationMode.SmoothTransformation)
+    pm.setDevicePixelRatio(ratio)
+    lbl = QLabel(parent)
+    lbl.setPixmap(pm)
+    return lbl
+
+
 def _label(text: str, name: str, wrap: bool = False) -> QLabel:
     lbl = QLabel(text)
     lbl.setObjectName(name)
@@ -412,12 +425,8 @@ class MainWindow(QMainWindow):
         brand = QHBoxLayout()
         brand.setContentsMargins(6, 0, 6, 8)
         brand.setSpacing(10)
-        icon_path = get_asset_path("app_icon_square.png")
-        if not os.path.exists(icon_path):
-            icon_path = get_asset_path("logo.jpg")
-        if os.path.exists(icon_path):
-            logo = QLabel(bar)
-            logo.setPixmap(get_squircle_pixmap(icon_path, size=28, radius=7.0))
+        logo = _logo_label(18, bar)
+        if logo:
             brand.addWidget(logo)
         brand.addWidget(_label("OpenFlow", "AppName"))
         brand.addStretch()
@@ -1209,12 +1218,8 @@ class MainWindow(QMainWindow):
 
         head = QHBoxLayout()
         head.setSpacing(16)
-        logo_path = get_asset_path("app_icon_square.png")
-        if not os.path.exists(logo_path):
-            logo_path = get_asset_path("logo.jpg")
-        if os.path.exists(logo_path):
-            logo = QLabel()
-            logo.setPixmap(get_squircle_pixmap(logo_path, size=64, radius=15.0))
+        logo = _logo_label(34)
+        if logo:
             head.addWidget(logo, 0, Qt.AlignmentFlag.AlignTop)
         col = QVBoxLayout()
         col.setSpacing(2)
