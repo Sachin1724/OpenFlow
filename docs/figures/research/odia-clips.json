@@ -1,0 +1,392 @@
+[
+ {
+  "ref": "ହାତୀ ଓ ଜିରାଫ୍ ଭଳି ପଶୁମାନଙ୍କର କାର୍ ଏବଂ ଭଲ ଦେଖାଯାଉଥିବା ମାନକ ସରଞ୍ଜାମକୁ ନିକଟରୁ ଦେଖିବା ପାଇଁ ପାଖକୁ ଆସିବାର ପ୍ରବୃତ୍ତି ଥାଏ",
+  "engines": {
+   "Whisper base": "Hati ho jira, boli, posu manankoro. Kare bhang bholo dekha jau tha bha mano ko, saran jamu ru, nikotru ruki dhikhe bhai bha kho kwaase bha ra, prabhruti tha.",
+   "Whisper small": "Hati o jeera bholi posu manang karo, kaare bang bhala dekhah jao thuba manaka saran ja mo ru nikotru dekhibapain bakho ko asibara prabhruti tha hai.",
+   "OpenFlow Odia": "ହାତୀ ଓ ଜିରାଫ ଭଳି ପଶୁମାନଙ୍କର କାର୍ ଏବଂ ଭଲ ଦେଖାଯାଉଥିବା ମାନଙ୍କ ସରଞ୍ଜାମରୁ ନିକଟରୁ ଦେଖିବା ପାଇଁ ପାଖକୁ ଆସିବାର ପ୍ରବୃତି ଥାଏ"
+  },
+  "wer": {
+   "Whisper base": 161.1,
+   "Whisper small": 144.4,
+   "OpenFlow Odia": 22.2
+  }
+ },
+ {
+  "ref": "ଦୟାକରି ଏହି ସ୍ଥାନକୁ ଯଥାର୍ଥ ସାଧୁତା ଗମ୍ଭୀରତା ଏବଂ ସମ୍ମାନର ସହିତ ବିଚାର କରନ୍ତୁ ହୋଲକୋଷ୍ଟ କିମ୍ବା ନାଜିମାନଙ୍କ ବିଷୟରେ ଥଟ୍ଟା କରନ୍ତୁ ନାହିଁ",
+  "engines": {
+   "Whisper base": "Naya Pari ishtana kojakta, saadita, nambi ga te ubung sanmanara saide vijal gondu. Bholkost kumman aji manan ko di saide katta, parandu na.",
+   "Whisper small": "In Odia, the place was very small and very dangerous. I was thinking about it. I was not able to do it.",
+   "OpenFlow Odia": "ଦୟାକରି ଏହି ସ୍ଥାନକୁ ଯଥାର୍ଥ ସାଧୁତା ଗମ୍ଭୀରତା ଏବଂ ସମ୍ମାନର ସହିତ ବିଚାର କରନ୍ତୁ ପୋଲକୋଷ୍ଟ କିମ୍ବା ନାଜିମାନଙ୍କ ବିଷୟରେ ଥଟ୍ଟା କରନ୍ତି ନାହିଁ"
+  },
+  "wer": {
+   "Whisper base": 127.8,
+   "Whisper small": 122.2,
+   "OpenFlow Odia": 11.1
+  }
+ },
+ {
+  "ref": "108 ପ୍ରକାର ଛପନ ଭୋଗ ହିନ୍ଦୁ ଧର୍ମରେ 56 ପ୍ରକାର ଖାଦ୍ୟ ସାମଗ୍ରୀ ଯଥା ମିଠା ଫଳ ବାଦାମ ବ୍ୟଞ୍ଜନ ଇତ୍ୟାଦି ଯାହା ଭଗବାନଙ୍କୁ ଅର୍ପଣ କରାଯାଏ ବାବା ଶ୍ୟାମଙ୍କୁ ଅର୍ପଣ କରଯାଇଥିଲା।",
+  "engines": {
+   "Whisper base": "Saohe, aake prakada, chapanabhoga. Indu dharma re chapanabhada, khardea, samagari, jatka, nitha, pora, badam, benjana, itadhi. Jaha, bhabubannam ko, apana paraja. Baba, samang ko, apana paraja itala.",
+   "Whisper small": "6.8.6.5.6.5.6.5.6.5.6.5.6.5.6.5.6.5.6.5.6.5.6.5.6.5.6.5.6.5.6.5.6.5.6.5.6.5.6.5.6.5.6.5.6.5.6.5.6.5.6.5.6.5.6.5.6.5.6.5.6.5.6.5.6.5.6.5.6.5.6.5.6.5.6.5.6.5.6.5.6.5.6.5.6.5.6.5.6.5.6.5.6.5.6.5.6.5.6.5.6.5.6.5.6.5.6.5.6.5.6.5.",
+   "OpenFlow Odia": "ଏକ ଶହେ ଆଠ ପ୍ରକାର ଛପନ ଭୋଗ ହିନ୍ଦୁ ଧର୍ମରେ ଛପନ ପ୍ରକାର ଖାଦ୍ୟ ସାମଗ୍ରୀ ଯଥା ମିଠା ଫଳ ବାଦାମ ବ୍ୟଞ୍ଜନ ଇତ୍ୟାଦି ଯାହା ଭଗବାନଙ୍କୁ ଅର୍ପଣ କରାଯାଏ ବାବା ଶ୍ୟାମଙ୍କୁ ଅର୍ପଣ କରାଯାଇଥିଲା"
+  },
+  "wer": {
+   "Whisper base": 112.5,
+   "Whisper small": 466.7,
+   "OpenFlow Odia": 20.8
+  }
+ },
+ {
+  "ref": "ବର୍ତ୍ତମାନ ସମଗ୍ର ଆର୍ଚିପେଲାଗୋରେ ବହୁଳ ଭାବରେ ଉପଲବ୍ଧ ଜାଭାନିଜ୍ ରୋଷେଇ ସମ୍ବନ୍ଧୀୟ ବ୍ୟବସ୍ଥାରେ କେବଳ ଋତୁ ଅନୁସାରେ ଖାଦ୍ୟର ଏକ ଦୀର୍ଘ ବୈଶିଷ୍ଟ୍ୟ ରହିଛି ଯାହାକି ଜାଭାନିଜ୍ ମାନଙ୍କର ଚିନାବାଦାମ ଲଙ୍କା ଚିନି ବିଶେଷକରି ଜାଭାନିଜ୍ ମାନଙ୍କର ନଡ଼ିଆ ଚିନି ଏବଂ ବିଭିନ୍ନ ସୁଗନ୍ଧିତ ମସଲା ଗୁଡିକୁ ମିଶାଇ ସ୍ଵାଦ ଦେଇଥାନ୍ତି।",
+  "engines": {
+   "Whisper base": "Bortoman samagra, archi, pela, gore, bhubhulabhabare, pulabhtha, jabhani, jrosei, sambandhi, abebas tari, kepada, ruto, anusare, khatya, rhe, kadeer, ghe, bhaj, sistir, ayi, jaha ki. Jabhani jmanangara, chinavada, langka, chini, pisiskari, jabhani jmanangara, noriya, nini, e bambi, binna, sugandi, tamasala, guri, kumise, iswata, deithani.",
+   "Whisper small": "Common terms, Archi, Pella, Gore, Bohula, Bhavare, Uphalaptha. Common terms, Java, Nijrosi, Sambandhi, Vebasthare, Kepa, Ruktu, Anusare, Khathya, Reka, Dir, Ghava, Isishtya, Reiji. Java nijmanangara Chinabada, Lanka, Chinni, Viseskari, Java nijmanangara Nadia, Nijni, and Vivinya Sugandhi, the Masala Gori, Kumisa, Iswata, Deitha.",
+   "OpenFlow Odia": "ବର୍ତ୍ତମାନ ସମଗ୍ର ଆର୍ଚିପେଲାଗୋରେ ବହୁଳ ଭାବରେ ଉପଲବ୍ଧ ଜାଭାନିଜ୍ ରୋଷେଇ ସମ୍ବନ୍ଧୀୟ ବ୍ୟବସ୍ଥାରେ କେବଳ ଋତୁ ଅନୁସାରେ ଖାଦ୍ୟର ଏକ ଦୀର୍ଘ ବୈଶିଷ୍ଟ୍ୟ ରହିଛି ଯାହାକି ଜାଭାନିଜମାନଙ୍କର ଚିନାବାଦାମ ଲଙ୍କା ଚିନି ବିଶେଷକରି ଜାଭାନିଜମାନଙ୍କର ନଡ଼ିଆନନି ଏବଂ ବିଭିନ୍ନ ସୁଗନ୍ଧିତ ମସଲାଗୁଡ଼ିକୁ ମିଶାଇ ସ୍ୱାଦ ଦେଇଥାନ୍ତି"
+  },
+  "wer": {
+   "Whisper base": 116.2,
+   "Whisper small": 113.5,
+   "OpenFlow Odia": 24.3
+  }
+ },
+ {
+  "ref": "ପ୍ରାରମ୍ଭରେ ପୋଷାକ ପୂର୍ବର ବାଇଜାଣ୍ଟାଇନ ସଂସ୍କୃତି ଦ୍ୱାରା ବହୁଳ ଭାବରେ ପ୍ରଭାବିତ ହୋଇଥିଲା",
+  "engines": {
+   "Whisper base": "Prarambhore, Pusaka, Purbaro, Bhai, Janta, In Sanskrit, Idarabha, Bhu Lava, Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha Bha B",
+   "Whisper small": "In Sanskrit, Ṭhārambhare poshāka purbara bhai janta in Sanskrit dharāpa, hula bhābhare prabhābitah hui thula.",
+   "OpenFlow Odia": "ପ୍ରାରମ୍ଭରେ ପୋଷାକ ପୂର୍ବର ବାଇଜାଣ୍ଟାଇନ୍ ସଂସ୍କୃତି ଦ୍ୱାରା ବହୁଳ ଭାବରେ ପ୍ରଭାବିତ ହୋଇଥିଲା"
+  },
+  "wer": {
+   "Whisper base": 1060.0,
+   "Whisper small": 150.0,
+   "OpenFlow Odia": 10.0
+  }
+ },
+ {
+  "ref": "ସଂଶୋଧନ ହେବା ପୂର୍ବରୁ ଆର୍ଟିକଲଗୁଡିକ ସମସ୍ତ ରାଜ୍ୟମାନଙ୍କ ଦ୍ଵାରା ସର୍ବସମ୍ମତିର ଆବଶ୍ୟକ ଥିଲା ଏବଂ ରାଜ୍ୟ ମାନେ କେନ୍ଦ୍ର ସରକାରଙ୍କୁ ଏତେ ହାଲୁକା ଭାବେ ନେଲେ ଯେ ସେମାନଙ୍କର ପ୍ରତିନିଧି ମାନେ ପ୍ରାୟତଃ ଅନୁପସ୍ଥିତ ଥିଲେ",
+  "engines": {
+   "Whisper base": "Sansatana, heba burbu, artikelgurika, samosto, rachuranangadwarat, sarbha, sammatirah, abhastya, kethila, eppong, raja mani, kindrasara karangu, itte haluka bhape nelaje, semanangadur prakindi dhimani, praheta, angostita, thilbe.",
+   "Whisper small": "Common terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms",
+   "OpenFlow Odia": "ସଂଶୋଧନ ହେବା ପୂର୍ବରୁ ଆର୍ଟିକଲଗୁଡ଼ିକ ସମସ୍ତ ରାଜ୍ୟମାନଙ୍କ ଦ୍ୱାରା ସର୍ବସମ୍ମତିର ଆବଶ୍ୟକ ଥିଲା ଏବଂ ରାଜ୍ୟମାନେ କେନ୍ଦ୍ର ସରକାରଙ୍କୁ ଏତେ ହାଲୁକା ଭାବେ ନେଲେ ଯେ ସେମାନଙ୍କର ପ୍ରତିନିଧିମାନେ ପ୍ରାୟତଃ ଅନୁପସ୍ଥିତ ଥିଲେ"
+  },
+  "wer": {
+   "Whisper base": 100.0,
+   "Whisper small": 219.2,
+   "OpenFlow Odia": 23.1
+  }
+ },
+ {
+  "ref": "ରବିନ୍ ଉଥାପ୍ପା 11 ଟି ଚୌକା ଓ 2 ଛକା ମାରି 41 ଟି ବଲରେ 70 ରନ୍ କରିଥିଲେ",
+  "engines": {
+   "Whisper base": "Arabic script",
+   "Whisper small": "Rabin uthappa, egarati choka, dui chhaka mari ekchalo city ball re saturi run kari thile.",
+   "OpenFlow Odia": "ରବିନ୍ ଉଥାପ୍ପା ଏଗାର ଟି ଚୌକା ଓ ଦୁଇ ଛକା ମାରି ଏକଚାଳିଶି ଟି ବଲ୍ରେ ସତୂରୀ ରନ୍ କରିଥିଲେ"
+  },
+  "wer": {
+   "Whisper base": 100.0,
+   "Whisper small": 100.0,
+   "OpenFlow Odia": 33.3
+  }
+ },
+ {
+  "ref": "ଗୀର୍ଜାଘର ପରିସରରେ ଅନେକଗୁଡ଼ିଏ ସମାଧି ଉପରେ କପୋତର ଦୃଷ୍ଟି ଆକର୍ଷକ ମାର୍ବଲ ମୂର୍ତ୍ତି ଅଛି",
+  "engines": {
+   "Whisper base": "Dir jaghara Parisara re, anne gude samadhi ukare kappatara dhusti akar saka marbal muthi acchi.",
+   "Whisper small": "Dhir jagara parisara re, anek gure samadhi upare kapatara dushti akarsaka marbal murti aachi.",
+   "OpenFlow Odia": "ଗିର୍ଜା ଘର ପରିସରରେ ଅନେକଗୁଡ଼ିଏ ସମାଧି ଉପରେ କପୋତର ଦୃଷ୍ଟି ଆକର୍ଷକ ମାର୍ବଲ ମୂର୍ତ୍ତି ଅଛି"
+  },
+  "wer": {
+   "Whisper base": 136.4,
+   "Whisper small": 127.3,
+   "OpenFlow Odia": 18.2
+  }
+ },
+ {
+  "ref": "ଆରବମାନେ ମଧ୍ୟ ଇସଲାମକୁ ଦେଶକୁ ଆଣିଥିଲେ ଏବଂ ଏହା କୋମୋରସ୍ ଏବଂ ମାୟୋଟେରେ ଏକ ପରିବ୍ୟାପ୍ତ ହୋଇଥିଲା",
+  "engines": {
+   "Whisper base": "Arabic ndi, Islam ndi, kwa, nithi, e bong, eha, Kamu, Ros, e bong, Mayotere, ekko pari biyapta hoit hila.",
+   "Whisper small": "Arabic script.",
+   "OpenFlow Odia": "ଆରବମାନେ ମଧ୍ୟ ଇସଲାମକୁ ଦେଶକୁ ଆଣିଥିଲେ ଏବଂ ଏହା କାମୋରୋସ୍ ଏବଂ ମାୟୋଟେରେ ଏକ ପରିବ୍ୟାପ୍ତ ହୋଇଥିଲା"
+  },
+  "wer": {
+   "Whisper base": 146.2,
+   "Whisper small": 100.0,
+   "OpenFlow Odia": 7.7
+  }
+ },
+ {
+  "ref": "ଇରାନରେ ଉଭୟ ନାଗରିକ ଓ ସୈନ୍ୟବାହିନୀ ପାଇଁ ଥିବା ବିମାନଗୁଡ଼ିକ ପୁରୁଣା ହୋଇଥିବା ଓ ସେଥିପାଇଁ ରକ୍ଷଣାବେକ୍ଷଣର ଅଭାବ ଥିବା ଯୋଗୁଁ ସେଠାରେ ବିମାନ ଦୁର୍ଘଟଣା ଏକ ସାଧାରଣ ଘଟଣା",
+  "engines": {
+   "Whisper base": "Iran ire ubaay na karikou, saanya bhai ni baithi ba, bhi mano kudika, pouduna, hoi ti ba, usatthi baaira, kena bekhanar, avapthi baja, kun sittar, bhi mano, durgantuna, iko sadhara na kutta.",
+   "Whisper small": "In Iran, the city of Ubaida is not affected by the pandemic or the pandemic.",
+   "OpenFlow Odia": "ଇରାନରେ ଉଭୟ ନାଗରିକ ଓ ସୈନ୍ୟବାହିନୀ ପାଇଁ ଥିବା ବିମାନଗୁଡ଼ିକ ପୁରୁଣା ହୋଇଥିବା ଓ ସେଥିପାଇଁ ରକ୍ଷଣାବେକ୍ଷଣର ଅଭାବ ଥିବା ଯୋଗୁଁ ସେଠାରେ ବିମାନ ଦୁର୍ଘଟଣା ଏକ ସାଧାରଣ ଘଟଣା"
+  },
+  "wer": {
+   "Whisper base": 145.5,
+   "Whisper small": 100.0,
+   "OpenFlow Odia": 0.0
+  }
+ },
+ {
+  "ref": "ଏହା ସବୁକିଛି ବିସ୍ତାର ଶକ୍ତି ପ୍ରଜା ରୁ ରାଜା ପର୍ଯ୍ୟନ୍ତ ସମସ୍ତଙ୍କୁ ପ୍ରଭାବିତ କରିଛି",
+  "engines": {
+   "Whisper base": "Aya sabhu kichi, bistara sakte projaro, rajapurjant samasthan ko pravhabita ko richi.",
+   "Whisper small": "Eha sabukichi, bistara sakti prajaru, raja parjanta samastangku prabhabita karichi.",
+   "OpenFlow Odia": "ଏହା ସବୁ କିଛି ବିସ୍ତାର ଶକ୍ତି ପ୍ରଜାରୁ ରାଜା ପର୍ଯ୍ୟନ୍ତ ସମସ୍ତଙ୍କୁ ପ୍ରଭାବିତ କରିଛି"
+  },
+  "wer": {
+   "Whisper base": 109.1,
+   "Whisper small": 100.0,
+   "OpenFlow Odia": 36.4
+  }
+ },
+ {
+  "ref": "ଖ୍ରୀଷ୍ଟଧର୍ମରେ ଖ୍ରୀଷ୍ଟମାସ ହେଉଛି 1 ଗୁରୁତ୍ତ୍ବପୂର୍ଣ୍ଣ ଛୁଟିଦିନ ଏବଂ ଏହାକୁ ଜୀଶୁଙ୍କ ଜନ୍ମଦିନ ଭାବେ ପାଳନ କରାଯାଏ",
+  "engines": {
+   "Whisper base": "Krishnamasahe hochi, goti, gurut, punna chotti, dino, lebhom, eha ko, jishu ko chonma dino, bhabhe, pahal ko laja.",
+   "Whisper small": "Khristodharma ژharmari ژhriṣṭa Ṭhāsohe uchi ژotie guruta ژhūrna ژhūrna ژhūrna ژhūrna ژhūrna ژhūrna ژhūrna ژhūrna ژhūrna ژhūrna ژhūrna ژhūrna ژhūrna ژhūrna ژhūrna ژhūrna ژhūrna ژhūrna ژhūrna ژhūrna ژhūrna ژhūrna ژhūrna ژhūrna ژhūrna ژhūrna ژhū",
+   "OpenFlow Odia": "ଖ୍ରୀଷ୍ଟ ଧର୍ମରେ ଖ୍ରୀଷ୍ଟ ମାସ ହେଉଛି ଗୋଟିଏ ଗୁରୁତ୍ୱପୂର୍ଣ୍ଣ ଛୁଟି ଦିନ ଏବଂ ଏହାକୁ ଯୀଶୁଙ୍କ ଜନ୍ମଦିନ ଭାବେ ପାଳନ କରାଯାଏ"
+  },
+  "wer": {
+   "Whisper base": 138.5,
+   "Whisper small": 261.5,
+   "OpenFlow Odia": 69.2
+  }
+ },
+ {
+  "ref": "ଜଙ୍ଗଲଗୁଡିକ କେବଳ ଗ୍ରୀଷ୍ମ ମଣ୍ଡଳୀୟ ସନ୍ତସନ୍ତିଆ ସ୍ଥାନ ନୁହେଁ ସେଗୁଡିକ ଶକ୍ତିଶାଳୀ ଜଙ୍ଗଲର ଶେଷ ଅବଶିଷ୍ଟ ସ୍ଥାନଗୁଡିକୁ ସାମିଲ କରେ ଯାହାକି କେବେ ଗଙ୍ଗା ନଦୀର ସମତଳକୁ ଘୋଡ଼େଇ ରଖିଥିଲା",
+  "engines": {
+   "Whisper base": "Jungaloguri kavela, dismamandali, santasantiyas tananohi, segurikasakti sali, jungalar, sesso, avasistas tananoguri ko samil kore, jai kyebe, gonga nadiro samadhod ko ghoda irakitila.",
+   "Whisper small": "Jango luk guri ko kebalak ndismo mandrali o santo shantya stananohe. Se guri ko sakti sali jango luk se so abasishta stanan guri ko samil kare. Ja ha ke khebe gangan adiro samatad ko ghoda hi rakhi tila.",
+   "OpenFlow Odia": "ଜଙ୍ଗଲଗୁଡ଼ିକ କେବଳ ଗ୍ରୀଷ୍ମମଣ୍ଡଳୀୟ ସନ୍ତସନ୍ତିଆ ସ୍ଥାନ ନୁହେଁ ସେଗୁଡ଼ିକ ଶକ୍ତିଶାଳୀ ଜଙ୍ଗଲରେ ଶେଷ ଅବଶିଷ୍ଟ ସ୍ଥାନଗୁଡ଼ିକ ସାମିଲ କରେ ଯାହାକି କେବେ ଗଙ୍ଗା ନଦୀର ସମତଳକୁ ଘୋଡ଼ାଇ ରଖିଥିଲା"
+  },
+  "wer": {
+   "Whisper base": 100.0,
+   "Whisper small": 172.7,
+   "OpenFlow Odia": 31.8
+  }
+ },
+ {
+  "ref": "କୃଗର୍ ଜାତୀୟ ଉଦ୍ୟାନ knp ଦକ୍ଷିଣ ଆଫ୍ରିକାର ଉତ୍ତର-ପୂର୍ବରେ ଅବସ୍ଥିତ ଏବଂ ପୂର୍ବରେ ମୋଜାମ୍ବିକ୍ ଉତ୍ତରରେ ଜିମ୍ବାୱେ ଏବଂ ଦକ୍ଷିଣ ସୀମାରେ କ୍ରୋକୋଡାଇଲ ନଦୀ ସହିତ ଚାଲିଥାଏ।",
+  "engines": {
+   "Whisper base": "Lugar ertia Odia nao, ke en pidakhna afrikaro utaropul bharabastita, ebom kur bhare, mojambik utarare jimbao e ebom dakhna simare kukkoda en adi sahita jalitha.",
+   "Whisper small": "Kru ghar jatya Odia naake, ndakha na aphri kara utharu polbara abasita, ebon kurbara mojambik utharare jimbavaya ebon dakha na simare kru kodail nadisha ita jalitha hai.",
+   "OpenFlow Odia": "କ୍ରୁଗର ଜାତୀୟ ଉଦ୍ୟାନ କେଏନ୍ପି ଦକ୍ଷିଣ ଆଫ୍ରିକାର ଉତ୍ତର ପୂର୍ବରେ ଅବସ୍ଥିତ ଏବଂ ପୂର୍ବରେ ମୋଜାମ୍ବିକ୍ ଉତ୍ତରରେ ଜିମ୍ବାୱେ ଏବଂ ଦକ୍ଷିଣ ସୀମାରେ କ୍ରୋକୋଡାଇ ନଦୀ ସହିତ ଚାଲିଥାଏ"
+  },
+  "wer": {
+   "Whisper base": 119.0,
+   "Whisper small": 128.6,
+   "OpenFlow Odia": 14.3
+  }
+ },
+ {
+  "ref": "ମୁଁ ମୋର ଭଉଣୀ ଓ ତାଙ୍କ ବନ୍ଧୁଙ୍କୁ ହରାଇଥିଲି ଏବଂ ମୁଁ ଆସିବା ବାଟରେ ହ୍ୱୀଲ୍ ଚେୟାର୍‌ରେ ଦୁଇଜଣ ଦିବ୍ୟାଙ୍ଗ ଥିଲେ ଲୋକମାନେ ସେମାନଙ୍କ ଉପରୁ ଡେଉଁଥିଲେ ଓ ସେମାନଙ୍କୁ ଠେଲି ଯାଉଥିଲେ ଆର୍ମାଣ୍ଡ ଭର୍ସାଚେ କହିଲେ।",
+  "engines": {
+   "Whisper base": "Mumarabhoni, otanko bandhu ko haraithi leh. Ebang muhaseba bhatar, Phil chair doy jo na dhibbi ango thil leh. Lokavane semanan ko upuru, neun thil leh. O semanan ko thil leh. Arman versa ce kohe leh.",
+   "Whisper small": "Muumarabhoni, otanko bandhu hu haraithile, evang mu asibabatare, philchehre dujjana dibyango thile, lakamane semananko upuru, deu thile, asemananko theli javu thile. Arman vharsache kahile.",
+   "OpenFlow Odia": "ମୁଁ ମୋର ଭଉଣୀ ଓ ତାଙ୍କ ବନ୍ଧୁଙ୍କୁ ହରାଇଥିଲି ଏବଂ ମୁଁ ଆସିବା ବାଟରେ ଫ୍ୱିଲ୍ ଚେରରେ ଦୁଇ ଜଣ ଦିବ୍ୟାଙ୍ଗ ଥିଲେ ଲୋକମାନେ ସେମାନଙ୍କ ଉପରୁ ଡେଉଁଥିଲେ ଓ ସେମାନଙ୍କୁ ଠେଲି ଯାଉଥିଲେ ଆର୍ମାଣ୍ଡଭର୍ସାଜେ କହିଲେ"
+  },
+  "wer": {
+   "Whisper base": 129.6,
+   "Whisper small": 100.0,
+   "OpenFlow Odia": 22.2
+  }
+ },
+ {
+  "ref": "ଏହି ପାର୍କଟି 19,500 ବର୍ଗ କିଲୋମିଟର ଭୂମି ଉପରେ ଅବସ୍ଥିତ ଏବଂ ଏହା 14ଟି ପ୍ରତ୍ୟେକେ ଭିନ୍ନ ଭିନ୍ନ ବନ୍ୟଜନ୍ତୁକୁ ସମର୍ଥନ କରୁଥିବା ଇକୋଜୋନ୍‌ରେ ବିଭକ୍ତ ଅଟେ।",
+  "engines": {
+   "Whisper base": "Aeipati Aeipati, lens, hachar, pasawar, bokeh, lamiter, bhumi, upar, aawas, tekto. Ae bhami hai, chodoti prakti ke bhinna bhinna, bhanya jantum ko samarthanakor kibai, ikko jon rebi, tote.",
+   "Whisper small": "एही पाक्ती एही पाक्ती उने इस हज़ पास वर्भो किलमिटर भूमे उपर आप वस दिता. एब वह मेहा चोव दो ती प्रत्ते के भिन्न भिन्न बन्या जन्तम को समवर थन खरूग भा एको जोन रे दिब वो तादे.",
+   "OpenFlow Odia": "ଏହି ପାର୍କଟି ଣ ପାଞ୍ଚ ଶହ ବର୍ଗ କିଲୋମିଟର ଭୂମି ଉପରେ ଅବସ୍ଥିତ ଏବଂ ଏହା ଚଉଦ ଟି ପ୍ରତ୍ୟେକ ଭିନ୍ନ ଭିନ୍ନ ବନ୍ୟଜନ୍ତୁଙ୍କୁ ସମର୍ଥନ କରୁଥିବା ଇକୋ ଜୋନରେ ବିଭକ୍ତ ଅଟେ"
+  },
+  "wer": {
+   "Whisper base": 133.3,
+   "Whisper small": 181.0,
+   "OpenFlow Odia": 42.9
+  }
+ },
+ {
+  "ref": "ଏପରି ଜିନିଷଗୁଡିକ ଭିନ୍ନ ବିଭାଗରେ ପରିଣତ ହୋଇଛି ଯାହା ବାସ୍ତବ ଜୀବନର ସମସ୍ୟାଗୁଡ଼ିକର ସମାଧାନ କରିବା ଉପରେ ଧ୍ୟାନ କେନ୍ଦ୍ରିତ କରିଥାଏ",
+  "engines": {
+   "Whisper base": "Ipari jinnisoburi ko finna bi bhaagari parunu tohoji, jaha bastap chi panu sumsaburi ko raha samadhan ko ribha upari dhanakendri to kata hai.",
+   "Whisper small": "इस्प्री जिनिसो गुडि को प्हना बिबागरी परनो तो ही जी जा बास्तोप जिबन्डो समच्से गुडि को रो समवदान करिए अपर इद्ध्धाना के नद्डि तो बरत्त्ता है.",
+   "OpenFlow Odia": "ଏପରି ଜିନିଷଗୁଡ଼ିକ ଭିନ୍ନ ବିଭାଗରେ ପରିଣତ ହୋଇଛି ଯାହା ବାସ୍ତବ ଜୀବନର ସମସ୍ୟା ଗୁଡ଼ିକର ସମାଧାନ କରିବା ଉପରେ ଧ୍ୟାନ କେନ୍ଦ୍ରିତ କରିଥାଏ"
+  },
+  "wer": {
+   "Whisper base": 143.8,
+   "Whisper small": 162.5,
+   "OpenFlow Odia": 18.8
+  }
+ },
+ {
+  "ref": "ଅନେକ ସାଧାରଣ ଫର୍ମାଟଗୁଡିକ ଉଦାହରଣ ସ୍ୱରୂପ ଏପିଏସ ଫେମିଲି ର ଫର୍ମାଟ ସମାନ କିମ୍ବା ଏହି ପରିମାପ ଅନୁପାତର ଅତି ନିକଟତର।",
+  "engines": {
+   "Whisper base": "Annang Sadharaha Parma Durika Udaransiru to Hikki is Tamilira Parma. Samman Kimba Aeyi Parimapu Anubhadara Watini Padakara.",
+   "Whisper small": "Many formalities are not available.",
+   "OpenFlow Odia": "ଅନେକ ସାଧାରଣ ଫର୍ମାଟଗୁଡ଼ିକ ଉଦାହରଣ ସ୍ୱରୂପ ଏଫଏସ୍ ଫ୍ୟାମିଲିର ଫର୍ମାଟ ସମାନ କିମ୍ବା ଏହି ପରିମାପ ଅନୁପାତର ଅତି ନିକଟତର"
+  },
+  "wer": {
+   "Whisper base": 106.2,
+   "Whisper small": 100.0,
+   "OpenFlow Odia": 25.0
+  }
+ },
+ {
+  "ref": "ଜାପାନରେ ପ୍ରଥମ ଚେରି ବ୍ଲୋସମ୍ ପାର୍ଟି ଗୁଡ଼ିକ ସମ୍ରାଟଙ୍କ ଦ୍ଵାରା କେବଳ ନିଜ ପାଇଁ ଏବଂ ସାମ୍ରାଜ୍ୟବାଦୀ କୋର୍ଟ ପରିସରରେ ଥିବା ଅଭିଜାତ ବର୍ଗ ପାଇଁ ଅନ୍ୟ ସଦସ୍ୟଙ୍କ ଦ୍ଵାରା ଆୟୋଜନ କରାଯାଇ ଆୟୋଜିତ ହୋଇଥିଲା",
+  "engines": {
+   "Whisper base": "Japan na prakthamma, cheri, blossham, pati, kudi, ka, samrat, kodara, kebola, nidja, bhai, eppu, samrajya, gadi, ko, pari, siri, tiba, abi, jatapar, gap, bhai, anna, sadhasi, am, kodara, ayadena, parajai, ayadjit, to, hui, hila.",
+   "Whisper small": "Japan ne prathama cherry blossom pattygudi ka samratam paddwara kabla nijapain ebu samrajya gadi po pari se lethi ba habhishata barga pain. Anno sadesiyam paddwara ayo jana parajai ayoji to huithila.",
+   "OpenFlow Odia": "ଜାପାନରେ ପ୍ରଥମ ଚେର ବ୍ଲୋସମ୍ ପାର୍ଟିଗୁଡ଼ିକ ସମ୍ରାଟଙ୍କ ଦ୍ୱାରା କେବଳ ନିଜ ପାଇଁ ଏବଂ ସାମ୍ରାଜ୍ୟବାଦୀ କୋର୍ଟ ପରିସରରେ ଥିବା ଅଭିଜାତ ବର୍ଗ ପାଇଁ ଅନ ସଦସ୍ୟଙ୍କ ଦ୍ୱାରା ଆୟୋଜନ କରାଯାଇ ଆୟୋଜିତ ହୋଇଥିଲା"
+  },
+  "wer": {
+   "Whisper base": 130.8,
+   "Whisper small": 119.2,
+   "OpenFlow Odia": 23.1
+  }
+ },
+ {
+  "ref": "u.s. ରାଷ୍ଟ୍ରପତି ଜର୍ଜ w ବୁଶ୍ ଏହି ଘୋଷଣାକୁ ସ୍ୱାଗତ କଲେ",
+  "engines": {
+   "Whisper base": "Devas Rastra Prati George W. Bruce, Sehi Vastra, Kusagat Kalyam.",
+   "Whisper small": "Dev-West Rastaprati George W. Bruce, nahi, ghar saan ko saagat ka liye.",
+   "OpenFlow Odia": "ୟୁଏସ୍ ରାଷ୍ଟ୍ରପତି ଜର୍ଜ ଡବ୍ଲ୍ୟୁବୁ ସେହି ଘୋଷଣାକୁ ସ୍ୱାଗତ କଲେ"
+  },
+  "wer": {
+   "Whisper base": 90.0,
+   "Whisper small": 120.0,
+   "OpenFlow Odia": 50.0
+  }
+ },
+ {
+  "ref": "ଏହି ନୂତନ ପରିବେଶର ଭିନ୍ନ ଉତ୍ସ ଏବଂ ଭିନ୍ନ ପ୍ରତିଯୋଗୀ ଅଛନ୍ତି ତେଣୁ ନୂତନ ଜନସଂଖ୍ୟା ପୂର୍ବରୁ ଯାହା ଆବଶ୍ୟକ କରୁଥିଲା ତାହା ଅପେକ୍ଷା ଏକ ଶକ୍ତିଶାଳୀ ପ୍ରତିଯୋଗୀ ହେବା ପାଇଁ ବିଭିନ୍ନ ବୈଶିଷ୍ଟ୍ୟ କିମ୍ବା ଆଡାପ୍ଟେସନ୍ ଆବଶ୍ୟକ କରିବ",
+  "engines": {
+   "Whisper base": "Aehi nuktano padi visara bhinna usch, ae bombhinna padi jai ki aachanditranu nuktano garnasim kya putburu jaha basikaparutla. Tahapekha kya kya kya sabti chali padi jai ki hai ba pae bhinna bhai sistakim ba adaptressa na basikaparivu.",
+   "Whisper small": "This is the ndu ṭana Ṭi Ṭi Ṭi Ṭi Ṭi Ṭi Ṭi Ṭi Ṭi Ṭi Ṭi Ṭi Ṭi Ṭi Ṭi Ṭi Ṭi Ṭi Ṭi Ṭi Ṭi Ṭi Ṭi Ṭi Ṭi Ṭi Ṭi Ṭi Ṭi Ṭi Ṭi Ṭi Ṭi Ṭi Ṭi Ṭi Ṭi Ṭi Ṭi Ṭi Ṭi Ṭi Ṭi Ṭi Ṭi Ṭi Ṭi Ṭi Ṭi Ṭi Ṭi Ṭi Ṭi �",
+   "OpenFlow Odia": "ଏହି ନୂତନ ପରିବେଶର ଭିନ୍ନ ଉତ୍ସ ଏବଂ ଭିନ୍ନ ପ୍ରତିଯୋଗୀ ଅଛନ୍ତି ତେଣୁ ନୂତନ ଜନସଂଖ୍ୟା ପୂର୍ବରୁ ଯାହା ଆବଶ୍ୟକ କରୁଥିଲା ତାହା ଅପେକ୍ଷା ଏକ ଶକ୍ତିଶାଳୀ ପ୍ରତିଯୋଗୀ ହେବା ପାଇଁ ବିଭିନ୍ନ ବୈଶିଷ୍ଟ୍ୟ କିମ୍ବା ଆଡପ୍ଟେସନ୍ ଆବଶ୍ୟକ କରିବ"
+  },
+  "wer": {
+   "Whisper base": 127.6,
+   "Whisper small": 200.0,
+   "OpenFlow Odia": 3.4
+  }
+ },
+ {
+  "ref": "ବୈଜ୍ଞାନିକମାନେ କହିଛନ୍ତି ଯେ ଏହି ପଶୁଟିର ପରସମୂହ ଶୀର୍ଷରେ ପିଙ୍ଗଳ-ବାଦାମୀ ରଙ୍ଗର ଥିଲା ଯାହା ଈଷତ ପାଉଁଶିଆ କିମ୍ବା କାରୋଟିନଏଡ୍ ରଙ୍ଗର ତଳଭାଗରେ ଥିଲା",
+  "engines": {
+   "Whisper base": "Bhai kya ni kaman ni koi chanti chal, rehi posu tila, parasam, ho, sissar, leh, ping, ho, la, bada, mironguru, thila. Jai isad pang siya, kimba, karoti, and ed, ranguru, tola bha, karit, thila.",
+   "Whisper small": "Common terms, common terms, common terms, common terms, common terms, common terms, common terms, common terms, common terms, common terms, common terms, common terms, common terms, common terms, common terms, common terms, common terms, common terms, common terms, common terms, common terms, common terms, common terms, common terms, common terms, common terms, common terms, common terms, common terms, common terms, common terms, common terms, common terms, common terms, common terms, common terms, common terms, common terms, common terms, common terms, common terms, common terms, common terms, common terms, common terms",
+   "OpenFlow Odia": "ବୈଜ୍ଞାନିକମାନେ କହିଛନ୍ତି ଯେ ଏହି ପଶୁଟିର ପରସମୂହ ଶୀର୍ଷରେ ପିଙ୍ଗଳ ବାଦାମୀ ରଙ୍ଗର ଥିଲା ଯାହା ଇସତ୍ ପାଉଁସିଆ କିମ୍ବା କାରୋଟିଏନଏଡ୍ ରଙ୍ଗର ତଳ ଭାଗରେ ଥିଲା"
+  },
+  "wer": {
+   "Whisper base": 178.9,
+   "Whisper small": 473.7,
+   "OpenFlow Odia": 26.3
+  }
+ },
+ {
+  "ref": "ଖୋଲା ଯୁକ୍ତି ଏବଂ ମଧ୍ୟ ପୂର୍ବ ଦିଗରେ ନୀତି ବିଷୟରେ ଯୁକ୍ତରାଷ୍ଟ୍ର ଆମେରିକାରେ ଏକ ସହମତି ଗଠନ ପାଇଁ ନିବେଦନ ସହିତ ଏହି ରିପୋର୍ଟ ଖୋଲିଛି",
+  "engines": {
+   "Whisper base": "Khola jyukti, vah madhapur badi, gare, nithi vise, re, jyukta, rastra, amerikare, ekah sahamati kutan pai, nivedanosai, ta, ehi report kulli jhe.",
+   "Whisper small": "Khola jukti bha Madhya Purbadi gare niti visahare jukta rastra amerikare ekha sahamati kothan bhai nibedana sahita ehi ripot khuliche.",
+   "OpenFlow Odia": "ଖୋଲା ଯୁକ୍ତି ଏବଂ ମଧ୍ୟପୂର୍ବ ଦିଗରେ ନୀତି ବିଷୟରେ ଯୁକ୍ତରାଷ୍ଟ୍ର ଆମେରିକାରେ ଏକ ସହମତି ଗଠନ ପାଇଁ ନିବେଦନ ସହିତ ଏହି ରିପୋର୍ଟ ଖୋଲିଛି"
+  },
+  "wer": {
+   "Whisper base": 115.8,
+   "Whisper small": 105.3,
+   "OpenFlow Odia": 10.5
+  }
+ },
+ {
+  "ref": "ପ୍ରତିଦିନ କେବଳ ଅଠରଟି ପଦକ ଉପଲବ୍ଧ ଥିବାରୁ ଅନେକ ଦେଶ ପଦକ ମଞ୍ଚକୁ ପହଞ୍ଚିବାରେ ବିଫଳ ହୋଇଛନ୍ତି",
+  "engines": {
+   "Whisper base": "Prattidina, kibura, atarati padaka, upalakda, thibaru, ornika, desa, wataka manjya, kuhu, pahanchibari, bifala, hui chanti.",
+   "Whisper small": "Every day, more than 80 nd languages are available in the country.",
+   "OpenFlow Odia": "ପ୍ରତିଦିନ କେବଳ ୧୮ ଟି ପଦକ ଉପଲବ୍ଧ ଥିବାରୁ ଅନେକ ଦେଶ ପଦକ ମଞ୍ଚକୁ ପହଞ୍ଚିବାରେ ବିଫଳ ହୋଇଛନ୍ତି"
+  },
+  "wer": {
+   "Whisper base": 115.4,
+   "Whisper small": 100.0,
+   "OpenFlow Odia": 15.4
+  }
+ },
+ {
+  "ref": "ଏହି ଡାଇନାମିକ୍ ପରିବହନ ଶଟଲ୍‌ରେ ସମସ୍ତେ କୌଣସି ପ୍ରକାରେ ଘରୋଇ କାର୍ ଉପରେ ଆଧାରିତ ପରିବହନ ବ୍ୟବସ୍ଥା ସହିତ ସଂଯୁକ୍ତ ତଥା ଏହାକୁ ସମର୍ଥନ କରନ୍ତି।",
+  "engines": {
+   "Whisper base": "Aehi dainami, parivohana, sattal re, samas te kone si prakar, ghoro ikkar, upar adhiri ta parivohana, bhabhasa, sa hita, sanjukta ta tha ek o samartha nakadanti.",
+   "Whisper small": "Ehi dynamic paribhana subtle re, samasthe koneshu prakara, gharo ikar upara adharita paribhana vyabastha sa hita, sanjukta tathaya ko samarthana katanti.",
+   "OpenFlow Odia": "ଏହି ଡାଇନାମିକ୍ ପରିବହନ ସଟଲରେ ସମସ୍ତେ କୌଣସି ପ୍ରକାର ଘରୋଇ କାର ଉପରେ ଆଧାରିତ ପରିବହନ ବ୍ୟବସ୍ଥା ସହିତ ସଂଯୁକ୍ତ ତଥା ଏହାକୁ ସମର୍ଥନ କରନ୍ତି"
+  },
+  "wer": {
+   "Whisper base": 136.8,
+   "Whisper small": 110.5,
+   "OpenFlow Odia": 15.8
+  }
+ },
+ {
+  "ref": "ଚିତ୍ତାକର୍ଷକ ଗାଁରେ ବୁଲିବା ପାଇଁ ଅଧା ଘଣ୍ଟା ସମୟ ମୂଲ୍ୟବାନ ଅଟେ",
+  "engines": {
+   "Whisper base": "Kite, kersi, kagare, bulliapai, yadha, antasamayam, bulliabhanate.",
+   "Whisper small": "Kite kar sakka gare bulya bhai adhavanta samaya mulya banate.",
+   "OpenFlow Odia": "ଚିତାକର୍ଷକ ଗାଁରେ ବୁଲିବା ପାଇଁ ଅଧା ଘଣ୍ଟା ସମୟ ମୂଲ୍ୟବାନ ଅଟେ"
+  },
+  "wer": {
+   "Whisper base": 100.0,
+   "Whisper small": 111.1,
+   "OpenFlow Odia": 11.1
+  }
+ },
+ {
+  "ref": "ଏହାକୁ ମଙ୍ଗଳବାର ଦିନ କାଟିବାକୁ ସ୍ଥିର କରାଯାଇଥିଲା କିନ୍ତୁ ନ୍ୟାୟାଳୟଙ୍କ ଜରୁରୀକାଳୀନ ରାୟ ପରେ ଏହା ରକ୍ଷା ପାଇଯାଇଥିଲା",
+  "engines": {
+   "Whisper base": "Aeha ko mangalo bharad dino karte bhaigus tirokodajaitila. Kintu neaayau ko jyodurikali na raya pore aeha rakhya pai jaitila.",
+   "Whisper small": "इह को मंगल बार दिन काटिबाग। फ्तिरो करा जाई तिला, किन्तु निया लोयंको जोरूरी काडिनो राय परे इह रोक्या पाई जाई तिला.",
+   "OpenFlow Odia": "ଏହାକୁ ମଙ୍ଗଳବାର ଦିନ କାଟିବାକୁ ସ୍ଥିର କରାଯାଇଥିଲା କିନ୍ତୁ ନ୍ୟାୟାଳୟଙ୍କ ଜରୁରୀକାଳୀନ ରାୟ ପରେ ଏହା ରକ୍ଷା ପାଇଯାଇଥିଲା"
+  },
+  "wer": {
+   "Whisper base": 135.7,
+   "Whisper small": 157.1,
+   "OpenFlow Odia": 0.0
+  }
+ },
+ {
+  "ref": "ସମୟ କ୍ରମେ ନୂତନ ସମୁଦାୟ ସେମାନଙ୍କର ନୂତନ ପରିବେଶ ସହିତ ଖାପ ଖୁଆଇ ଚଳିବା ଆରମ୍ଭ କରିବା ସଙ୍ଗେ ସେମାନେ ଅନ୍ୟ ସମୁଦାୟ ସଦୃଶ ଦେଖାଯିବା କମ୍ ରୁ କମ୍ ହୋଇଯାଏ",
+  "engines": {
+   "Whisper base": "Samayakuramei nuthanu samudaya samanakara nuthanu pari wa sakhaita khab kwae jali bhaarum hakaribasange. Samayane one sa mudaya sardu sa dekajiba kaumuru kaum huijai.",
+   "Whisper small": "Common terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms, terms",
+   "OpenFlow Odia": "ସମୟକ୍ରମେ ନୂତନ ସମୁଦାୟ ସେମାନଙ୍କର ନୂତନ ପରିବେଶ ସହିତ ଖାପ ଖୁଆଇ ଚଳିବା ଆରମ୍ଭ କରିବା ସଙ୍ଗେ ସେମାନେ ଅନ୍ୟ ସମୁଦାୟ ସଦୃଶ ଦେଖାଯିବା କମ ରୁ କମ୍ ହୋଇଯାଏ"
+  },
+  "wer": {
+   "Whisper base": 100.0,
+   "Whisper small": 247.8,
+   "OpenFlow Odia": 13.0
+  }
+ },
+ {
+  "ref": "ଚଳିତ ଋତୁରେ ଏହି ରୋଗର ପ୍ରଥମ ମାମଲା ଜୁଲାଇ ଶେଷରେ ରିପୋର୍ଟ କରାଯାଇଥିଲା",
+  "engines": {
+   "Whisper base": "Chodita Ruthu re, ehi Rogora Pratma Mahmal, Julai Saisareh, Rippur Karajayithu la.",
+   "Whisper small": "Chali tar Urture, ehi rogara prathma mamala, July se se report karajayi thi la.",
+   "OpenFlow Odia": "ଚଳିତ ଋତୁରେ ଏହି ରୋଗର ପ୍ରଥମ ମାମଲା ଜୁଲାଇ ଶେଷରେ ରିପୋର୍ଟ କରାଯାଇଥିଲା"
+  },
+  "wer": {
+   "Whisper base": 120.0,
+   "Whisper small": 140.0,
+   "OpenFlow Odia": 0.0
+  }
+ },
+ {
+  "ref": "ଗ୍ଲୋବାଲ ୱାର୍ମିଂ ଦ୍ୱାରା ପ୍ରଭାବିତ ଦେଶମାନଙ୍କୁ ଏହାର ପ୍ରଭାବ ସହ ଖାପଖୁଆଇବାରେ ସାହାଯ୍ୟ କରିବାକୁ ମିଳିତ ଜାତିସଂଘ ମଧ୍ୟ ଏକ ପାଣ୍ଠି ଚୂଡ଼ାନ୍ତ କରିବାକୁ ଆଶା କରୁଛି",
+  "engines": {
+   "Whisper base": "Uang Ming gara. Global warming gara, probabilitas desengan nunggu iar, probabilitas sap, hap-hap, livery, sarajik, ke dipakuk. Media itu, ganti seengah madah, ekapanki, sudang, tak ada berbual asakur itu.",
+   "Whisper small": "Global warming ター, । । । । । । । । । । । । । । । । । । । । । । । । । । । । । । । । । । । । । । । । । । । । । । । । । । । । । । । । । । । । । । । । । । । । । । । । ।",
+   "OpenFlow Odia": "ୱାର୍ମିଂ ଦ୍ୱାରା ଗ୍ଲୋବାଲ ୱାର୍ମିଂ ଦ୍ୱାରା ପ୍ରଭାବିତ ଦେଶମାନଙ୍କୁ ଏହାର ପ୍ରଭାବ ଖାପ ଖୁଆଇବାରେ ସାହାଯ୍ୟ କରିବାକୁ ମିଳିତ ଜାତିସଂଘ ମଧ୍ୟ ଏକ ପାଣ୍ଠି ଚୂଡ଼ାନ୍ତ କରିବାକୁ ଆଶା କରୁଛି"
+  },
+  "wer": {
+   "Whisper base": 150.0,
+   "Whisper small": 100.0,
+   "OpenFlow Odia": 20.0
+  }
+ }
+]
