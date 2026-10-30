@@ -1,0 +1,36 @@
+<!doctype html><meta charset="utf-8"><title>OpenFlow Android logo options</title>
+<style>
+body{margin:0;background:#1c1c1e;font-family:Inter,Segoe UI,sans-serif;color:#fff;padding:32px;display:grid;gap:28px}
+.row{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;max-width:1100px}
+.card{background:#2c2c2e;border-radius:24px;padding:24px;display:grid;gap:16px;justify-items:center}
+.card h3{margin:0;font-size:17px;font-weight:600}.card p{margin:0;color:#aeaeb2;font-size:14px;text-align:center;max-width:30ch}
+.icon{width:216px;height:216px;border-radius:48px;overflow:hidden;background:#000;display:block}
+.small{display:flex;gap:16px;align-items:center}.small .icon{width:72px;height:72px;border-radius:16px}.small .icon.round{border-radius:50%}.small .icon.bare{background:transparent;border-radius:0}
+</style>
+<div class="row">
+ <!-- A: split O, the two halves slide apart; a blue pill sits in the cut -->
+ <div class="card"><h3>A. Split O</h3>
+  <svg class="icon" viewBox="0 0 108 108"><rect width="108" height="108" fill="#000"/>
+   <g fill="none" stroke="#fff" stroke-width="12">
+    <path d="M30.6 51.5 A22 22 0 0 1 74.4 51.5" transform="translate(-3 0)"/>
+    <path d="M33.6 56.5 A22 22 0 0 0 77.4 56.5" transform="translate(-3 0) translate(6 0)"/></g>
+   <rect x="43" y="52.4" width="22" height="3.2" rx="1.6" fill="#0a84ff"/></svg>
+  <div class="small"><svg class="icon" viewBox="0 0 108 108"><rect width="108" height="108" fill="#000"/><g fill="none" stroke="#fff" stroke-width="12"><path d="M30.6 51.5 A22 22 0 0 1 74.4 51.5" transform="translate(-3 0)"/><path d="M39.6 56.5 A22 22 0 0 0 83.4 56.5" transform="translate(-3 0)"/></g><rect x="43" y="52.4" width="22" height="3.2" rx="1.6" fill="#0a84ff"/></svg></div>
+  <p>The O is cut across the middle; the halves shift like a slider. The blue pill in the gap is the voice.</p></div>
+ <!-- B: flow O, the cut is a waveform curve -->
+ <div class="card"><h3>B. Flow O</h3>
+  <svg class="icon" viewBox="0 0 108 108"><defs>
+   <clipPath id="t"><path d="M0 54 C22 40 34 68 54 54 S86 40 108 54 V0 H0Z"/></clipPath>
+   <clipPath id="b"><path d="M0 60 C22 46 34 74 54 60 S86 46 108 60 V108 H0Z"/></clipPath></defs>
+   <rect width="108" height="108" fill="#000"/>
+   <circle cx="54" cy="54" r="24" fill="none" stroke="#fff" stroke-width="13" clip-path="url(#t)"/>
+   <circle cx="54" cy="54" r="24" fill="none" stroke="#0a84ff" stroke-width="13" clip-path="url(#b)"/></svg>
+  <p>The cut is one smooth wave through the O: speech flowing through. Top half white, bottom half blue.</p></div>
+ <!-- C: pill O -->
+ <div class="card"><h3>C. Pill O</h3>
+  <svg class="icon" viewBox="0 0 108 108"><rect width="108" height="108" fill="#000"/>
+   <g fill="none" stroke="#fff" stroke-width="11">
+    <path d="M36 52 V42 A18 18 0 0 1 72 42 V52"/><path d="M36 58 V66 A18 18 0 0 0 72 66 V58"/></g>
+   <g fill="#0a84ff"><rect x="40" y="52.5" width="3.6" height="3" rx="1.5"/><rect x="47" y="51" width="3.6" height="6" rx="1.8"/><rect x="54" y="49" width="3.6" height="10" rx="1.8"/><rect x="61" y="51" width="3.6" height="6" rx="1.8"/></g></svg>
+  <p>A vertical pill (the capsule) cut in two, with waveform bars in the cut. Closest to today's logo.</p></div>
+</div>
