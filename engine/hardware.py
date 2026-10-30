@@ -1,5 +1,6 @@
 import os
 import platform
+import time
 import subprocess
 from pathlib import Path
 from functools import lru_cache
@@ -36,13 +37,21 @@ def _cuda_usable() -> bool:
         return False
 
 
+def _cuda_recently_hung() -> bool:
+    """One frozen call must not ban the GPU forever (drivers and power states recover): the mark expires after a day."""
+    try:
+        return time.time() - CUDA_HUNG_MARK.stat().st_mtime < 86400
+    except OSError:
+        return False
+
+
 @lru_cache(maxsize=1)
 def detect() -> Dict[str, Any]:
     """Inspects this PC and recommends device, compute type and model size."""
     gpu = _nvidia_smi()
     # An NVIDIA driver is enough for the startup choice: importing ctranslate2 to probe CUDA costs
     # several seconds. If CUDA is not actually usable, the model load falls back to the CPU itself.
-    cuda_ok = bool(gpu) and not CUDA_HUNG_MARK.exists()  # a CUDA call froze here before: stay off it
+    cuda_ok = bool(gpu) and not _cuda_recently_hung()  # a CUDA call froze here lately: stay off it for a day
     cores = os.cpu_count() or 4
     ram_gb = round(psutil.virtual_memory().total / 2**30, 1)
 
