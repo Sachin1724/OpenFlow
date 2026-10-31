@@ -220,6 +220,21 @@ class Transcriber:
     def _target(self, language: str) -> str:
         return engine_model_name(self.model_size, language, self.device)
 
+
+    def _warmup_model(self):
+        """Run a silent dummy transcription so CUDA/CTranslate2 JIT-compiles
+        its kernels NOW instead of stalling the user's first dictation."""
+        try:
+            import numpy as _np
+            silence = _np.zeros(8000, dtype=_np.float32)   # 0.5 s @ 16 kHz
+            if hasattr(self.model, "transcribe"):
+                # faster-whisper / OpenVINO path
+                list(self.model.transcribe(silence, language="en")[0])
+            # Odia / Parakeet have their own decode path; no warm-up needed
+            print("[OpenFlow] Model warm-up complete — kernels ready.")
+        except Exception as _e:
+            print(f"[OpenFlow] Warm-up skipped ({_e})")
+
     def _load_model_locked(self):
         self._preview_slow = False  # re-judge preview speed for whatever gets loaded
         target_name = self._target(self.language)
@@ -313,6 +328,7 @@ class Transcriber:
             print(f"[OpenFlow] Model {target_name} loaded and ready on {self.device}.")
             if self.on_status:
                 self.on_status(f"Model {target_name} ready ({self.device})")
+            self._warmup_model()
         except Exception as e:
             print(f"[OpenFlow] GPU load failed ({e}), falling back to CPU int8...")
             self.device = "cpu"
@@ -332,6 +348,7 @@ class Transcriber:
             print(f"[OpenFlow] CPU Model {target_name} loaded and ready.")
             if self.on_status:
                 self.on_status(f"Model {target_name} ready (CPU)")
+            self._warmup_model()
 
     def _load_parakeet(self, model_path: str):
         """Parakeet runs through sherpa-onnx on the CPU; self.model holds its recognizer."""
