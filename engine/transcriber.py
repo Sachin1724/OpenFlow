@@ -65,7 +65,7 @@ class _OpenVINOWhisper:
                    vad_filter=False, **_ignored):
         if vad_filter:  # same Silero VAD faster-whisper uses; without it silence comes out as "you"
             from faster_whisper.vad import get_speech_timestamps, VadOptions
-            spans = get_speech_timestamps(audio, VadOptions(min_silence_duration_ms=300))
+            spans = get_speech_timestamps(audio, VadOptions(min_silence_duration_ms=300, threshold=0.65))
             if not spans:
                 return [], SimpleNamespace(language=language or "")
             audio = np.concatenate([audio[c["start"]:c["end"]] for c in spans])
@@ -525,7 +525,7 @@ class Transcriber:
                 temperature=0.0,  # avoid expensive multi-temperature fallback loops on low-end CPUs
                 **whisper_args,
                 vad_filter=vad,
-                vad_parameters=dict(min_silence_duration_ms=300) if vad else None,
+                vad_parameters=dict(min_silence_duration_ms=300, threshold=0.65) if vad else None,
                 condition_on_previous_text=False,
                 repetition_penalty=1.1,  # discourages the phrase loops Whisper falls into on near-silence
                 without_timestamps=True,  # we only join the text; skipping timestamp tokens is ~5% faster

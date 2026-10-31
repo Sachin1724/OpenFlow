@@ -11,6 +11,66 @@ SAMPLE_RATE = 16000
 # Pre-roll: keep this many samples in a ring buffer so the first
 # syllable is never clipped when the user presses Ctrl+Shift.
 PREROLL_SAMPLES = int(SAMPLE_RATE * 0.25)  # 250 ms @ 16 kHz
+# ---------------------------------------------------------------------------
+# NEAR-FIELD DOMINANT SPEAKER GATE
+#
+# Whoever speaks closest to the mic is loudest (inverse-square law).
+# We calibrate dominant speaker energy from the first 0.6 s, then zero
+# any 20 ms frame that falls more than GATE_DB dB below that level.
+# No enrolment needed: the nearest, loudest voice wins automatically.
+# ---------------------------------------------------------------------------
+GATE_DB     = 14.0        # dB below dominant speaker -> silence
+GATE_HOLD_S = 0.35        # seconds to hold gate open after dominant speech ends
+GATE_FRAME  = 320         # 20 ms frames @ 16 kHz
+GATE_INIT_S = 0.60        # seconds of audio to calibrate from
+
+
+def apply_dominant_speaker_gate(
+    audio,
+    gate_db=GATE_DB,
+    hold_s=GATE_HOLD_S,
+):
+    """Frame-level near-field dominant-speaker gate.
+
+    Calibrates from the loudest 90th-percentile energy in the first
+    GATE_INIT_S seconds. Any 20 ms frame below gate_db dB of that floor
+    is zeroed. A hold timer preserves inter-word silences.
+    Clips shorter than GATE_INIT_S are returned untouched.
+    """
+    import numpy as _np
+    if len(audio) < int(SAMPLE_RATE * GATE_INIT_S):
+        return audio
+
+    n_frames = len(audio) // GATE_FRAME
+    if n_frames < 4:
+        return audio
+
+    frames = audio[:n_frames * GATE_FRAME].reshape(n_frames, GATE_FRAME)
+    rms_per_frame = _np.sqrt(
+        _np.mean(frames.astype(_np.float64) ** 2, axis=1)
+    ).astype(_np.float32)
+
+    cal_frames = max(4, int(GATE_INIT_S * SAMPLE_RATE / GATE_FRAME))
+    dominant_rms = float(_np.percentile(rms_per_frame[:cal_frames], 90))
+
+    if dominant_rms < 1e-6:
+        return audio  # dead mic / silence
+
+    gate_floor = dominant_rms * (10.0 ** (-gate_db / 20.0))
+    hold_frames = max(1, int(hold_s * SAMPLE_RATE / GATE_FRAME))
+    out = audio.copy()
+    hold_countdown = 0
+
+    for i, rms_i in enumerate(rms_per_frame):
+        if rms_i >= gate_floor:
+            hold_countdown = hold_frames
+        elif hold_countdown > 0:
+            hold_countdown -= 1
+        else:
+            out[i * GATE_FRAME:(i + 1) * GATE_FRAME] = 0.0
+
+    return out
+
 
 
 def clean_device_name(raw: str) -> str:
@@ -245,6 +305,7 @@ class AudioRecorder:
                 return np.empty((0,), dtype=np.float32)
             audio_data = np.concatenate(self._audio_chunks, axis=0)
             self._audio_chunks = []
+            audio_data = apply_dominant_speaker_gate(audio_data)
             return audio_data
 
 
