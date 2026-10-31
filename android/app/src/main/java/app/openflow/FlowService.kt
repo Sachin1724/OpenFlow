@@ -196,13 +196,15 @@ class FlowService : AccessibilityService() {
         val b = bubble; bubble = null
         b?.let { runCatching { wm.removeView(it) } }
         val lang = lang()
-        val c = CapsuleView(this, if (lang == "or") "OR" else "EN", drag) { stopListening(true) }
+        val badge = when (lang) { "or" -> "OR"; "hi" -> "HI"; else -> "EN" }
+        val c = CapsuleView(this, badge, drag) { stopListening(true) }
         capsule = c
         wm.addView(c, params(c.wPx, c.hPx))
         popIn(c, c.wPx.toFloat(), c.hPx / 2f, 0.6f)
+        c.performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
         when {
             !modelReady(lang) -> {
-                val name = if (lang == "or") "Odia" else "English"
+                val name = when (lang) { "or" -> "Odia"; "hi" -> "Hindi"; else -> "English" }
                 c.setMessage("$name model not installed")
                 ui.postDelayed({ stopListening(false) }, 1800); return
             }
@@ -265,11 +267,15 @@ class FlowService : AccessibilityService() {
             while (engine == null && engineLoading && waited < 100) { Thread.sleep(100); waited++ }
             val cur = r.length
             val last = if (cur - tailStart >= 1600 && r.peak(tailStart, cur) >= 0.006f) runCatching { engine?.transcribe(r.samples(tailStart, cur)) }.getOrNull().orEmpty() else ""
-            val finalText = (committed + last).trim()
+            val rawFinal = (committed + last).trim()
+            val finalText = TextFormatter.format(rawFinal, lang(), isFinal = true)
             Log.d("OpenFlow", "heard: $finalText")
             ui.post {
-                if (finalText.isNotEmpty()) showLive("$finalText ")
-                if (finalText.isNotEmpty()) Db.get(this).add(lang(), finalText)   // History tab
+                if (finalText.isNotEmpty()) {
+                    showLive("$finalText ")
+                    Db.get(this).add(lang(), finalText)   // History tab
+                    capsule?.performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                }
                 capsule?.let { c -> capsule = null; popOut(c) { ui.postDelayed(refresh, 120) } }
                 ui.postDelayed(unload, 10 * 60 * 1000L)
             }

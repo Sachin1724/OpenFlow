@@ -6,6 +6,7 @@ dist/
 .vscode/
 pyrefly.toml
 *.zip
+*.apk
 scratch/
 /openflow
 *.egg-info/

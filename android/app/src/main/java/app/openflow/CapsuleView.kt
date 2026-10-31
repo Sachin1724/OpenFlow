@@ -24,7 +24,7 @@ class CapsuleView(context: Context, private val lang: String, private val drag: 
     private val stopRect = RectF()
     private var message: String? = null
 
-    init { contentDescription = "OpenFlow is listening" }
+    init { contentDescription = "OpenFlow is listening"; isHapticFeedbackEnabled = true }
 
     fun setLevel(l: Float) { level = l }
     fun setMessage(m: String?) { message = m }
@@ -80,7 +80,13 @@ class CapsuleView(context: Context, private val lang: String, private val drag: 
                     drag.move(this, dx, dy)
                 }
             }
-            MotionEvent.ACTION_UP -> { if (dragging) drag.end(this) else if (stopRect.contains(e.x, e.y)) onStop() }
+            MotionEvent.ACTION_UP -> {
+                if (dragging) drag.end(this)
+                else if (stopRect.contains(e.x, e.y)) {
+                    performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                    onStop()
+                }
+            }
             MotionEvent.ACTION_CANCEL -> if (dragging) drag.end(this)
         }
         return true

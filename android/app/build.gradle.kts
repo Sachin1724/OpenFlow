@@ -18,8 +18,8 @@ android {
         applicationId = "app.openflow"
         minSdk = 26
         targetSdk = 34
-        versionCode = 2
-        versionName = "0.1.1-beta"
+        versionCode = 3
+        versionName = "0.1.2-beta"
         ndk { abiFilters += "arm64-v8a" }   // the speech runtime ships for 64-bit ARM phones only
     }
     signingConfigs {
@@ -40,13 +40,18 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+    packaging {
+        jniLibs {
+            useLegacyPackaging = false
+        }
+    }
     kotlinOptions { jvmTarget = "17" }
     buildFeatures { compose = true }
     composeOptions { kotlinCompilerExtensionVersion = "1.5.14" }
 }
 
 dependencies {
-    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.19.2")
+    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.22.0")
     implementation(platform("androidx.compose:compose-bom:2024.09.03"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.foundation:foundation")

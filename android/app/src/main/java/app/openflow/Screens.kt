@@ -86,6 +86,120 @@ class AppState(val ctx: Context) {
         (ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText("OpenFlow", text))
         say("Copied")
     }
+
+    var sandboxText by mutableStateOf("")
+    var isRecordingSandbox by mutableStateOf(false)
+    var sandboxLevel by mutableStateOf(0f)
+    var sandboxStatus by mutableStateOf<String?>(null)
+
+    private var sandboxRecorder: LevelRecorder? = null
+    private var sandboxEngine: SpeechEngine? = null
+    @Volatile private var sandboxStreaming = false
+
+    fun toggleSandbox(activity: Activity) {
+        if (isRecordingSandbox) {
+            stopSandbox()
+        } else {
+            startSandbox(activity)
+        }
+    }
+
+    fun clearSandbox() {
+        sandboxText = ""
+        sandboxStatus = null
+    }
+
+    private fun startSandbox(activity: Activity) {
+        if (!micOk) {
+            activity.requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), 1)
+            say("Microphone permission needed")
+            return
+        }
+        val model = Models.all.firstOrNull { it.id == lang }
+        if (model == null || !Models.installed(ctx, model)) {
+            say("${langName(lang)} model not installed. Visit Models tab.")
+            return
+        }
+        val dir = Models.dir(ctx, lang)
+        isRecordingSandbox = true
+        sandboxStatus = "Listening..."
+        sandboxText = ""
+
+        val r = LevelRecorder { lvl ->
+            ui.post { sandboxLevel = lvl }
+        }
+        if (!r.start()) {
+            isRecordingSandbox = false
+            sandboxStatus = null
+            say("Microphone is busy")
+            return
+        }
+        sandboxRecorder = r
+        sandboxStreaming = true
+
+        Thread {
+            runCatching {
+                if (sandboxEngine == null || sandboxEngine?.lang != lang) {
+                    sandboxEngine?.close()
+                    sandboxEngine = SpeechEngine(lang, dir)
+                }
+            }.onFailure {
+                ui.post {
+                    isRecordingSandbox = false
+                    sandboxStatus = null
+                    say("Failed to load speech engine")
+                }
+                return@Thread
+            }
+
+            var committed = ""
+            var tailStart = 0
+            while (sandboxStreaming) {
+                Thread.sleep(500)
+                val e = sandboxEngine ?: continue
+                val cur = r.length
+                if (cur - tailStart < 4800) continue
+                val t = if (r.peak(tailStart, cur) < 0.006f) "" else runCatching { e.transcribe(r.samples(tailStart, cur)) }.getOrDefault("")
+                if ((r.quietFor(700) && cur - tailStart > 32000) || cur - tailStart > 16000 * 12) {
+                    if (t.isNotEmpty()) committed += "$t "
+                    tailStart = cur
+                    val formatted = TextFormatter.format(committed, lang, isFinal = false)
+                    ui.post { sandboxText = formatted }
+                } else {
+                    val formatted = TextFormatter.format(committed + t, lang, isFinal = false)
+                    ui.post { sandboxText = formatted }
+                }
+            }
+
+            // Final pass
+            Thread.sleep(150)
+            val cur = r.length
+            val e = sandboxEngine
+            val last = if (e != null && cur - tailStart >= 1600 && r.peak(tailStart, cur) >= 0.006f) {
+                runCatching { e.transcribe(r.samples(tailStart, cur), isFinal = true) }.getOrDefault("")
+            } else ""
+            val rawFinal = (committed + last).trim()
+            val formattedFinal = TextFormatter.format(rawFinal, lang, isFinal = true)
+            ui.post {
+                isRecordingSandbox = false
+                sandboxStatus = null
+                sandboxLevel = 0f
+                if (formattedFinal.isNotEmpty()) {
+                    sandboxText = formattedFinal
+                    Db.get(ctx).add(lang, formattedFinal)
+                    refresh()
+                    say("Dictation saved to History")
+                }
+            }
+        }.start()
+    }
+
+    private fun stopSandbox() {
+        sandboxStreaming = false
+        sandboxRecorder?.stop()
+        sandboxRecorder = null
+        sandboxStatus = "Processing..."
+    }
 }
 
 @Composable
@@ -117,11 +231,61 @@ private fun langName(l: String) = when (l) { "or" -> "Odia"; "en" -> "English"; 
 // ------------------------------------------------------------------ History
 
 @Composable
+fun DictationPlayground(s: AppState) {
+    val ctx = LocalContext.current
+    val activity = ctx as? Activity
+    Group(Modifier.padding(horizontal = 16.dp).padding(bottom = 14.dp)) {
+        Column(Modifier.padding(18.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                T("DICTATION PLAYGROUND", 12, FontWeight.Bold, c = C.accent, font = AkiraExpanded)
+                Box(Modifier.clip(RoundedCornerShape(6.dp)).background(C.surface2).padding(horizontal = 8.dp, vertical = 4.dp)) {
+                    T(langName(s.lang).uppercase(), 11, FontWeight.Bold, c = C.text2)
+                }
+            }
+
+            Box(Modifier.fillMaxWidth().padding(vertical = 12.dp).clip(RoundedCornerShape(12.dp)).background(C.bg).padding(14.dp)) {
+                if (s.sandboxText.isEmpty() && !s.isRecordingSandbox) {
+                    T("Tap the microphone and speak to test offline dictation in real time.", 15, c = C.text3, line = 22)
+                } else {
+                    T(if (s.sandboxText.isEmpty()) "Listening..." else s.sandboxText, 16, c = if (s.sandboxText.isEmpty()) C.text2 else C.text, line = 24)
+                }
+            }
+
+            if (s.isRecordingSandbox) {
+                Row(Modifier.fillMaxWidth().padding(bottom = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    for (i in 0 until 14) {
+                        val barHeight = (4.dp + (s.sandboxLevel * 22f * ((i % 4 + 1) / 3f)).dp).coerceIn(4.dp, 26.dp)
+                        Box(Modifier.weight(1f).height(barHeight).clip(RoundedCornerShape(2.dp)).background(if (i < 10) C.accent else C.red))
+                    }
+                }
+            }
+
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (s.sandboxText.isNotEmpty() && !s.isRecordingSandbox) {
+                        PillButton("Copy", primary = false, small = true) { s.copy(s.sandboxText) }
+                        PillButton("Clear", primary = false, small = true) { s.clearSandbox() }
+                    }
+                }
+                PillButton(
+                    if (s.isRecordingSandbox) "Stop" else "Start Dictation",
+                    primary = !s.isRecordingSandbox,
+                    small = true
+                ) {
+                    activity?.let { s.toggleSandbox(it) }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 fun HistoryScreen(s: AppState) {
     val ctx = LocalContext.current
     val shown = s.history.filter { s.query.isBlank() || it.text.contains(s.query, ignoreCase = true) }
     LazyColumn(Modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 24.dp)) {
         item { Title("History", "Everything you dictated. Tap one to copy it.") }
+        item { DictationPlayground(s) }
         if (!s.serviceOn) item {
             Group(Modifier.padding(horizontal = 16.dp).padding(bottom = 12.dp)) {
                 Column(Modifier.padding(16.dp)) {
@@ -209,14 +373,7 @@ fun ModelsScreen(s: AppState) {
                 }
             }
         }
-        item {
-            Group(Modifier.padding(horizontal = 16.dp).padding(bottom = 10.dp)) {
-                Column(Modifier.padding(16.dp)) {
-                    T("Hindi", 17, FontWeight.SemiBold, C.text3)
-                    T("Coming soon. It will use the same kind of model as Odia.", 14, c = C.text3, modifier = Modifier.padding(top = 3.dp))
-                }
-            }
-        }
+
     }
 }
 
@@ -267,12 +424,12 @@ fun SettingsScreen(s: AppState) {
         item { SectionLabel("Speak in") }
         item {
             Group(Modifier.padding(horizontal = 16.dp)) {
-                listOf("or" to "Odia", "en" to "English", "hi" to "Hindi (coming soon)").forEachIndexed { i, (code, name) ->
+                listOf("or" to "Odia", "en" to "English", "hi" to "Hindi").forEachIndexed { i, (code, name) ->
                     if (i > 0) Sep()
                     val on = s.lang == code
-                    Row(Modifier.fillMaxWidth().height(56.dp).press { if (code != "hi") s.chooseLang(code) else s.say("Hindi is coming soon") }.padding(horizontal = 16.dp),
+                    Row(Modifier.fillMaxWidth().height(56.dp).press { s.chooseLang(code) }.padding(horizontal = 16.dp),
                         horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                        T(name, 16, c = if (code == "hi") C.text3 else C.text)
+                        T(name, 16)
                         if (on) T("Selected", 14, FontWeight.Medium, C.accent)
                     }
                 }

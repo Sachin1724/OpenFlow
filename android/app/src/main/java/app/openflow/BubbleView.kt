@@ -22,6 +22,7 @@ class BubbleView(context: Context, private val drag: Drag, private val onTap: ()
     init {
         contentDescription = "Dictate with OpenFlow"
         isClickable = true
+        isHapticFeedbackEnabled = true
     }
 
     override fun onDraw(c: Canvas) {
@@ -57,7 +58,14 @@ class BubbleView(context: Context, private val drag: Drag, private val onTap: ()
                     drag.move(this, dx, dy)
                 }
             }
-            MotionEvent.ACTION_UP -> { pressed = false; invalidate(); if (dragging) drag.end(this) else onTap() }
+            MotionEvent.ACTION_UP -> {
+                pressed = false
+                invalidate()
+                if (dragging) drag.end(this) else {
+                    performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                    onTap()
+                }
+            }
             MotionEvent.ACTION_CANCEL -> { pressed = false; invalidate(); if (dragging) drag.end(this) }
         }
         return true

@@ -51,6 +51,9 @@ object Models {
         ModelInfo("en", "English", "Speech to English text, live. NeMo Conformer CTC (INT8).", 46,
             listOf("model.onnx" to "https://huggingface.co/csukuangfj/sherpa-onnx-nemo-ctc-en-conformer-small/resolve/main/model.int8.onnx",
                    "tokens.txt" to "https://huggingface.co/csukuangfj/sherpa-onnx-nemo-ctc-en-conformer-small/resolve/main/tokens.txt")),
+        ModelInfo("hi", "Hindi", "Speech to Devanagari Hindi script, live. IndicConformer INT8.", 134,
+            listOf("model.onnx" to "https://huggingface.co/ngiftsun/indicconformer-hi-int8-sherpa/resolve/main/model.int8.onnx",
+                   "tokens.txt" to "https://huggingface.co/ngiftsun/indicconformer-hi-int8-sherpa/resolve/main/tokens.txt")),
     )
 
     fun dir(ctx: Context, id: String) = File(ctx.filesDir, "models/$id")

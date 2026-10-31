@@ -153,7 +153,7 @@ open class SpeechEngine(val lang: String, dir: File) : AutoCloseable {
         session = env.createSession(modelPath, opts)
     }
 
-    fun transcribe(audio: FloatArray): String {
+    fun transcribe(audio: FloatArray, isFinal: Boolean = false): String {
         if (audio.size < 1600) return ""
         val (feat, t) = Features.compute(audio)
         OnnxTensor.createTensor(env, FloatBuffer.wrap(feat), longArrayOf(1, 80, t.toLong())).use { x ->
@@ -184,9 +184,7 @@ open class SpeechEngine(val lang: String, dir: File) : AutoCloseable {
                         .replace('\u2581', ' ')
                         .trim()
                         .replace(Regex("\\s+"), " ")
-                    return if (lang == "en") {
-                        text.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
-                    } else text
+                    return TextFormatter.format(text, lang, isFinal)
                 }
             }
         }
