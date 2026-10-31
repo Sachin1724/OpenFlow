@@ -44,18 +44,13 @@ data class ModelInfo(val id: String, val title: String, val note: String, val si
 
 object Models {
     private const val HF = "https://huggingface.co/"
-    private const val EN = "csukuangfj/sherpa-onnx-streaming-zipformer-en-2023-06-26/resolve/main/"
     val all = listOf(
         ModelInfo("or", "Odia", "Speech to Odia script, live. IndicConformer by AI4Bharat.", 188,
             listOf("model.onnx" to HF + "sachinmallick/openflow-odia-asr-int8/resolve/main/or/model.onnx",
                    "vocab.json" to HF + "sachinmallick/openflow-odia-asr-int8/resolve/main/or/vocab.json")),
-        ModelInfo("en-live", "English, live", "Types words as you speak. Fast and light.", 69,
-            listOf("encoder.int8.onnx" to HF + EN + "encoder-epoch-99-avg-1-chunk-16-left-128.int8.onnx",
-                   "decoder.int8.onnx" to HF + EN + "decoder-epoch-99-avg-1-chunk-16-left-128.int8.onnx",
-                   "joiner.int8.onnx" to HF + EN + "joiner-epoch-99-avg-1-chunk-16-left-128.int8.onnx",
-                   "tokens.txt" to HF + EN + "tokens.txt")),
-        ModelInfo("en-whisper", "English, accurate", "Whisper base. Corrects the live text with punctuation.", 57,
-            listOf("ggml-base-q5_1.bin" to HF + "ggerganov/whisper.cpp/resolve/main/ggml-base-q5_1.bin")),
+        ModelInfo("en", "English", "Speech to English text, live. NeMo Conformer CTC (INT8).", 46,
+            listOf("model.onnx" to "https://huggingface.co/csukuangfj/sherpa-onnx-nemo-ctc-en-conformer-small/resolve/main/model.int8.onnx",
+                   "tokens.txt" to "https://huggingface.co/csukuangfj/sherpa-onnx-nemo-ctc-en-conformer-small/resolve/main/tokens.txt")),
     )
 
     fun dir(ctx: Context, id: String) = File(ctx.filesDir, "models/$id")

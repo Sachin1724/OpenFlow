@@ -35,7 +35,7 @@ class FlowService : AccessibilityService() {
     private var bubble: BubbleView? = null
     private var capsule: CapsuleView? = null
     private var recorder: LevelRecorder? = null
-    private var engine: OdiaEngine? = null
+    private var engine: SpeechEngine? = null
     private var engineLoading = false
     @Volatile private var streaming = false
     private var baseText = ""      // the field's text before / after the spot where live words go
@@ -46,14 +46,22 @@ class FlowService : AccessibilityService() {
     private val unload = Runnable { engine?.close(); engine = null }   // frees the model after 10 idle minutes
 
     private fun lang() = prefs.getString("lang", "or") ?: "or"
-    private fun modelDir() = File(filesDir, "models/or")
-    private fun modelReady() = File(modelDir(), "model.onnx").exists() && File(modelDir(), "vocab.json").exists()
+    private fun modelDir(l: String = lang()) = File(filesDir, "models/$l")
+    private fun modelReady(l: String = lang()): Boolean {
+        val d = modelDir(l)
+        return (File(d, "model.onnx").exists() || File(d, "model.int8.onnx").exists()) &&
+            (File(d, "vocab.json").exists() || File(d, "tokens.txt").exists())
+    }
 
-    private fun loadEngineAsync() {
-        if (engine != null || engineLoading || !modelReady()) return
+    private fun loadEngineAsync(l: String = lang()) {
+        if (engine?.lang == l || engineLoading || !modelReady(l)) return
+        engine?.close()
+        engine = null
         engineLoading = true
         Thread {
-            runCatching { OdiaEngine(modelDir()) }.onSuccess { engine = it }.onFailure { Log.e("OpenFlow", "model load failed", it) }
+            runCatching { SpeechEngine(l, modelDir(l)) }
+                .onSuccess { engine = it; Log.d("OpenFlow", "Loaded engine for $l") }
+                .onFailure { Log.e("OpenFlow", "model load failed for $l", it) }
             engineLoading = false
         }.start()
     }
@@ -193,12 +201,15 @@ class FlowService : AccessibilityService() {
         wm.addView(c, params(c.wPx, c.hPx))
         popIn(c, c.wPx.toFloat(), c.hPx / 2f, 0.6f)
         when {
-            lang != "or" -> { c.setMessage("English is coming next"); ui.postDelayed({ stopListening(false) }, 1800); return }
-            !modelReady() -> { c.setMessage("Odia model not installed"); ui.postDelayed({ stopListening(false) }, 1800); return }
+            !modelReady(lang) -> {
+                val name = if (lang == "or") "Odia" else "English"
+                c.setMessage("$name model not installed")
+                ui.postDelayed({ stopListening(false) }, 1800); return
+            }
             checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED ->
                 { c.setMessage("Allow the microphone in OpenFlow"); ui.postDelayed({ stopListening(false) }, 2200); return }
         }
-        ui.removeCallbacks(unload); loadEngineAsync()
+        ui.removeCallbacks(unload); loadEngineAsync(lang)
         val r = LevelRecorder { c.setLevel(it) }
         if (!r.start()) { c.setMessage("Microphone is busy"); ui.postDelayed({ stopListening(false) }, 1800); return }
         recorder = r

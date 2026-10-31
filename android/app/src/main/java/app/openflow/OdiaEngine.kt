@@ -107,21 +107,50 @@ object Features {
     }
 }
 
-/** The OpenFlow Odia model (AI4Bharat IndicConformer, int8 ONNX) with greedy CTC decoding, Odia letters only. */
-class OdiaEngine(dir: File) : AutoCloseable {
+/**
+ * Universal Conformer CTC speech engine (int8 ONNX).
+ * Supports both Odia (vocab.json) and English (tokens.txt).
+ */
+open class SpeechEngine(val lang: String, dir: File) : AutoCloseable {
     private val env = OrtEnvironment.getEnvironment()
     private val session: OrtSession
     private val vocab: List<String>
-    private val allowed: BooleanArray
+    private val blank: Int
+    private val allowed: BooleanArray?
 
     init {
-        val arr = JSONArray(File(dir, "vocab.json").readText())
-        vocab = List(arr.length()) { arr.getString(it) }
-        allowed = BooleanArray(vocab.size + 1) { i ->
-            i == vocab.size || (vocab[i] != "<unk>" && vocab[i].all { c -> c == '▁' || c.code in 0x0B00..0x0B7F })
+        val tokensFile = File(dir, "tokens.txt")
+        val vocabFile = File(dir, "vocab.json")
+        if (tokensFile.exists()) {
+            val lines = tokensFile.readLines()
+            val map = HashMap<Int, String>()
+            var maxIdx = -1
+            for (line in lines) {
+                val idxSpace = line.lastIndexOf(' ')
+                if (idxSpace != -1) {
+                    val sym = line.substring(0, idxSpace)
+                    val idx = line.substring(idxSpace + 1).toIntOrNull()
+                    if (idx != null) {
+                        map[idx] = sym
+                        if (idx > maxIdx) maxIdx = idx
+                    }
+                }
+            }
+            vocab = List(maxIdx + 1) { map[it] ?: "" }
+            blank = maxIdx // last token is <blk>
+            allowed = null
+        } else {
+            val arr = JSONArray(vocabFile.readText())
+            vocab = List(arr.length()) { arr.getString(it) }
+            blank = vocab.size
+            allowed = BooleanArray(vocab.size + 1) { i ->
+                i == vocab.size || (vocab[i] != "<unk>" && vocab[i].all { c -> c == '▁' || c.code in 0x0B00..0x0B7F })
+            }
         }
         val opts = OrtSession.SessionOptions().apply { setIntraOpNumThreads(4) }
-        session = env.createSession(File(dir, "model.onnx").absolutePath, opts)
+        val modelPath = File(dir, "model.onnx").takeIf { it.exists() }?.absolutePath
+            ?: File(dir, "model.int8.onnx").absolutePath
+        session = env.createSession(modelPath, opts)
     }
 
     fun transcribe(audio: FloatArray): String {
@@ -132,16 +161,32 @@ class OdiaEngine(dir: File) : AutoCloseable {
                 session.run(mapOf("audio_signal" to x, "length" to len)).use { out ->
                     @Suppress("UNCHECKED_CAST")
                     val logits = (out[0].value as Array<Array<FloatArray>>)[0]
-                    val blank = vocab.size
                     val sb = StringBuilder()
                     var prev = -1
+                    val allow = allowed
                     for (row in logits) {
                         var best = -1; var bv = Float.NEGATIVE_INFINITY
-                        for (i in row.indices) if (allowed[i] && row[i] > bv) { bv = row[i]; best = i }
-                        if (best != prev && best in 0 until blank) sb.append(vocab[best])
+                        for (i in row.indices) {
+                            if ((allow == null || allow[i]) && row[i] > bv) {
+                                bv = row[i]; best = i
+                            }
+                        }
+                        if (best != prev && best in 0 until blank) {
+                            val tok = vocab[best]
+                            if (tok != "<unk>" && tok != "<blk>") {
+                                sb.append(tok)
+                            }
+                        }
                         prev = best
                     }
-                    return sb.toString().replace('▁', ' ').trim()
+                    val text = sb.toString()
+                        .replace('▁', ' ')
+                        .replace('\u2581', ' ')
+                        .trim()
+                        .replace(Regex("\\s+"), " ")
+                    return if (lang == "en") {
+                        text.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+                    } else text
                 }
             }
         }
@@ -149,3 +194,6 @@ class OdiaEngine(dir: File) : AutoCloseable {
 
     override fun close() { session.close() }
 }
+
+/** Backward compatibility subclass for OdiaEngine */
+class OdiaEngine(dir: File) : SpeechEngine("or", dir)
