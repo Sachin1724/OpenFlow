@@ -46,9 +46,9 @@
       },
       "description": "Free, private, zero-limit local AI voice dictation and meeting intelligence for Windows. 100% offline, GPU & NPU-accelerated with sub-150ms latency.",
       "url": "https://sachin1724.github.io/OpenFlow/",
-      "downloadUrl": "https://github.com/Sachin1724/OpenFlow/releases/download/v1.1.9/OpenFlow-Setup.exe",
+      "downloadUrl": "https://github.com/Sachin1724/OpenFlow/releases/latest/download/OpenFlow-Setup.exe",
       "fileSize": "141 MB",
-      "softwareVersion": "1.1.9",
+      "softwareVersion": "1.3.2",
       "codeRepository": "https://github.com/Sachin1724/OpenFlow",
       "license": "https://opensource.org/licenses/MIT",
       "author": {
@@ -806,15 +806,15 @@ section[id] { scroll-margin-top: 24px; }
 </section>
 
 <section class="new pad" id="new" aria-labelledby="n-h">
-  <h2 id="n-h" class="rv">New in 1.3.0.</h2>
+  <h2 id="n-h" class="rv">New in 1.3.2.</h2>
   <p class="intro rv" style="--i:1">Out now. Download the latest installer and everything below is included.</p>
   <ul>
+    <li class="rv"><h3>Near-field voice isolation.</h3><p>In a room with other people talking? OpenFlow automatically isolates whoever is closest to the microphone using physics-based inverse-square calibration and suppresses background chatter without needing voice profiles.</p></li>
+    <li class="rv"><h3>Instant dictation start.</h3><p>GPU kernels are pre-warmed in the background right after model loading. No more 1–3 second warm-up stall on your first spoken word.</p></li>
     <li class="rv"><h3>A Dynamic Island capsule.</h3><p>Pick it in Settings. It rests at the top of the screen, springs open for dictation, types your words in underneath as you speak, and queues every notice.</p></li>
-    <li class="rv"><h3>A lighter, steadier app.</h3><p>The speech engine now runs in its own process and is released after 10 idle minutes. A stuck model can no longer freeze the window, and if the interface ever stops responding, OpenFlow writes a log and restarts itself.</p></li>
-    <li class="rv"><h3>A new dashboard.</h3><p>A sidebar, grouped settings, a model library that fits on the page, and a mouse wheel that no longer moves a slider while you scroll.</p></li>
-    <li class="rv"><h3>Your size, on any screen.</h3><p>Width and height sliders for the capsule and the island, and an option to grow on screens wider than 1920 pixels.</p></li>
-    <li class="rv"><h3>Silence stays silent.</h3><p>A recording with no speech in it never reaches the model, and repeated-phrase loops are cut, so it stops writing sentences you never said.</p></li>
-    <li class="rv"><h3>Notes that read like notes.</h3><p>Exported meeting notes keep one paragraph for each sentence, not one block for each speaker.</p></li>
+    <li class="rv"><h3>A lighter, steadier app.</h3><p>The speech engine runs in its own background process and unloads during idle. A stuck model can never freeze the UI, and an automatic watchdog restarts OpenFlow if needed.</p></li>
+    <li class="rv"><h3>Silence stays silent.</h3><p>Recordings with no speech never hit the model, and repeated-phrase loops are cut before transcription.</p></li>
+    <li class="rv"><h3>OpenFlow for Android (beta).</h3><p>Private, on-device mobile voice typing is here for Android devices, with an offline Odia speech model and floating capsule.</p></li>
   </ul>
   <div class="more rv"><a class="btn big light-quiet" href="changelog.html">Every version, in detail</a></div>
 </section>
