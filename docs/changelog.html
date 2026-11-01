@@ -258,8 +258,11 @@ ul { list-style: none; padding: 0; }
 
 <div class="bar wrap">
   <nav class="jump" aria-label="Versions">
-    <a class="chip" href="#v0-1-0-android">Android 0.1.0</a>
-    <a class="chip next" href="#v1-3-0">1.3.0</a>
+    <a class="chip next" href="#v1-3-3">1.3.3</a>
+    <a class="chip" href="#v0-1-2-android">Android 0.1.2</a>
+    <a class="chip" href="#v1-3-2">1.3.2</a>
+    <a class="chip" href="#v1-3-1">1.3.1</a>
+    <a class="chip" href="#v1-3-0">1.3.0</a>
     <a class="chip" href="#v1-2-0">1.2.0</a>
     <a class="chip" href="#v1-1-9">1.1.9</a>
     <a class="chip" href="#v1-1-8">1.1.8</a>
@@ -283,38 +286,65 @@ ul { list-style: none; padding: 0; }
 
 <main id="releases">
 
-<article class="rel" id="v0-1-0-android" data-v="0.1.0">
+<article class="rel" id="v1-3-3" data-v="1.3.3">
   <div class="in wrap">
     <div class="ver rv">
-      <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
-        <img src="img/android-icon.png" alt="" width="36" height="36" style="border-radius: 9px; border: 1px solid rgba(255,255,255,0.12); flex-shrink: 0;">
-        <h2><span class="sr">OpenFlow version </span>Android 0.1.0 (Beta)</h2>
-      </div>
-      <div class="meta">
-        <span class="chip next static">31 October 2026</span>
-        <span class="chip static">ARM64 APK</span>
-      </div>
+      <h2><span class="sr">OpenFlow version </span>1.3.3</h2>
+      <div class="meta"><span class="chip next static">1 November 2026</span><span class="chip static">Latest</span></div>
       <div style="margin-top: 14px;">
-        <a class="btn" href="https://github.com/Sachin1724/OpenFlow/releases/download/android-v0.1.1-beta/OpenFlow-android-beta-0.1.1.apk">Download APK</a>
+        <a class="btn" href="https://github.com/Sachin1724/OpenFlow/releases/download/v1.3.3/OpenFlow-Setup.exe">Download Setup</a>
       </div>
     </div>
     <div class="notes rv" style="--d:1">
       <section class="group" data-g="new">
         <h3>New</h3>
         <ul>
-          <li><strong>OpenFlow for Android:</strong> First preview release bringing 100% private on-device voice typing to Android devices.</li>
-          <li><strong>Dynamic Island Floating Capsule:</strong> A floating bubble widget that stays attached to active input fields, showing real-time listening states, waveform animations, and quick controls.</li>
-          <li><strong>Odia Speech Model:</strong> On-device quantized 4-bit Odia speech model with ARM64 NEON optimization for real-time dictation without network access.</li>
-          <li><strong>On-Device History &amp; Model Manager:</strong> Local history viewer and model repository with status indicators and storage controls.</li>
-          <li><strong>Secure APK Signing:</strong> Release build signed with dedicated production keystore for seamless updates.</li>
+          <li><strong>Smart Speech Contractions:</strong> Spoken words are automatically formatted into standard written English contractions (<code>dont</code> &rarr; <code>don't</code>, <code>im</code> &rarr; <code>I'm</code>, <code>cant</code> &rarr; <code>can't</code>, <code>youre</code> &rarr; <code>you're</code>, <code>thats</code> &rarr; <code>that's</code>) with automatic capitalization of pronoun <code>I</code>.</li>
+          <li><strong>Intelligent Question Inference:</strong> Speech starting with interrogatives (<em>how</em>, <em>what</em>, <em>why</em>, <em>can</em>, <em>could</em>, <em>would</em>, <em>where</em>, <em>when</em>, <em>is</em>, <em>are</em>) automatically concludes with a question mark (<code>?</code>) instead of forcing a period.</li>
+          <li><strong>Continuous Streaming Preview:</strong> Live dictation preview in the floating capsule now merges committed phrase buffers with the active tail hypothesis (Wispr Flow style), preventing earlier words from vanishing mid-speech.</li>
+          <li><strong>Zero Warm-Up Latency:</strong> Added <code>"keep_model_in_memory": True</code> in Settings to keep models resident in RAM/VRAM, paired with background pre-warming across Whisper, Silero VAD, IndicConformer, and Parakeet on app launch.</li>
         </ul>
       </section>
-      <section class="group" data-g="better">
-        <h3>Roadmap</h3>
+      <section class="group" data-g="fixes">
+        <h3>Fixes</h3>
         <ul>
-          <li>English and Hindi language models with automatic multi-lingual code-mixing.</li>
-          <li>Direct IME keyboard integration alongside the floating capsule.</li>
-          <li>Live meeting notes recorder for mobile conversations.</li>
+          <li><strong>Accidental Tap Guard:</strong> Audio captures under 0.45s or below 0.005 peak level are discarded immediately before entering the "Writing" state, preventing stuck loops. Pressing the hotkey while processing cancels stuck workers and starts fresh dictation immediately.</li>
+          <li><strong>Verbal Backspace Enhancements:</strong> Spoken self-corrections (<em>"call Rahul wait no call Sachin"</em>) now trigger reliably even when fast greedy decoders omit a comma before <em>"wait no"</em> or <em>"actually"</em>.</li>
+        </ul>
+      </section>
+    </div>
+  </div>
+</article>
+
+<article class="rel" id="v0-1-2-android" data-v="0.1.2">
+  <div class="in wrap">
+    <div class="ver rv">
+      <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+        <img src="img/android-icon.png" alt="" width="36" height="36" style="border-radius: 9px; border: 1px solid rgba(255,255,255,0.12); flex-shrink: 0;">
+        <h2><span class="sr">OpenFlow version </span>Android 0.1.2 (Beta)</h2>
+      </div>
+      <div class="meta">
+        <span class="chip next static">31 October 2026</span>
+        <span class="chip static">ARM64 APK</span>
+      </div>
+      <div style="margin-top: 14px;">
+        <a class="btn" href="https://github.com/Sachin1724/OpenFlow/releases/download/android-v0.1.2-beta/OpenFlow-android-beta-0.1.2.apk">Download APK</a>
+      </div>
+    </div>
+    <div class="notes rv" style="--d:1">
+      <section class="group" data-g="new">
+        <h3>New</h3>
+        <ul>
+          <li><strong>16KB Page Alignment:</strong> Built with ONNX Runtime 1.22.0 to support Android 15 and Android 16 preview devices (Google Pixel 8/9, Samsung Galaxy S23/S24).</li>
+          <li><strong>Tactile Haptics Feedback:</strong> Gentle haptic pulse upon starting and completing voice capture.</li>
+          <li><strong>Dictation Playground:</strong> Interactive in-app test screen with live transcription, word counters, and audio metrics.</li>
+          <li><strong>Akira Expanded Bold Typography:</strong> Premium brand font for headers and display banners.</li>
+        </ul>
+      </section>
+      <section class="group" data-g="fixes">
+        <h3>Fixes</h3>
+        <ul>
+          <li><strong>Samsung Auto Blocker Compatibility:</strong> Clear instructions in docs for Samsung Galaxy devices to ensure smooth installation.</li>
         </ul>
       </section>
     </div>
@@ -325,7 +355,7 @@ ul { list-style: none; padding: 0; }
   <div class="in wrap">
     <div class="ver rv">
       <h2><span class="sr">OpenFlow version </span>1.3.2</h2>
-      <div class="meta"><span class="chip next static">31 October 2026</span><span class="chip static">Latest</span></div>
+      <div class="meta"><span class="chip next static">31 October 2026</span></div>
     </div>
     <div class="notes rv" style="--d:1">
       <section class="group" data-g="better">

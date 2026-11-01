@@ -1,3 +1,44 @@
+# OpenFlow v1.3.3 — Standalone Windows Release
+
+### Zero-Limit · 100% Offline · Local AI Voice Dictation & Meeting Intelligence for Windows
+**Architected and Created by Sachidananda**
+
+---
+
+### Highlights in v1.3.3
+- **Smart Speech Contractions**: Casual spoken words are automatically formatted into standard written contractions (`dont` → `don't`, `im` → `I'm`, `cant` → `can't`, `wont` → `won't`, `thats` → `that's`, `whats` → `what's`, `lets` → `let's`, `youre` → `you're`) with automatic capitalization of standalone pronoun `I`.
+- **Intelligent Question Inference**: Sentences beginning with question starters (`how`, `what`, `why`, `can`, `could`, `would`, `where`, `when`, `who`, `is`, `are`) automatically conclude with a `?` instead of a flat period.
+- **Continuous Streaming Preview (Wispr Flow style)**: The floating capsule's live dictation preview now seamlessly merges confirmed phrase buffers with the active tail hypothesis. Words from the first half of a sentence never vanish mid-dictation.
+- **Zero Warm-Up Latency**: Added `"keep_model_in_memory": True` setting to prevent idle model unloads, combined with background pre-warming across Whisper, Silero VAD, IndicConformer, and Parakeet on app launch.
+- **Accidental Tap Guard**: Audio under 0.45s or below 0.005 peak level is discarded immediately before entering the "Writing" state, preventing stuck loops. Pressing the hotkey while processing cancels stuck workers and starts a fresh session immediately.
+- **Verbal Backspace Enhancements**: Spoken self-corrections (*"call Rahul wait no call Sachin"*, *"meeting at 3 sorry 4 PM"*) trigger reliably even without a transcribed comma.
+
+---
+
+# OpenFlow v1.3.2 — Standalone Windows Release
+
+### Zero-Limit · 100% Offline · Local AI Voice Dictation & Meeting Intelligence for Windows
+**Architected and Created by Sachidananda**
+
+---
+
+### Fixes in v1.3.2
+- **Zero cold-start delay on first dictation**: After OpenFlow loads the Whisper model into VRAM, CTranslate2/CUDA was JIT-compiling its compute kernels on the first word — causing a 1–3 second stall right when you start speaking. The model now runs a silent 0.5s dummy transcription immediately after loading, pre-compiling kernels in the background.
+
+---
+
+# OpenFlow v1.3.1 — Standalone Windows Release
+
+### Zero-Limit · 100% Offline · Local AI Voice Dictation & Meeting Intelligence for Windows
+**Architected and Created by Sachidananda**
+
+---
+
+### Fixes in v1.3.1
+- **Streamlined model loading**: Improved memory allocation and device fallback for CUDA, NPU, and CPU modes.
+
+---
+
 # OpenFlow v1.3.0 — Standalone Windows Release
 
 ### Zero-Limit · 100% Offline · Local AI Voice Dictation & Meeting Intelligence for Windows
