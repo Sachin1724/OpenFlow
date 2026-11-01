@@ -960,13 +960,16 @@ class OpenFlowApp(QObject):
         """Called periodically during speech to provide real-time live preview words."""
         if not self.audio_recorder.is_recording:
             return
-        if self.config.get("realtime_preview", True):
-            partial_text = self.transcriber.transcribe_partial(audio_chunk)
-            if partial_text:
-                self.bridge.sig_realtime_text.emit(partial_text)
         session = getattr(self, "_stream_session", None)
         if session is not None:
             session.feed(audio_chunk)  # commit finished phrases so release only decodes the tail
+
+        if self.config.get("realtime_preview", True):
+            partial_text = self.transcriber.transcribe_partial(audio_chunk)
+            if partial_text:
+                committed = session.committed_text if session else ""
+                full_preview = f"{committed} {partial_text}".strip() if committed else partial_text
+                self.bridge.sig_realtime_text.emit(full_preview)
 
     def _on_auto_silence(self):
         """Automatically triggered when user stops speaking for silence_duration."""

@@ -141,6 +141,62 @@ SPOKEN_COMMANDS = [
     (r"\s*\bcolon\b", ":"),
 ]
 
+# ─── Contractions & Conversational Punctuation ─────────────────────────────────
+CONTRACTIONS = {
+    "im": "I'm",
+    "i'm": "I'm",
+    "ill": "I'll",
+    "i'll": "I'll",
+    "ive": "I've",
+    "i've": "I've",
+    "id": "I'd",
+    "i'd": "I'd",
+    "dont": "don't",
+    "cant": "can't",
+    "wont": "won't",
+    "didnt": "didn't",
+    "isnt": "isn't",
+    "arent": "aren't",
+    "wasnt": "wasn't",
+    "werent": "weren't",
+    "thats": "that's",
+    "whats": "what's",
+    "lets": "let's",
+    "theres": "there's",
+    "heres": "here's",
+    "youre": "you're",
+    "theyre": "they're",
+    "weve": "we've",
+    "theyve": "they've",
+    "couldnt": "couldn't",
+    "shouldnt": "shouldn't",
+    "wouldnt": "wouldn't",
+    "hasnt": "hasn't",
+    "havent": "haven't",
+    "hadnt": "hadn't",
+    "itll": "it'll",
+    "youll": "you'll",
+    "theyll": "they'll",
+}
+
+QUESTION_STARTERS = {
+    "what", "why", "how", "who", "whom", "whose", "where", "when", "which",
+    "can", "could", "would", "should", "is", "are", "am", "do", "does", "did",
+    "will", "wont", "won't", "have", "has", "had", "havent", "haven't", "hasnt",
+    "hasn't", "arent", "aren't", "isnt", "isn't"
+}
+
+def format_contractions(text: str) -> str:
+    """Formats informal speech contractions and standalone pronoun 'I'."""
+    if not text:
+        return ""
+    # 1. Standalone pronoun "I"
+    s = re.sub(r"\bi\b", "I", text)
+    # 2. Contractions
+    for word, contracted in CONTRACTIONS.items():
+        s = re.sub(r"\b" + re.escape(word) + r"\b", contracted, s, flags=re.IGNORECASE)
+    return s
+
 
 def resolve_self_corrections(text: str) -> str:
     """
@@ -163,7 +219,7 @@ def resolve_self_corrections(text: str) -> str:
 
     # 2a. Prepositional / Target replacement: "... to Sarah, wait no, to Rahul" -> "... to Rahul"
     s = re.sub(
-        r"\b((?:to|for|from|with|at|on|in|by)\s+[a-zA-Z0-9]+)\s*,\s*\b(?:wait no|no wait|my bad)\b[,.]?\s*(?=(?:to|for|from|with|at|on|in|by)\s+[a-zA-Z0-9]+)",
+        r"\b((?:to|for|from|with|at|on|in|by)\s+[a-zA-Z0-9]+)(?:,\s*|\s+)\b(?:wait no|no wait|my bad)\b[,.]?\s*(?=(?:to|for|from|with|at|on|in|by)\s+[a-zA-Z0-9]+)",
         "",
         s,
         flags=re.IGNORECASE
@@ -171,7 +227,7 @@ def resolve_self_corrections(text: str) -> str:
 
     # 2b. Full clause replacement: "... call Sarah, wait no, call Sachin" -> "call Sachin"
     s = re.sub(
-        r"(?:^|[.?!;\n])\s*[^.?!;\n]+?\s*,\s*\b(?:wait no|no wait|my bad)\b[,.]?\s*",
+        r"(?:^|[.?!;\n])\s*[^.?!;\n]+?(?:,\s*|\s+)\b(?:wait no|no wait|my bad)\b[,.]?\s*",
         "",
         s,
         flags=re.IGNORECASE
@@ -199,7 +255,7 @@ def resolve_self_corrections(text: str) -> str:
         return w2
 
     s = re.sub(
-        r"\b([a-zA-Z0-9]+(?:\s+[a-zA-Z0-9]+)?)\s*,\s*" + sub_markers + r"([a-zA-Z0-9]+(?:\s+[a-zA-Z0-9]+)?)",
+        r"\b([a-zA-Z0-9]+(?:\s+[a-zA-Z0-9]+)?)(?:,\s*|\s+)" + sub_markers + r"([a-zA-Z0-9]+(?:\s+[a-zA-Z0-9]+)?)",
         _sub_word,
         s,
         flags=re.IGNORECASE
@@ -400,6 +456,10 @@ class SpeechToWritingEngine:
         # 5. Currency, Percentages, and Indian Quantities
         text = format_currency_and_quantities(text)
 
+        # 5b. Speech Contractions & Pronoun 'I'
+        if tone_preset != "verbatim":
+            text = format_contractions(text)
+
         # 6. Technical Acronym & Brand Casing
         text = format_tech_terms(text)
 
@@ -432,12 +492,16 @@ class SpeechToWritingEngine:
         else:
             formatted = s
 
-        # Trailing period for full prose, unless in chat or developer or verbatim
+        # Trailing period or question mark for full prose, unless in chat or developer or verbatim
         if tone_preset == "chat":
             if formatted.endswith(".") and not formatted.endswith(".."):
                 formatted = formatted[:-1]
         elif tone_preset not in ("developer", "verbatim"):
             if formatted and formatted[-1].isalnum():
-                formatted += "."
+                first_word = formatted.split()[0].lower().strip("',\"")
+                if first_word in QUESTION_STARTERS:
+                    formatted += "?"
+                else:
+                    formatted += "."
 
         return formatted.strip()

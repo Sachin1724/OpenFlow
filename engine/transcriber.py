@@ -669,6 +669,11 @@ class StreamingSession:
         self._busy = threading.Lock()
         self._closed = False
 
+    @property
+    def committed_text(self) -> str:
+        """Returns the space-joined text of all completed phrase chunks so far."""
+        return " ".join(self._texts).strip()
+
     def feed(self, audio: np.ndarray):
         """Recorder's growing buffer (same start as the final one). Never blocks the caller for long."""
         if self._closed or not self._busy.acquire(blocking=False):

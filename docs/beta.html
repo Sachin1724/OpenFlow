@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenFlow for Android — Beta</title>
+<meta name="description" content="Private, on-device voice typing for Android. Offline Odia speech model, floating capsule, audio never leaves your device.">
+<link rel="icon" href="img/android-icon.png">
+<link rel="preload" href="fonts/MonaSansVF-opsz-wght.woff2" as="font" type="font/woff2" crossorigin>
+<style>
+/* Mona Sans — SIL OFL 1.1, github.com/github/mona-sans · see fonts/OFL.txt */
+@font-face{
+  font-family:"Mona Sans";
+  src:url("fonts/MonaSansVF-opsz-wght.woff2") format("woff2");
+  font-weight:200 900;font-style:normal;font-display:swap;
+}
+@font-face{
+  font-family:"Mona Sans Mono";
+  src:url("fonts/MonaSansMonoVF-wght.woff2") format("woff2");
+  font-weight:200 900;font-style:normal;font-display:swap;
+}
+
+:root{
+  /* canvas + ink */
+  --bg:#e9edec;
+  --section:#f2f5f3;
+  --text:#000;
+  --text-muted:#595959;        /* #666 on #e9edec is 4.3:1 — fails AA for 16px */
+  --inverse:#000;
+  --inverse-text:#e9edec;
+
+  /* accents (extracted) */
+  --green:#5fed83;             /* neon block */
+  --green-deep:#08872b;        /* filled button / hover */
+  --violet:#ae85ff;            /* block */
+  --rule:#b6bfb8;
+
+  /* type */
+  --sans:"Mona Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+  --mono:"Mona Sans Mono",ui-monospace,monospace;
+
+  /* space + shape */
+  --u:24px;
+  --max:1280px;
+  --r-sm:4px; --r-md:8px; --r-lg:16px;
+
+  /* motion */
+  --glide:cubic-bezier(.33,1,.68,1);
+  --ease:cubic-bezier(.16,1,.3,1);
+  --t-control:80ms;
+}
+
+*{box-sizing:border-box;margin:0}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
+body{
+  background:var(--bg);color:var(--text);
+  font-family:var(--sans);font-size:1.125rem;line-height:1.5;font-weight:400;
+  font-optical-sizing:auto;
+}
+.wrap{max-width:var(--max);margin-inline:auto;padding-inline:var(--u)}
+
+/* type scale — 4 steps, extracted weights (440 largest → 480 smallest) */
+h1{font-size:clamp(2.25rem,6vw,2.5rem);line-height:1.1;font-weight:440;letter-spacing:0;max-width:18ch}
+h2{font-size:clamp(1.75rem,4.5vw,2.25rem);line-height:1.1;font-weight:440;letter-spacing:0}
+h3{font-size:1.5rem;line-height:1.3;font-weight:460;letter-spacing:0}
+.subhead{font-size:1.125rem;line-height:1.3;font-weight:475;letter-spacing:.1px;max-width:48ch}
+.lead{font-size:clamp(1.25rem,2.6vw,1.5rem);line-height:1.3;font-weight:475;max-width:42ch}
+p{max-width:58ch}
+.meta{font-size:.875rem;line-height:1.5;color:var(--text-muted)}
+.eyebrow{
+  font-family:var(--mono);font-size:.875rem;line-height:1.4;font-weight:480;
+  letter-spacing:.24px;text-transform:uppercase;color:var(--text-muted);
+}
+a{color:inherit}
+
+/* nav */
+header{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--section)}
+header .wrap{min-height:72px;display:flex;align-items:center;gap:var(--u);flex-wrap:wrap}
+header nav{display:flex;gap:var(--u);flex-wrap:wrap}
+header a{
+  font-size:1rem;font-weight:500;letter-spacing:.24px;text-decoration:none;
+  display:inline-flex;align-items:center;min-height:44px;
+}
+header nav a:hover{color:var(--green-deep)}
+.brand{margin-right:auto;gap:12px;font-weight:525}
+.brand img{width:32px;height:32px;border-radius:var(--r-md);display:block}
+
+/* controls — square, black, 80ms glide */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;
+  min-height:44px;padding:12px 20px;
+  font:400 1rem/1.5 var(--sans);text-decoration:none;cursor:pointer;
+  background:var(--inverse);color:#fff;
+  border:1px solid transparent;border-radius:0;
+  transition:background var(--t-control) var(--glide),color var(--t-control) var(--glide);
+}
+.btn:hover{background:var(--green-deep)}
+.btn--outline{background:transparent;color:var(--text);border-color:var(--text);font-weight:550}
+.btn--outline:hover{background:var(--text);color:var(--bg)}
+.btn-row{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+:where(a,button):focus-visible{outline:2px solid currentColor;outline-offset:3px}
+
+/* sections */
+section{padding-block:64px}
+.stack{display:flex;flex-direction:column;gap:var(--u)}
+.stack--tight{gap:16px}
+
+/* hero */
+.hero .wrap{display:flex;gap:var(--u);align-items:flex-start;flex-wrap:wrap}
+.hero figure{
+  flex:0 0 auto;width:88px;height:88px;border-radius:var(--r-lg);overflow:hidden;background:#000;
+  box-shadow:0 100px 80px #00000004,0 41.7776px 33.4221px #00000006,0 22.3363px 17.869px #00000007,
+             0 12.5216px 10.0172px #00000009,0 6.6501px 5.32008px #0000000b,0 2.76726px 2.21381px #00000012;
+}
+.hero figure img{width:100%;height:100%;display:block;object-fit:cover}
+.hero .copy{flex:1 1 360px;display:flex;flex-direction:column;gap:16px}
+
+/* cards */
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--u)}
+.card{
+  background:var(--section);border-radius:var(--r-lg);padding:var(--u);
+  display:flex;flex-direction:column;gap:16px;justify-content:space-between;
+  box-shadow:0 12.5216px 10.0172px #00000009,0 2.76726px 2.21381px #00000012;
+}
+
+/* colour blocks — one colour leads per section */
+.block{padding:48px 0}
+.block .wrap>.stack{max-width:62ch}
+.block--green{background:var(--green);color:#000}
+.block--violet{background:var(--violet);color:#000}
+.block--black{background:var(--inverse);color:var(--inverse-text)}
+.block--black .eyebrow,.block--black .meta{color:var(--rule)}
+.block--black .btn--outline{color:var(--green);border-color:var(--green)}
+.block--black .btn--outline:hover{background:var(--green);color:#000}
+
+/* steps */
+ol.steps{list-style:none;counter-reset:s;display:flex;flex-direction:column;gap:16px;max-width:56ch}
+ol.steps li{counter-increment:s;display:flex;gap:16px;align-items:baseline}
+ol.steps li::before{
+  content:counter(s);flex:0 0 auto;
+  font:480 .875rem/1 var(--mono);
+  background:#fff;border:1px solid var(--rule);border-radius:var(--r-sm);padding:7px 10px;
+}
+
+footer{background:var(--inverse);color:var(--inverse-text);padding-block:48px}
+footer a{color:var(--green)}
+
+/* reveal — brand slideInUp, .6s */
+.rv{opacity:0;transform:translateY(.9375rem);transition:opacity .6s var(--ease),transform .6s var(--ease)}
+.rv.in{opacity:1;transform:none}
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  .rv{opacity:1;transform:none;transition:none}
+  .btn{transition:none}
+}
+
+/* breakpoints — brand: large 63.25rem, small 34rem */
+@media (max-width:63.25rem){.cards{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:34rem){
+  .cards{grid-template-columns:1fr}
+  section{padding-block:48px}
+  .block{padding-block:var(--u)}
+  .hero figure{width:72px;height:72px}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <a class="brand" href="index.html"><img src="img/android-icon.png" alt="" width="32" height="32">OpenFlow</a>
+    <nav>
+      <a href="index.html">Desktop</a>
+      <a href="changelog.html">Versions</a>
+      <a href="https://github.com/Sachin1724/OpenFlow">Source</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+<section class="hero">
+  <div class="wrap">
+    <figure class="rv"><img src="img/android-icon.png" alt="OpenFlow Android app icon" width="88" height="88"></figure>
+    <div class="copy rv">
+      <p class="eyebrow">Android &middot; v0.1.2 beta &middot; Free</p>
+      <h1>OpenFlow for Android.</h1>
+      <p class="lead">Private, on-device voice typing. Audio never leaves the phone.</p>
+      <p class="subhead">A compact capsule appears beside your text field, listens with on-device AI, and types straight into any app. No account, no cloud, no upload.</p>
+      <div class="btn-row">
+        <a class="btn" href="https://github.com/Sachin1724/OpenFlow/releases/download/android-v0.1.2-beta/OpenFlow-android-beta-0.1.2.apk">Download .apk</a>
+        <a class="btn btn--outline" href="changelog.html#v0-1-0-android">Release notes</a>
+      </div>
+      <p class="meta">Android 8.0+. ARM64 recommended. Tested on Android 10&ndash;14.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="cards">
+      <article class="card rv">
+        <div class="stack--tight stack">
+          <p class="eyebrow">Shipping</p>
+          <h3>Odia speech model</h3>
+          <p>ARM64 NEON build, trained for mobile with 4-bit quantization. Floating capsule, on-device history, model management.</p>
+        </div>
+        <p class="meta">Tested on Android 10 through 14.</p>
+      </article>
+      <article class="card rv">
+        <div class="stack--tight stack">
+          <p class="eyebrow">Next</p>
+          <h3>English &amp; Hindi</h3>
+          <p>Multilingual dictation with automatic code-mixing, live meeting notes, and a custom keyboard IME.</p>
+        </div>
+        <p class="meta">Arriving in beta updates over the air.</p>
+      </article>
+      <article class="card rv">
+        <div class="stack--tight stack">
+          <p class="eyebrow">Privacy</p>
+          <h3>Nothing leaves</h3>
+          <p>Recognition runs entirely on the handset. No telemetry, no account, no network call to transcribe.</p>
+        </div>
+        <p class="meta">Microphone and Accessibility permissions only.</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section class="block block--green">
+  <div class="wrap">
+    <div class="stack rv">
+      <p class="eyebrow">Install</p>
+      <h2>Three steps.</h2>
+      <ol class="steps">
+        <li>Download the signed APK (v0.1.2-beta with 16KB page alignment).</li>
+        <li>Tap to install &mdash; choose <b>More details &rsaquo; Install anyway</b> if Play Protect asks.</li>
+        <li>Enable OpenFlow in <b>Settings &rsaquo; Accessibility</b>.</li>
+      </ol>
+      <div style="margin-top: 18px; padding: 14px 18px; background: rgba(0,0,0,0.06); border-radius: var(--r-md); font-size: 0.95rem; line-height: 1.5;">
+        <b>Samsung Galaxy (S23/S24) or Android 15/16 troubleshooting:</b><br>
+        &bull; <b>No install prompt or installation blocked?</b> Go to phone <i>Settings &rsaquo; Security and privacy &rsaquo; Auto Blocker</i> and temporarily turn it <b>Off</b>.<br>
+        &bull; <b>"Restricted setting" in Accessibility?</b> Long-press OpenFlow icon &rsaquo; <i>App info</i> &rsaquo; tap the <b>3 dots (&vellip;)</b> in top right &rsaquo; choose <b>Allow restricted settings</b>.
+      </div>
+      <div class="btn-row">
+        <a class="btn" href="https://github.com/Sachin1724/OpenFlow/releases/download/android-v0.1.2-beta/OpenFlow-android-beta-0.1.2.apk">Download .apk</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="block block--violet">
+  <div class="wrap">
+    <div class="stack rv">
+      <p class="eyebrow">Beta</p>
+      <h2>Expect rough edges.</h2>
+      <p>Odia is the only model shipping today. Battery behaviour varies by vendor skin, and some apps block synthetic text input. Report anything broken and it gets fixed in the next over-the-air update.</p>
+      <div class="btn-row">
+        <a class="btn" href="https://github.com/Sachin1724/OpenFlow/issues/new">Report an issue</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="block block--black">
+  <div class="wrap">
+    <div class="stack rv">
+      <p class="eyebrow">Also available</p>
+      <h2>OpenFlow for Windows.</h2>
+      <p>The desktop app: Dynamic Island capsule, dashboard, meeting notes. Windows 10 or 11, 64-bit. Graphics card optional.</p>
+      <div class="btn-row">
+        <a class="btn btn--outline" href="index.html">See the desktop app</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <p class="meta">OpenFlow &mdash; free, offline voice typing.
+      <a href="index.html">Desktop</a> &middot;
+      <a href="changelog.html">Versions</a> &middot;
+      <a href="https://github.com/Sachin1724/OpenFlow">Source</a></p>
+  </div>
+</footer>
+
+<script>
+(function(){
+  var items = document.querySelectorAll('.rv');
+  if (!('IntersectionObserver' in window) || matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    items.forEach(function(el){ el.classList.add('in'); });
+    return;
+  }
+  var io = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){
+      if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
+    });
+  }, { rootMargin: '0px 0px -10% 0px' });
+  items.forEach(function(el){ io.observe(el); });
+})();
+</script>
+
+</body>
+</html>
