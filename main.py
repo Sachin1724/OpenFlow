@@ -89,7 +89,7 @@ except Exception:
         try:
             from __init__ import __version__
         except Exception:
-            __version__ = "1.3.0"
+            __version__ = "1.3.3"
 
 _BOOT_T0 = time.perf_counter()
 
