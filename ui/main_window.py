@@ -937,6 +937,8 @@ class MainWindow(QMainWindow):
         devices += [("GPU (NVIDIA CUDA)", "cuda"), ("CPU", "cpu")]
         self.device_combo = self._combo(devices, self.config.get("device", "auto"))
         g.add("Run on", self.device_combo)
+        self.cb_keep_warm = self._switch(g, "Keep model in memory", "keep_model_in_memory", True,
+                                         "Eliminates warm-up delays by keeping the speech model hot in memory.")
 
         self.btn_refresh_stack = _btn("Refresh", small=True, slot=self._refresh_system_stack)
         self.stack_group, _ = self._section(body, "Hardware", action=self.btn_refresh_stack)
@@ -1092,6 +1094,8 @@ class MainWindow(QMainWindow):
             self.config["follow_mouse_screen"] = self.cb_follow_mouse.isChecked()
         self.config["sound_feedback"] = self.cb_sound.isChecked()
         self.config["voice_edits"] = self.cb_voice_edits.isChecked()
+        if hasattr(self, "cb_keep_warm"):
+            self.config["keep_model_in_memory"] = self.cb_keep_warm.isChecked()
         self.config["restore_clipboard"] = self.cb_restore_clip.isChecked()
         self.config["autostart"] = self.cb_autostart.isChecked()
 

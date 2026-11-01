@@ -29,6 +29,7 @@ DEFAULT_CONFIG = {
     "setup_done": False,                 # first-run model download completed
     "autostart": False,                  # launch at Windows sign-in
     "voice_edits": False,                # select text + say "make this formal": local Qwen2.5-1.5B rewrites it
+    "keep_model_in_memory": True,        # Keep AI model resident in RAM/VRAM; eliminates 10-min idle warm-up delays
     "font_family": "Poppins",
 }
 

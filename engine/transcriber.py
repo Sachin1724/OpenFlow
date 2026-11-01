@@ -222,16 +222,21 @@ class Transcriber:
 
 
     def _warmup_model(self):
-        """Run a silent dummy transcription so CUDA/CTranslate2 JIT-compiles
+        """Run a silent dummy transcription so CUDA/CTranslate2/ONNX JIT-compiles
         its kernels NOW instead of stalling the user's first dictation."""
         try:
             import numpy as _np
             silence = _np.zeros(8000, dtype=_np.float32)   # 0.5 s @ 16 kHz
-            if hasattr(self.model, "transcribe"):
-                # faster-whisper / OpenVINO path
-                list(self.model.transcribe(silence, language="en")[0])
-            # Odia / Parakeet have their own decode path; no warm-up needed
-            print("[OpenFlow] Model warm-up complete — kernels ready.")
+            if self._current_loaded_name == "odia" and hasattr(self.model, "text"):
+                self.model.text(silence, beam=False)
+            elif self._current_loaded_name == "parakeet" and hasattr(self.model, "create_stream"):
+                s = self.model.create_stream()
+                s.accept_waveform(16000, silence)
+                self.model.decode_stream(s)
+            elif hasattr(self.model, "transcribe"):
+                # Pre-warm both Whisper AND Silero VAD together
+                list(self.model.transcribe(silence, language="en", vad_filter=True)[0])
+            print(f"[OpenFlow] Model warm-up complete ({self._current_loaded_name or self.device}) — kernels ready.")
         except Exception as _e:
             print(f"[OpenFlow] Warm-up skipped ({_e})")
 
@@ -294,6 +299,7 @@ class Transcriber:
             print("[OpenFlow] Odia IndicConformer loaded and ready.")
             if self.on_status:
                 self.on_status("Model odia ready")
+            self._warmup_model()
             return
 
         if target_name.endswith("-ov"):
@@ -368,6 +374,7 @@ class Transcriber:
         print("[OpenFlow] Parakeet loaded and ready (CPU).")
         if self.on_status:
             self.on_status("Model parakeet ready (CPU)")
+        self._warmup_model()
 
     def _parakeet_text(self, audio: np.ndarray, beam: bool = True) -> str:
         assert self.model is not None
@@ -580,10 +587,14 @@ class Transcriber:
             # prompt. Nobody says more than ~4 words a second: retry without the prompt, else drop it.
             if _too_many_words(full_text, duration_seconds) or _loop_at(full_text) is not None:
                 print(f"[OpenFlow] Discarding hallucination: {full_text[:60]!r}")
-                initial_prompt = None
-                full_text, info = _run(vad=True)
-                if _too_many_words(full_text, duration_seconds):
+                if duration_seconds < 1.0:
+                    # On short accidental clicks/presses (<1.0s), re-running Whisper stalls the UI for seconds
                     full_text = ""
+                else:
+                    initial_prompt = None
+                    full_text, info = _run(vad=True)
+                    if _too_many_words(full_text, duration_seconds):
+                        full_text = ""
             full_text = _drop_loop(full_text)
 
             # Check if Whisper mistook Hindi / Odia / Indian speech as Urdu, Arabic, Persian, or Pashto,
@@ -679,7 +690,8 @@ class StreamingSession:
         """Same return shape as Transcriber.transcribe; latency is what the user waits after release."""
         start = time.perf_counter()
         self._closed = True
-        free = self._busy.acquire(timeout=_HUNG_S)  # let an in-flight phrase finish
+        timeout = 0.5 if len(audio) < 16000 else 2.5
+        free = self._busy.acquire(timeout=timeout)  # let an in-flight phrase finish
         try:
             if not free:  # that phrase is stuck: decode the whole recording instead
                 self._texts, self._done = [], 0

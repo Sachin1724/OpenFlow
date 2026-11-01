@@ -668,9 +668,10 @@ class OpenFlowApp(QObject):
         if self._gpu_tick % 6 == 0 and not busy and self.config.get("device", "auto") == "auto":
             threading.Thread(target=self._check_gpu, daemon=True).start()  # every ~30 s
         if not busy and self.transcriber.model is not None and now - self._last_activity > self.IDLE_UNLOAD_SEC:
-            print("[OpenFlow] Idle: unloading model, releasing microphone")
-            # freeing a CUDA model / closing the stream can block on the driver; keep the UI thread free
-            threading.Thread(target=self._release_idle, daemon=True).start()
+            if not self.config.get("keep_model_in_memory", True):
+                print("[OpenFlow] Idle: unloading model, releasing microphone")
+                # freeing a CUDA model / closing the stream can block on the driver; keep the UI thread free
+                threading.Thread(target=self._release_idle, daemon=True).start()
 
     def _release_idle(self):
         self.transcriber.unload()
@@ -875,6 +876,10 @@ class OpenFlowApp(QObject):
     def _on_hotkey_press(self):
         # press, release and auto-silence each arrive on their own thread; one at a time
         with self._dictation_lock:
+            if self._is_processing:
+                print("[OpenFlow] Hotkey pressed while previous job processing; resetting")
+                self._job += 1
+                self._is_processing = False
             mode = self.config.get("trigger_mode", "push_to_talk")
             if mode == "push_to_talk":
                 self._start_dictating()
@@ -891,7 +896,7 @@ class OpenFlowApp(QObject):
             mode = self.config.get("trigger_mode", "push_to_talk")
             if mode == "push_to_talk" and self.audio_recorder.is_recording:
                 held_sec = time.monotonic() - getattr(self, "_dictate_start_monotonic", time.monotonic())
-                if held_sec < 0.35:  # a tap, not a hold: a mis-press or a Ctrl shortcut
+                if held_sec < 0.45:  # a tap, not a hold: a mis-press or a Ctrl shortcut
                     print(f"[OpenFlow] Hotkey tapped ({held_sec:.2f}s): discarding")
                     self._cancel_dictation("Hold to speak")
                     return
@@ -975,18 +980,30 @@ class OpenFlowApp(QObject):
         if not self.audio_recorder.is_recording or self._is_processing:
             return
 
+        # 1. Stop audio recorder immediately
+        audio_data = self.audio_recorder.stop_recording()
+        session, self._stream_session = self._stream_session, None
+
+        # 2. Check if the audio is valid before switching UI to writing state
+        if len(audio_data) < 7200:  # Less than 0.45s of audio
+            print(f"[OpenFlow] Audio too short ({len(audio_data) / 16000:.2f}s): discarding")
+            self.bridge.sig_error.emit("Hold while speaking")
+            return
+
+        peak = float(abs(audio_data).max()) if len(audio_data) > 0 else 0.0
+        if peak < 0.005:  # near-digital silence
+            print(f"[OpenFlow] Audio silent (peak {peak:.4f}): discarding")
+            self.bridge.sig_error.emit("Microphone silent")
+            return
+
         self._is_processing = True
         self._job += 1
         job = self._job
 
-        # 1. Update capsule UI to writing state
+        # 3. Update capsule UI to writing state only for valid speech
         self.bridge.sig_stop_recording.emit()
 
-        # 2. Stop audio recorder
-        audio_data = self.audio_recorder.stop_recording()
-        session, self._stream_session = self._stream_session, None
-
-        # 3. Process in worker thread
+        # 4. Process in worker thread
         worker = threading.Thread(target=self._process_worker, args=(audio_data, session, job), daemon=True)
         worker.start()
 
@@ -1000,7 +1017,8 @@ class OpenFlowApp(QObject):
             self._job += 1  # the stuck worker must not paste late into whatever has focus by then
             self._is_processing = False
             self.bridge.sig_error.emit("Took too long · try again")
-        threading.Timer(35.0 + len(audio_data) / 16000, _watchdog).start()
+        timeout_sec = min(12.0, max(5.0, 3.0 + len(audio_data) / 16000))
+        threading.Timer(timeout_sec, _watchdog).start()
 
     def _process_worker(self, audio_data, session, job):
         try:
