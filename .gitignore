@@ -18,3 +18,8 @@ android/.gradle/
 android/build/
 android/app/build/
 android/.kotlin/
+
+*.wav
+*.m4a
+*.mp3
+data/podcasts/

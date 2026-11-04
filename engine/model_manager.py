@@ -44,6 +44,7 @@ _MODELS.update({
     "odia-en": "adalat-ai/ct2-rotary-indictrans2-indic-en-dist-200M",
     # Qwen2.5-1.5B-Instruct (Apache-2.0), int8 CTranslate2 build: voice edits and meeting notes
     "writer": "jncraton/Qwen2.5-1.5B-Instruct-ct2-int8",
+    "mira": "jncraton/Qwen2.5-1.5B-Instruct-ct2-int8",
 })
 
 # OpenVINO IR builds for the Intel NPU engine ("base-ov" -> OpenVINO/whisper-base-int8-ov)
@@ -65,7 +66,7 @@ def _patterns(name: str) -> List[str]:
         return _ODIA_PATTERNS
     if name == "odia-en":
         return _TRANSLATOR_PATTERNS
-    if name == "writer":
+    if name in ("writer", "mira"):
         return ["config.json", "generation_config.json", "model.bin", "tokenizer.json", "tokenizer_config.json", "vocabulary.json"]
     return _PARAKEET_PATTERNS if name == "parakeet" else _PATTERNS
 
@@ -97,6 +98,7 @@ _KNOWN_SIZES: Dict[str, int] = {
     "odia": 209_792_458,  # with the 12.7 MB word LM
     "odia-en": 856_259_538,
     "writer": 1_558_000_000,
+    "mira": 1_558_000_000,
 }
 
 MODEL_METADATA = [
