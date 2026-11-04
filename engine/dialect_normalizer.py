@@ -15,6 +15,17 @@ import re
 from typing import Dict, Any, Tuple
 from engine.dialect_detector import identify_dialect, tokenize
 
+# Common Acoustic Co-articulation & Phonetic Self-Repairs
+# (Handles ASR boundary slurring, e.g. "ଆପଣଙ୍କ" + "ଓଡ଼ିଆ" slurred as "ଗୋଡ଼ିଆ" [foot])
+ACOUSTIC_PHONETIC_REPAIRS = [
+    ("ଗୋଡ଼ିଆ ଭାଷା", "ଓଡ଼ିଆ ଭାଷା"),
+    ("ଗୋଡ଼ିଆ ଭଏସ", "ଓଡ଼ିଆ ଭଏସ"),
+    ("ଗୋଡ଼ିଆ ଭୟସ", "ଓଡ଼ିଆ ଭଏସ"),
+    ("ଆପଣଙ୍କ ଗୋଡ଼ିଆ", "ଆପଣଙ୍କ ଓଡ଼ିଆ"),
+    ("ଭୟସ ଆସିଷ୍ଟାଣ୍ଟ", "ଭଏସ ଆସିଷ୍ଟାଣ୍ଟ"),
+    ("ମିୀରା", "ମୀରା"),
+]
+
 # Dialect-to-Standard Replacement Lexicon
 # (Dialect Token / Phrase -> Standard Odia Equivalent)
 DIALECT_TO_STANDARD = {
@@ -157,19 +168,32 @@ class DialectNormalizer:
         detection = identify_dialect(text)
         dialect = detection["dialect"]
 
+        normalized = text.strip()
+        changes = []
+
+        # Step 2: Acoustic Co-articulation & Phonetic Self-Repairs
+        # (Fixes ASR boundary slurring, e.g. "ଆପଣଙ୍କ" + "ଓଡ଼ିଆ" slurred as "ଗୋଡ଼ିଆ")
+        for bad_p, good_p in ACOUSTIC_PHONETIC_REPAIRS:
+            if bad_p in normalized:
+                normalized = normalized.replace(bad_p, good_p)
+                changes.append(f"acoustic_repair: '{bad_p}' -> '{good_p}'")
+
         if target_style == "verbatim" or dialect == "Standard Odia" or dialect not in DIALECT_TO_STANDARD:
+            # Intelligent punctuation restoration
+            if normalized and not normalized.endswith(("।", "॥", "?", "!", ".")):
+                is_question = bool(re.search(r"\b(କେମିତି|କଣ|କାହିଁକି|କେଉଁଠି|କେବେ|କି|କିଏ|କାହାର)\b", normalized))
+                normalized += " ?" if is_question else " ।"
             return {
                 "dialect": dialect,
                 "region": detection.get("region", "Coastal/Standard"),
+                "districts": detection.get("districts", []),
                 "original": text,
-                "normalized": text.strip(),
+                "normalized": normalized,
                 "confidence": detection["confidence"],
-                "changes_made": []
+                "changes_made": changes
             }
 
         cfg = DIALECT_TO_STANDARD[dialect]
-        normalized = text.strip()
-        changes = []
 
         # Step 2: Phrase substitutions
         for dia_phrase, std_phrase in cfg["phrases"]:
