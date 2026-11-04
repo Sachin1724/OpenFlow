@@ -21,6 +21,13 @@ except ImportError:
         from ui.floating_pill import FloatingPill, FloatingCaptionBubble, ValueRow, WaveformBars, ui_font_family, _force_topmost
         from engine import model_manager
         from engine.audio_recorder import list_microphones
+try:
+    from .blobatar_widget import BlobatarWidget
+except (ImportError, ValueError):
+    try:
+        from openflow.ui.blobatar_widget import BlobatarWidget
+    except ImportError:
+        from ui.blobatar_widget import BlobatarWidget
 
 W0, H0 = 380, 300          # window size at 1x; the shape inside it grows and shrinks
 PEEK = 5                   # px of the island left showing when it has tucked up
@@ -112,6 +119,9 @@ class IslandPill(QWidget):
         QFontMetrics(self._font(11)).horizontalAdvance("EN")  # Qt loads its font database on first use (~2 s): do it now, not mid-animation
         self.wave = WaveformBars(self)
         self.wave.hide()
+        self.blobatar = BlobatarWidget(size=24, parent=self)
+        self.blobatar.hide()
+        self._active_dialect = None
         self.caption_bubble = FloatingCaptionBubble(self)  # live words, typed in under the island
         self._build_panel()
         self._place()
@@ -255,6 +265,13 @@ class IslandPill(QWidget):
             self._go(self._state, self._note_dims() if self._state in ("note", "msg") and self._note else None)
             if self._state == "listen" and self._done_timer.isActive():
                 self._done_timer.start(1400)
+
+    def is_odia_active(self) -> bool:
+        return self.current_language in ("or", "odia", "or-mix", "or-en") or bool(getattr(self, "_active_dialect", None))
+
+    def set_detected_dialect(self, dialect: str):
+        self._active_dialect = dialect
+        self.update()
 
     def _shape_rect(self, dims=None, snooze=None):
         w, h, _ = dims or self._dims
@@ -476,6 +493,8 @@ class IslandPill(QWidget):
 
     def set_amplitude(self, level):
         self.wave.set_level(level)
+        if hasattr(self, "blobatar"):
+            self.blobatar.set_level(level)
 
     def update_realtime_text(self, text):
         if text and self._state == "listen":
@@ -574,6 +593,10 @@ class IslandPill(QWidget):
         if fade_out > 0 and self._prev_face != self._face:
             self._draw_face(p, self._prev_face, r, fade_out)
         self._draw_face(p, self._face, r, fade_in if self._prev_face != self._face else 1.0)
+        is_odia = self.is_odia_active()
+        self.blobatar.setVisible(self._state == "listen" and is_odia and fade_in > 0.4)
+        if self.blobatar.isVisible():
+            self.blobatar.move(int(r.left() + 10), int(r.center().y() - self.blobatar.height() / 2))
         self.wave.setVisible(self._state == "listen" and fade_in > 0.4)
         if self.wave.isVisible():
             self.wave.move(int(r.center().x() - self.wave.width() / 2), int(r.center().y() - self.wave.height() / 2))
@@ -602,11 +625,12 @@ class IslandPill(QWidget):
             p.setBrush(QColor("#3a3d44"))
             p.drawEllipse(r.center(), 3, 3)
         elif face == "listen":
-            pulse = 0.65 + 0.35 * abs(math.sin(time.monotonic() * 2.4))
-            p.setPen(Qt.PenStyle.NoPen)
-            p.setBrush(REC)
-            d = 10 * pulse
-            p.drawEllipse(QRectF(r.left() + 16 + (10 - d) / 2, cy - d / 2, d, d))
+            if not self.is_odia_active():
+                pulse = 0.65 + 0.35 * abs(math.sin(time.monotonic() * 2.4))
+                p.setPen(Qt.PenStyle.NoPen)
+                p.setBrush(REC)
+                d = 10 * pulse
+                p.drawEllipse(QRectF(r.left() + 16 + (10 - d) / 2, cy - d / 2, d, d))
             self._badge(p, r, cy)
         elif face == "write":
             self._spinner(p, r.center().x() - 38, cy)
