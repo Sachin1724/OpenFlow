@@ -526,16 +526,11 @@ class Transcriber:
         # Resolve prompt: caller-supplied > smart Indic/English fallback > basic fallback
         if initial_prompt is None:
             if lang in ("en", "en-in"):
-                initial_prompt = "Indian English and Hinglish dictation in natural Latin/Roman script. Use standard punctuation."
+                initial_prompt = "Indian English dictation with standard punctuation, capitalization, and accurate terminology."
             elif lang in ("auto", "") or lang in ODIA_LANGS:
-                initial_prompt = (
-                    "Indian English, Hinglish, Hindi, and Odia speech. "
-                    "Accurately transcribe Hindi and Odia phrases in clean Latin/Roman script or Devanagari. "
-                    "Common terms: kya, kyu, kaise, kuch, nahi, haan, theek, accha, bhai, yaar, kete, kan, kemiti, kichi, ghare, aama, bhala. "
-                    "Never output Urdu or Arabic script."
-                )
+                initial_prompt = "English, Hindi, and Indian language dictation. Transcribe accurately with standard punctuation and capitalization."
             elif lang == "hi":
-                initial_prompt = "हिंदी भाषा डिक्टेशन। शुद्ध देवनागरी लिपि या रोमन में लिखें। उर्दू या अरबी लिपि का प्रयोग न करें।"
+                initial_prompt = "हिंदी भाषा डिक्टेशन। शुद्ध देवनागरी लिपि या रोमन में लिखें。" 
 
         def _run(vad: bool):
             assert self.model is not None
