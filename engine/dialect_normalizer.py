@@ -177,7 +177,7 @@ class DialectNormalizer:
                 normalized = normalized.replace(dia_phrase, std_phrase)
                 changes.append(f"phrase: '{dia_phrase}' -> '{std_phrase}'")
 
-        # Step 3: Word substitutions
+        # Step 3: Word substitutions & Dynamic Morphological Rule Normalization
         tokens = tokenize(normalized)
         replaced_tokens = []
         for t in tokens:
@@ -189,7 +189,34 @@ class DialectNormalizer:
                 else:
                     changes.append(f"removed_filler: '{t}'")
             else:
-                replaced_tokens.append(t)
+                # Dynamic Morphological Rules (Unlimited Vocabulary)
+                norm_w = t
+                if dialect == "Sambalpuri":
+                    if norm_w.endswith("ମୁ") and len(norm_w) > 2:
+                        base = norm_w[:-2]
+                        norm_w = (base + "ବା") if (base.endswith("ଇ") or base.endswith("ି")) else (base + "ିବା")
+                        changes.append(f"morph_future: '{t}' -> '{norm_w}'")
+                    elif norm_w.endswith("ସି") and len(norm_w) > 2 and norm_w not in ("ଆସି", "ବସି"):
+                        base = norm_w[:-2]
+                        norm_w = base if base.endswith("ଏ") else (base + "େ")
+                        changes.append(f"morph_habitual: '{t}' -> '{norm_w}'")
+                elif dialect == "Ganjami":
+                    if "ୁଚି" in norm_w or "ଉଚି" in norm_w:
+                        norm_w = norm_w.replace("ୁଚି", "ୁଛି").replace("ଉଚି", "ଉଛି")
+                        changes.append(f"morph_cont: '{t}' -> '{norm_w}'")
+                    elif norm_w.endswith("ଡା") and len(norm_w) > 2 and norm_w not in ("ଘୋଡା", "ଲୁଗାପଟା", "ପୋକଡା"):
+                        norm_w = norm_w[:-2]
+                        changes.append(f"morph_article: '{t}' -> '{norm_w}'")
+                elif dialect == "Kalahandia":
+                    if norm_w.endswith("ସନ୍") and len(norm_w) > 3:
+                        norm_w = norm_w[:-3] + "ନ୍ତି"
+                        changes.append(f"morph_plural: '{t}' -> '{norm_w}'")
+                elif dialect == "Anugulia":
+                    if "ୁଜି" in norm_w or "ଉଜି" in norm_w:
+                        norm_w = norm_w.replace("ୁଜି", "ୁଛି").replace("ଉଜି", "ଉଛି")
+                        changes.append(f"morph_cont: '{t}' -> '{norm_w}'")
+
+                replaced_tokens.append(norm_w)
 
         final_normalized = " ".join(replaced_tokens)
         # Clean any consecutive duplicate words and spaces
@@ -199,6 +226,11 @@ class DialectNormalizer:
             if not deduped or w != deduped[-1]:
                 deduped.append(w)
         final_normalized = " ".join(deduped).strip()
+
+        # Step 4: Intelligent Odia Punctuation Restoration
+        if final_normalized and not final_normalized.endswith(("।", "॥", "?", "!", ".")):
+            is_question = bool(re.search(r"\b(କେମିତି|କଣ|କାହିଁକି|କେଉଁଠି|କେବେ|କି|କିଏ|କାହାର)\b", final_normalized))
+            final_normalized += " ?" if is_question else " ।"
 
         return {
             "dialect": dialect,
