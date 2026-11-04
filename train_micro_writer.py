@@ -15,6 +15,7 @@ MIRA is OpenFlow's ultra-lightweight, high-speed offline dictation writer:
 import os
 import sys
 import json
+import csv
 import argparse
 import random
 
@@ -23,6 +24,8 @@ MIRA_SYSTEM_PROMPT = (
     "Your job is to transform raw spoken audio transcripts into pristine, publication-grade written text. "
     "Fix misheard homophones, add natural punctuation, remove stutters and vocal ticks, "
     "and preserve technical identifiers, code, and Indian terms (Hindi/Odia/English) exactly as intended. "
+    "When raw speech is in a regional Odia dialect (Sambalpuri, Ganjami, Kalahandia, Anugulia, Baleswari), "
+    "normalize and standardize the dialect into clean Standard Odia while preserving its exact meaning. "
     "Reply with ONLY the refined text."
 )
 
@@ -108,14 +111,67 @@ TRAINING_SEEDS = [
 ]
 
 
-def expand_dataset(seeds, target_count=1000):
-    """Expands seed templates with varied phrasing and noise to generate robust training data."""
+def harvest_dialect_pairs():
+    """Harvests authentic Odia dialect pairs from OdiaTTS_Data and dialect_engine."""
+    pairs = []
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    csv_path = os.path.join(base_dir, "data", "OdiaTTS_Data", "metadata.csv")
+    json_path = os.path.join(base_dir, "data", "dialect_engine", "dialect-engine", "data", "dialect_examples.json")
+
+    # 1. From dialect_examples.json
+    if os.path.exists(json_path):
+        try:
+            with open(json_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            for dialect, items in data.items():
+                for item in items:
+                    std = (item.get("standard_odia") or "").strip()
+                    dia = (item.get("dialect_text") or "").strip()
+                    if std and dia and len(dia) > 2:
+                        pairs.append((dia, std, f"dialect_normalize_{dialect.lower().replace(' ', '_')}"))
+        except Exception as e:
+            print(f"[Warning] Error loading {json_path}: {e}")
+
+    # 2. From metadata.csv
+    if os.path.exists(csv_path):
+        try:
+            with open(csv_path, "r", encoding="utf-8") as f:
+                rows = list(csv.DictReader(f))
+            for r in rows:
+                dialect = (r.get("dialect") or "Standard Odia").strip()
+                std = (r.get("standard_text") or "").strip()
+                dia = (r.get("translated_text") or "").strip()
+                if std and dia and len(dia) > 3 and dia.lower() not in ["yes", "no", "ok"]:
+                    pairs.append((dia, std, f"dialect_normalize_{dialect.lower().replace(' ', '_')}"))
+        except Exception as e:
+            print(f"[Warning] Error loading {csv_path}: {e}")
+
+    print(f"[MIRA Ingestion] Harvested {len(pairs)} authentic Odia dialect normalization pairs.")
+    return pairs
+
+
+def expand_dataset(seeds, dialect_pairs=None, target_count=2000):
+    """Expands seed templates and dialect pairs to generate robust training data."""
     dataset = []
-    
+
+    # First add all authentic dialect normalization pairs
+    if dialect_pairs:
+        for raw, target, style in dialect_pairs:
+            dataset.append({
+                "messages": [
+                    {"role": "system", "content": f"{MIRA_SYSTEM_PROMPT} Target Style: {style}."},
+                    {"role": "user", "content": f"Raw speech: {raw}"},
+                    {"role": "assistant", "content": target}
+                ],
+                "style": style
+            })
+
+    # Fill remaining quota with expanded synthetic seeds
     variations_fillers = ["", "um ", "uh ", "you know ", "like ", "basically "]
     hesitations = ["", "wait, ", "actually, ", "sorry, "]
-    
-    for _ in range(target_count):
+
+    remaining = max(0, target_count - len(dataset))
+    for _ in range(remaining):
         raw, target, style = random.choice(seeds)
         f1 = random.choice(variations_fillers)
         f2 = random.choice(hesitations)
@@ -123,7 +179,7 @@ def expand_dataset(seeds, target_count=1000):
             raw_var = f1 + raw
         else:
             raw_var = raw
-            
+
         dataset.append({
             "messages": [
                 {"role": "system", "content": f"{MIRA_SYSTEM_PROMPT} Target Style: {style}."},
@@ -157,8 +213,9 @@ def main():
     print("=" * 80)
 
     if args.action == "gen_data":
-        print("[MIRA] Generating synthetic dictation training dataset...")
-        data = expand_dataset(TRAINING_SEEDS, target_count=1200)
+        print("[MIRA] Harvesting authentic dialect pairs and generating training dataset...")
+        dialect_pairs = harvest_dialect_pairs()
+        data = expand_dataset(TRAINING_SEEDS, dialect_pairs=dialect_pairs, target_count=2000)
         save_dataset(data, args.data_path)
         print("[MIRA] Dataset ready for LoRA fine-tuning!")
 

@@ -23,3 +23,6 @@ android/.kotlin/
 *.m4a
 *.mp3
 data/podcasts/
+data/OdiaTTS_Data/
+data/*.jsonl
+data/gdrive_odia/
