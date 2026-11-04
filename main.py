@@ -1048,6 +1048,16 @@ class OpenFlowApp(QObject):
             if self._voice_edit(raw_text, job):
                 return
 
+            if self.config.get("language") in ("or", "odia", "or-en", "or-mix", "or-std"):
+                try:
+                    from engine.dialect_normalizer import normalize_dialect
+                    norm_res = normalize_dialect(raw_text, target_style="standard")
+                    if norm_res.get("changes_made"):
+                        print(f"[OpenFlow] MIRA normalized {norm_res['dialect']}: {raw_text} -> {norm_res['normalized']}")
+                        raw_text = norm_res["normalized"]
+                except Exception as norm_err:
+                    print(f"[OpenFlow] Dialect normalization skipped ({norm_err})")
+
             if self.config.get("language") == "or-en":
                 try:
                     start = time.perf_counter()

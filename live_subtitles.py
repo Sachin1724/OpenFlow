@@ -267,9 +267,17 @@ def main():
                 t0 = time.time()
                 if args.lang == "odia":
                     raw = indic_ctc.text(audio, beam=False)
-                    text = to_mixed(raw)
-                    if args.translate and text:
-                        text = translator.translate(raw)
+                    from engine.dialect_normalizer import normalize_dialect
+                    norm_res = normalize_dialect(raw, target_style="standard")
+                    norm_text = norm_res["normalized"]
+
+                    if args.translate and norm_text:
+                        text = translator.translate(norm_text)
+                    else:
+                        text = to_mixed(norm_text)
+
+                    if norm_res["dialect"] != "Standard Odia":
+                        print(f"[MIRA Dialect: {norm_res['dialect']} ({norm_res['region']}) | {norm_res['confidence']}] {raw} -> {norm_text}")
                 else:
                     segs, _ = whisper_model.transcribe(
                         audio,
@@ -308,3 +316,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
