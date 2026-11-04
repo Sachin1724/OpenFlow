@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OpenFlow · MIRA Blobatar Interactive Sample</title>
+  <style>
+    :root {
+      --bg: #090a0f;
+      --capsule-bg: rgba(14, 15, 19, 0.92);
+      --capsule-border: rgba(255, 255, 255, 0.14);
+      --capsule-rim: rgba(255, 255, 255, 0.35);
+      --cyan-1: #00f2fe;
+      --cyan-2: #4facfe;
+      --text-main: #f5f5f7;
+      --text-muted: #86868b;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      background: radial-gradient(circle at 50% 20%, #151928 0%, var(--bg) 70%);
+      color: var(--text-main);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 40px 20px;
+      overflow-x: hidden;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    header h1 {
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, #ffffff 40%, #00f2fe 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    header p {
+      font-size: 14px;
+      color: var(--text-muted);
+      max-width: 580px;
+      line-height: 1.5;
+    }
+
+    /* Stage Area */
+    .stage {
+      width: 100%;
+      max-width: 760px;
+      background: rgba(20, 22, 30, 0.6);
+      backdrop-filter: blur(40px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 24px;
+      padding: 50px 30px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.1);
+      position: relative;
+      margin-bottom: 30px;
+    }
+
+    /* Screen Mockup notch bar */
+    .screen-edge {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.05);
+      border-top-left-radius: 24px;
+      border-top-right-radius: 24px;
+    }
+
+    /* Capsule Container */
+    .capsule-wrapper {
+      margin: 20px 0 40px 0;
+      display: flex;
+      justify-content: center;
+      width: 100%;
+    }
+
+    /* Floating Capsule & Dynamic Island */
+    .openflow-capsule {
+      background: var(--capsule-bg);
+      border: 1px solid var(--capsule-border);
+      border-radius: 24px;
+      padding: 7px 18px 7px 12px;
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.55),
+                  0 0 0 1px rgba(0, 0, 0, 0.8),
+                  inset 0 1px 1px var(--capsule-rim);
+      transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+      position: relative;
+    }
+
+    .openflow-capsule.island-mode {
+      border-top-left-radius: 4px;
+      border-top-right-radius: 4px;
+      border-bottom-left-radius: 22px;
+      border-bottom-right-radius: 22px;
+      padding: 10px 22px 10px 14px;
+      margin-top: -50px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.7);
+    }
+
+    /* Blobatar Canvas Container */
+    .blobatar-box {
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    /* Canvas itself */
+    #blobCanvas {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      cursor: pointer;
+      transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    #blobCanvas:hover {
+      transform: scale(1.12);
+    }
+
+    .capsule-label {
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: -0.2px;
+      color: #ffffff;
+      white-space: nowrap;
+    }
+
+    .dialect-badge {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+      text-transform: uppercase;
+      background: rgba(0, 242, 254, 0.15);
+      color: #00f2fe;
+      border: 1px solid rgba(0, 242, 254, 0.35);
+      border-radius: 6px;
+      padding: 2px 7px;
+    }
+
+    /* Audio Wave Bars */
+    .wave-bars {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      height: 18px;
+    }
+
+    .wave-bar {
+      width: 3px;
+      background: rgba(255, 255, 255, 0.85);
+      border-radius: 2px;
+      height: 4px;
+      transition: height 0.08s ease;
+    }
+
+    /* Controls Panel */
+    .controls {
+      width: 100%;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-top: 20px;
+    }
+
+    .control-card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 16px;
+      padding: 16px;
+    }
+
+    .control-card h3 {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      background: rgba(255, 255, 255, 0.08);
+      color: #ffffff;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 10px;
+      padding: 8px 14px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    button:hover {
+      background: rgba(255, 255, 255, 0.16);
+      border-color: rgba(255, 255, 255, 0.25);
+    }
+
+    button.active {
+      background: #00f2fe;
+      color: #000000;
+      border-color: #00f2fe;
+      font-weight: 600;
+      box-shadow: 0 0 16px rgba(0, 242, 254, 0.4);
+    }
+
+    .slider-row {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .slider-row label {
+      font-size: 12px;
+      display: flex;
+      justify-content: space-between;
+      color: var(--text-muted);
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: #00f2fe;
+    }
+
+    /* Comparison Card */
+    .comparison-grid {
+      display: flex;
+      gap: 24px;
+      align-items: center;
+      justify-content: center;
+      margin-top: 30px;
+      padding-top: 24px;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      width: 100%;
+    }
+
+    .comp-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .comp-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .old-rec-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #ff453a;
+      box-shadow: 0 0 10px rgba(255, 69, 58, 0.7);
+      animation: pulseOld 1.2s infinite ease-in-out;
+    }
+
+    @keyframes pulseOld {
+      0%, 100% { transform: scale(1); opacity: 0.9; }
+      50% { transform: scale(1.3); opacity: 1; }
+    }
+
+    /* Large preview canvas */
+    #blobCanvasLarge {
+      width: 96px;
+      height: 96px;
+      border-radius: 50%;
+    }
+
+    .hero-large-preview {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin: 20px 0;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>MIRA Blobatar · Interactive Sample</h1>
+    <p>Replaces the rigid mechanical recording dot with an organic, living speech companion. Uses multi-stop Gaussian blending ("gaslan") to merge into the dark glass capsule.</p>
+  </header>
+
+  <div class="stage">
+    <div class="screen-edge"></div>
+
+    <!-- Capsule Preview -->
+    <div class="capsule-wrapper">
+      <div class="openflow-capsule" id="capsule">
+        <div class="blobatar-box">
+          <canvas id="blobCanvas" width="64" height="64"></canvas>
+        </div>
+        <span class="capsule-label" id="capsuleText">Listening</span>
+        <span class="dialect-badge" id="dialectBadge">Sambalpuri</span>
+        <div class="wave-bars" id="waveBars">
+          <div class="wave-bar"></div>
+          <div class="wave-bar"></div>
+          <div class="wave-bar"></div>
+          <div class="wave-bar"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Large Avatar Inspection View -->
+    <div class="hero-large-preview">
+      <div class="comp-label" style="margin-bottom: 8px;">Hi-Res Blobatar Living Anatomy (Click to Poke!)</div>
+      <canvas id="blobCanvasLarge" width="192" height="192"></canvas>
+    </div>
+
+    <!-- Direct Comparison -->
+    <div class="comparison-grid">
+      <div class="comp-item">
+        <div class="old-rec-dot"></div>
+        <span class="comp-label">Old Mechanical Dot (Hard Cut)</span>
+      </div>
+      <div style="color: var(--text-muted); font-size: 18px;">➔</div>
+      <div class="comp-item">
+        <div style="width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">
+          <canvas id="compBlobCanvas" width="56" height="56"></canvas>
+        </div>
+        <span class="comp-label" style="color: #00f2fe; font-weight: 600;">MIRA Blobatar (Gaussian Blend)</span>
+      </div>
+    </div>
+
+    <!-- Interactive Controls -->
+    <div class="controls">
+      <!-- Capsule Style -->
+      <div class="control-card">
+        <h3>Capsule Mode</h3>
+        <div class="btn-group">
+          <button class="active" id="btnFloating">Floating Pill</button>
+          <button id="btnIsland">Top Island Notch</button>
+        </div>
+      </div>
+
+      <!-- Color Palette -->
+      <div class="control-card">
+        <h3>Gaussian Palette</h3>
+        <div class="btn-group">
+          <button class="active" id="btnCyan">Electric Cyan</button>
+          <button id="btnAmber">Warm Amber</button>
+          <button id="btnViolet">Cosmic Violet</button>
+        </div>
+      </div>
+
+      <!-- Audio Reactivity -->
+      <div class="control-card">
+        <h3>Audio Reactivity</h3>
+        <div class="slider-row">
+          <label>Voice Level: <span id="valLevel">0%</span></label>
+          <input type="range" id="sliderLevel" min="0" max="100" value="35">
+        </div>
+        <div style="margin-top: 10px;">
+          <button id="btnMic">🎙️ Test My Live Microphone</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Configuration
+    const state = {
+      level: 0.35,
+      smoothedLevel: 0.35,
+      phase: 0,
+      isBlinking: false,
+      blinkProgress: 0,
+      nextBlink: 2.5,
+      blinkTimer: 0,
+      color1: '#00f2fe',
+      color2: '#4facfe',
+      glow: '#00f2fe',
+      micActive: false,
+      isPoked: false,
+      pokeTime: 0
+    };
+
+    // Palettes
+    const palettes = {
+      cyan: { c1: '#00f2fe', c2: '#4facfe', glow: '#00f2fe' },
+      amber: { c1: '#ff9a44', c2: '#fc6076', glow: '#ff7744' },
+      violet: { c1: '#f857a6', c2: '#ff5858', glow: '#f857a6' }
+    };
+
+    // Canvases
+    const canvasSmall = document.getElementById('blobCanvas');
+    const ctxSmall = canvasSmall.getContext('2d');
+    const canvasLarge = document.getElementById('blobCanvasLarge');
+    const ctxLarge = canvasLarge.getContext('2d');
+    const canvasComp = document.getElementById('compBlobCanvas');
+    const ctxComp = canvasComp.getContext('2d');
+
+    // Draw Blob on any canvas
+    function drawBlob(ctx, w, h, scale = 1.0) {
+      ctx.clearRect(0, 0, w, h);
+      const cx = w / 2;
+      const cy = h / 2;
+      const baseR = (Math.min(w, h) * 0.34) * scale;
+      const boost = state.smoothedLevel;
+      const r = baseR * (1.0 + boost * 0.24);
+
+      // 1. Gaussian Diffuse Aura ("gaslan")
+      const glowR = r * (2.2 + boost * 0.8);
+      const glowGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, glowR);
+      glowGrad.addColorStop(0.00, hexToRgba(state.glow, 0.75 + boost * 0.25));
+      glowGrad.addColorStop(0.28, hexToRgba(state.glow, 0.42));
+      glowGrad.addColorStop(0.55, hexToRgba(state.glow, 0.18));
+      glowGrad.addColorStop(0.82, hexToRgba(state.glow, 0.05));
+      glowGrad.addColorStop(1.00, hexToRgba(state.glow, 0.0));
+
+      ctx.fillStyle = glowGrad;
+      ctx.beginPath();
+      ctx.arc(cx, cy, glowR, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 2. Fluid Catmull-Rom Bezier Spline
+      const numPoints = 8;
+      const points = [];
+      const angleStep = (Math.PI * 2) / numPoints;
+      const pokeBoost = state.isPoked ? Math.sin(state.pokeTime * 8) * 0.35 : 0;
+
+      for (let i = 0; i < numPoints; i++) {
+        const theta = i * angleStep;
+        const w1 = Math.sin(state.phase * 1.8 + theta * 2) * 0.08;
+        const w2 = Math.cos(state.phase * 2.6 - theta * 3) * 0.05;
+        const w3 = Math.sin(state.phase * 4.2 + theta * 1) * (boost * 0.45 + pokeBoost);
+        const ptR = r * (1.0 + w1 + w2 + w3);
+        points.push({
+          x: cx + ptR * Math.cos(theta),
+          y: cy + ptR * Math.sin(theta)
+        });
+      }
+
+      // Draw Closed Spline
+      ctx.beginPath();
+      ctx.moveTo(points[0].x, points[0].y);
+      for (let i = 0; i < numPoints; i++) {
+        const p0 = points[(i - 1 + numPoints) % numPoints];
+        const p1 = points[i];
+        const p2 = points[(i + 1) % numPoints];
+        const p3 = points[(i + 2) % numPoints];
+
+        const cp1x = p1.x + (p2.x - p0.x) / 6;
+        const cp1y = p1.y + (p2.y - p0.y) / 6;
+        const cp2x = p2.x - (p3.x - p1.x) / 6;
+        const cp2y = p2.y - (p3.y - p1.y) / 6;
+        ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
+      }
+      ctx.closePath();
+
+      // Body Gradient
+      const bodyGrad = ctx.createLinearGradient(cx - r, cy - r, cx + r, cy + r);
+      bodyGrad.addColorStop(0, state.color1);
+      bodyGrad.addColorStop(1, state.color2);
+      ctx.fillStyle = bodyGrad;
+      ctx.fill();
+
+      // Specular Rim
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.45)";
+      ctx.lineWidth = Math.max(1, 1.2 * scale);
+      ctx.stroke();
+
+      // 3. Specular Highlight (3D Glass Sheen)
+      const sheenX = cx - r * 0.32;
+      const sheenY = cy - r * 0.32;
+      const sheenR = r * 0.35;
+      const sheenGrad = ctx.createRadialGradient(sheenX, sheenY, 0, sheenX, sheenY, sheenR);
+      sheenGrad.addColorStop(0, "rgba(255, 255, 255, 0.65)");
+      sheenGrad.addColorStop(1, "rgba(255, 255, 255, 0)");
+      ctx.fillStyle = sheenGrad;
+      ctx.beginPath();
+      ctx.ellipse(sheenX, sheenY, sheenR, sheenR * 0.65, -Math.PI / 4, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 4. Living Eyes (Blobatar Features)
+      const eyeY = cy - r * 0.12;
+      const eyeSpacing = r * 0.42;
+      const eyeRx = r * 0.16;
+      let eyeRy = r * (0.18 + boost * 0.08);
+
+      if (state.isBlinking) {
+        const scaleY = Math.abs(Math.cos(state.blinkProgress * Math.PI));
+        eyeRy = Math.max(0.5, eyeRy * scaleY);
+      }
+
+      // Pupil Gaze
+      const gazeDx = Math.sin(state.phase * 0.8) * (eyeRx * 0.28);
+      const gazeDy = -Math.abs(Math.cos(state.phase * 0.5)) * (eyeRy * 0.2);
+
+      ctx.fillStyle = "#0c1017";
+
+      // Left Eye
+      ctx.beginPath();
+      ctx.ellipse(cx - eyeSpacing + gazeDx, eyeY + gazeDy, eyeRx, eyeRy, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Right Eye
+      ctx.beginPath();
+      ctx.ellipse(cx + eyeSpacing + gazeDx, eyeY + gazeDy, eyeRx, eyeRy, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Catchlight Sparkles
+      if (!state.isBlinking) {
+        ctx.fillStyle = "rgba(255, 255, 255, 0.95)";
+        const sparkR = Math.max(0.8, eyeRx * 0.35);
+        ctx.beginPath();
+        ctx.arc(cx - eyeSpacing + gazeDx - eyeRx * 0.25, eyeY + gazeDy - eyeRy * 0.3, sparkR, 0, Math.PI * 2);
+        ctx.arc(cx + eyeSpacing + gazeDx - eyeRx * 0.25, eyeY + gazeDy - eyeRy * 0.3, sparkR, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // 5. Listening Mouth
+      const mouthY = cy + r * 0.32;
+      if (boost > 0.12) {
+        // Talking 'o'
+        const mouthW = r * 0.2;
+        const mouthH = r * (0.12 + boost * 0.28);
+        ctx.fillStyle = "#0c1017";
+        ctx.beginPath();
+        ctx.ellipse(cx, mouthY, mouthW, mouthH, 0, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        // Subtle smile
+        ctx.strokeStyle = "rgba(12, 16, 23, 0.85)";
+        ctx.lineWidth = Math.max(1, 1.4 * scale);
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.arc(cx, mouthY - 2, r * 0.25, 0.2 * Math.PI, 0.8 * Math.PI);
+        ctx.stroke();
+      }
+    }
+
+    function hexToRgba(hex, alpha) {
+      let r = 0, g = 0, b = 0;
+      if (hex.startsWith('#')) hex = hex.slice(1);
+      if (hex.length === 6) {
+        r = parseInt(hex.slice(0, 2), 16);
+        g = parseInt(hex.slice(2, 4), 16);
+        b = parseInt(hex.slice(4, 6), 16);
+      }
+      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+
+    // Animation Loop
+    let lastTime = performance.now();
+    function animate(time) {
+      const dt = (time - lastTime) / 1000;
+      lastTime = time;
+
+      state.phase += dt * 3.5;
+      state.smoothedLevel += (state.level - state.smoothedLevel) * 0.2;
+
+      // Eye blink timer
+      state.blinkTimer += dt;
+      if (!state.isBlinking) {
+        if (state.blinkTimer >= state.nextBlink) {
+          state.isBlinking = true;
+          state.blinkProgress = 0;
+        }
+      } else {
+        state.blinkProgress += dt / 0.14;
+        if (state.blinkProgress >= 1) {
+          state.isBlinking = false;
+          state.blinkTimer = 0;
+          state.nextBlink = 2.5 + Math.random() * 2.5;
+        }
+      }
+
+      // Poke recovery
+      if (state.isPoked) {
+        state.pokeTime += dt;
+        if (state.pokeTime > 0.8) {
+          state.isPoked = false;
+        }
+      }
+
+      // Render all views
+      drawBlob(ctxSmall, 64, 64, 1.0);
+      drawBlob(ctxLarge, 192, 192, 1.0);
+      drawBlob(ctxComp, 56, 56, 1.0);
+
+      // Animate waveform bars
+      const bars = document.querySelectorAll('.wave-bar');
+      bars.forEach((bar, i) => {
+        const h = Math.max(4, Math.sin(state.phase * 4 + i * 1.2) * (state.smoothedLevel * 14) + 4);
+        bar.style.height = `${h}px`;
+      });
+
+      requestAnimationFrame(animate);
+    }
+    requestAnimationFrame(animate);
+
+    // Interactive Listeners
+    const slider = document.getElementById('sliderLevel');
+    const valLevel = document.getElementById('valLevel');
+    slider.addEventListener('input', (e) => {
+      state.level = parseInt(e.target.value) / 100;
+      valLevel.textContent = `${e.target.value}%`;
+    });
+
+    // Poking the blob
+    [canvasSmall, canvasLarge].forEach(c => {
+      c.addEventListener('click', () => {
+        state.isPoked = true;
+        state.pokeTime = 0;
+      });
+    });
+
+    // Capsule Style Switcher
+    const capsule = document.getElementById('capsule');
+    const btnFloating = document.getElementById('btnFloating');
+    const btnIsland = document.getElementById('btnIsland');
+
+    btnFloating.addEventListener('click', () => {
+      btnFloating.classList.add('active');
+      btnIsland.classList.remove('active');
+      capsule.classList.remove('island-mode');
+    });
+
+    btnIsland.addEventListener('click', () => {
+      btnIsland.classList.add('active');
+      btnFloating.classList.remove('active');
+      capsule.classList.add('island-mode');
+    });
+
+    // Palettes Switcher
+    const btnCyan = document.getElementById('btnCyan');
+    const btnAmber = document.getElementById('btnAmber');
+    const btnViolet = document.getElementById('btnViolet');
+
+    function setPalette(p, btn) {
+      [btnCyan, btnAmber, btnViolet].forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      state.color1 = p.c1;
+      state.color2 = p.c2;
+      state.glow = p.glow;
+    }
+
+    btnCyan.addEventListener('click', () => setPalette(palettes.cyan, btnCyan));
+    btnAmber.addEventListener('click', () => setPalette(palettes.amber, btnAmber));
+    btnViolet.addEventListener('click', () => setPalette(palettes.violet, btnViolet));
+
+    // Live Microphone Integration
+    const btnMic = document.getElementById('btnMic');
+    btnMic.addEventListener('click', async () => {
+      if (!state.micActive) {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          const source = audioCtx.createMediaStreamSource(stream);
+          const analyser = audioCtx.createAnalyser();
+          analyser.fftSize = 256;
+          source.connect(analyser);
+
+          const dataArray = new Uint8Array(analyser.frequencyBinCount);
+          btnMic.textContent = "🔴 Listening to Your Voice...";
+          btnMic.classList.add('active');
+          state.micActive = true;
+
+          function pollMic() {
+            if (!state.micActive) return;
+            analyser.getByteFrequencyData(dataArray);
+            let sum = 0;
+            for (let i = 0; i < dataArray.length; i++) {
+              sum += dataArray[i];
+            }
+            const avg = sum / dataArray.length;
+            const norm = Math.min(1.0, (avg / 70));
+            state.level = norm;
+            slider.value = Math.round(norm * 100);
+            valLevel.textContent = `${slider.value}%`;
+            requestAnimationFrame(pollMic);
+          }
+          pollMic();
+        } catch (err) {
+          alert("Microphone access denied or unavailable: " + err);
+        }
+      } else {
+        state.micActive = false;
+        btnMic.textContent = "🎙️ Test My Live Microphone";
+        btnMic.classList.remove('active');
+      }
+    });
+  </script>
+</body>
+</html>
