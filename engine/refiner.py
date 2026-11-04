@@ -118,8 +118,8 @@ FILLER_PATTERNS = [
     r"\b(erm+)\b",
     r"\b(ah+)\b",
     r"\b(you know)\b(?=\s*,?)",
-    r"\b(like)\b(?=\s+(?:I|we|he|she|they|it|you|um|uh|the|a|this))",
-    r"\b(sort of|kind of)\b",
+    r"(?<=\b(?:so|um|uh)\s)like\b",
+    r"(?:^|[\s,])like,\s*",
     r"\b(basically)\b(?=\s*,?)",
 ]
 
@@ -187,13 +187,25 @@ QUESTION_STARTERS = {
 }
 
 def format_contractions(text: str) -> str:
-    """Formats informal speech contractions and standalone pronoun 'I'."""
+    """Formats informal speech contractions while protecting standalone nouns like 'id' and 'ill'."""
     if not text:
         return ""
+    s = text
     # 1. Standalone pronoun "I"
-    s = re.sub(r"\bi\b", "I", text)
-    # 2. Contractions
+    s = re.sub(r"\bi\b", "I", s)
+    # 2. Contextual contractions for ambiguous words:
+    # "id" -> "I'd" only when followed by contraction verbs ("I'd like", "I'd prefer")
+    s = re.sub(r"\bi['’]?d\b(?=\s+(?:like|love|rather|prefer|go|see|say|think|suggest|recommend|have|want))", "I'd", s, flags=re.IGNORECASE)
+    # "ill" -> "I'll" only when followed by future action verb, or sentence start
+    s = re.sub(r"\bi['’]?ll\b(?=\s+(?:be|do|go|check|see|try|make|send|have|call|take|tell|write))", "I'll", s, flags=re.IGNORECASE)
+    s = re.sub(r"^(?:ill|i'll)\b", "I'll", s, flags=re.IGNORECASE)
+    # "lets" -> "let's" only when followed by suggestion verb
+    s = re.sub(r"\blets\b(?=\s+(?:go|do|see|check|try|make|start|meet|talk|use|run))", "let's", s, flags=re.IGNORECASE)
+    s = re.sub(r"^lets\b", "Let's", s, flags=re.IGNORECASE)
+    # 3. Unambiguous contractions
     for word, contracted in CONTRACTIONS.items():
+        if word in ("id", "ill", "lets"):
+            continue
         s = re.sub(r"\b" + re.escape(word) + r"\b", contracted, s, flags=re.IGNORECASE)
     return s
 
@@ -238,28 +250,35 @@ def resolve_self_corrections(text: str) -> str:
     # e.g. "Tuesday, actually Wednesday" -> "Wednesday"
     # e.g. "at 3, sorry 4 PM" -> "at 4 PM"
     # e.g. "two, I mean three" -> "three"
-    sub_markers = r"\b(?:sorry|actually|or rather|make that|I mean)\b[,.]?\s*"
+    # 3. Direct single word / phrase replacement with comma or hesitation pause:
+    # "wordA, (sorry|actually|or rather|make that|I mean) wordB"
+    # Never match predicate adjectives/adverbs like "I am sorry" or "This is actually good".
+    non_correction_leads = {
+        "am", "is", "are", "was", "were", "be", "feel", "so", "very", "deeply", "not",
+        "i", "we", "he", "she", "it", "they", "you", "do", "does", "did", "can", "could", "will", "would", "should"
+    }
 
     def _sub_word(m):
         w1 = m.group(1).strip()
-        w2 = m.group(2).strip()
+        marker = m.group(2).strip().lower()
+        w2 = m.group(3).strip()
+        tokens = w1.split()
+        last_token = tokens[-1].lower() if tokens else ""
+        if last_token in non_correction_leads:
+            return m.group(0)  # Keep original text, not a correction!
+
         preps = (
             "have", "has", "had", "need", "want", "get", "got", "take",
             "on", "at", "in", "to", "for", "from", "with", "by", "is",
             "are", "was", "were", "of", "a", "an", "the"
         )
-        w1_tokens = w1.split()
         w2_tokens = w2.split()
-        if len(w1_tokens) > 1 and w1_tokens[0].lower() in preps and w2_tokens[0].lower() not in preps:
-            return f"{w1_tokens[0]} {w2}"
+        if len(tokens) > 1 and tokens[0].lower() in preps and w2_tokens and w2_tokens[0].lower() not in preps:
+            return f"{tokens[0]} {w2}"
         return w2
 
-    s = re.sub(
-        r"\b([a-zA-Z0-9]+(?:\s+[a-zA-Z0-9]+)?)(?:,\s*|\s+)" + sub_markers + r"([a-zA-Z0-9]+(?:\s+[a-zA-Z0-9]+)?)",
-        _sub_word,
-        s,
-        flags=re.IGNORECASE
-    )
+    sub_pattern = r"\b([a-zA-Z0-9]+(?:\s+[a-zA-Z0-9]+)?)\s*,\s*(sorry|actually|or rather|make that|I mean)\s+([a-zA-Z0-9]+(?:\s+[a-zA-Z0-9]+)?)"
+    s = re.sub(sub_pattern, _sub_word, s, flags=re.IGNORECASE)
 
     # Clean residual whitespace
     s = re.sub(r"\s+", " ", s).strip()

@@ -230,11 +230,12 @@ def build_initial_prompt(
     parts: list[str] = []
 
     # 1. Instruction prefix based on context and language
-    if language in ("en-in", "hinglish", "auto"):
+    if language == "en-in":
+        parts.append("Indian English dictation with standard punctuation, capitalization, and accurate terminology.")
+    elif language == "hinglish":
         parts.append(
-            "Indian English, Hinglish, Hindi, and Odia dictation in natural Latin/Roman script. "
-            "Accurately preserve Indian words (kya, kuch, kyu, kaise, nahi, theek, accha, bhai, yaar, kete, kan, kemiti). "
-            "Never output Urdu or Arabic script."
+            "Hinglish conversation in natural Roman script. "
+            "Mix Hindi and English naturally with proper punctuation."
         )
     elif ctx["category"] == CAT_DEVELOPER:
         parts.append(
@@ -246,39 +247,40 @@ def build_initial_prompt(
             "Professional email dictation. Use formal punctuation, "
             "paragraph breaks, and proper salutations."
         )
-    elif language in ("hinglish", "auto") and ctx["category"] == CAT_CHAT:
-        parts.append(
-            "Casual Hinglish conversation in natural Latin/Roman script. "
-            "Mix Hindi and English naturally with proper punctuation."
-        )
+    elif ctx["category"] == CAT_CHAT:
+        parts.append("Casual chat message with standard punctuation.")
     else:
         parts.append("Use standard punctuation, commas, periods, and capitalization.")
 
-    # 2. Vocabulary bias
+    # 2. Vocabulary bias - strictly concise (under 15 tokens) so Whisper attention decoder is never distorted
     vocab: list[str] = []
 
     # Custom user terms first (highest priority)
     if custom_vocab:
         seen: set[str] = set()
         for v in custom_vocab:
-            if v not in seen:
+            if v and v not in seen:
                 vocab.append(v)
                 seen.add(v)
-            if len(vocab) >= 60:
+            if len(vocab) >= 15:
                 break
 
-    # Automatic Indian lexicon when in Indian English or Hinglish mode
-    if language in ("en-in", "hinglish", "auto"):
-        vocab += [v for v in _INDIAN_AUTO_VOCAB if v not in vocab]
+    # Targeted hints without polluting decoder with dozens of surnames and slang words
+    if language == "hinglish":
+        hinglish_hints = ["kya", "kyu", "kaise", "nahi", "theek", "accha", "bhai", "yaar", "lakh", "crore", "UPI"]
+        vocab += [h for h in hinglish_hints if h not in vocab]
+    elif language == "en-in":
+        in_hints = ["lakh", "crore", "rupees", "UPI", "GST", "Aadhaar"]
+        vocab += [h for h in in_hints if h not in vocab]
 
-    # Base tech + category vocab
-    vocab += [v for v in _BASE_VOCAB if v not in vocab]
-    vocab += [v for v in _CATEGORY_VOCAB.get(ctx["category"], ()) if v not in vocab]
+    if ctx["category"] == CAT_DEVELOPER:
+        dev_hints = ["API", "JSON", "SQL", "Git", "VS Code"]
+        vocab += [v for v in dev_hints if v not in vocab]
 
-    # Join, truncate to ~700 chars (Whisper supports up to 224 prompt tokens)
-    vocab_str = ", ".join(vocab)
-    if len(vocab_str) > 700:
-        vocab_str = vocab_str[:700].rsplit(",", 1)[0]
+    # Max 150 characters of vocabulary glossary
+    vocab_str = ", ".join(vocab[:15])
+    if len(vocab_str) > 150:
+        vocab_str = vocab_str[:150].rsplit(",", 1)[0]
 
     if vocab_str:
         parts.append(f"Glossary: {vocab_str}.")
