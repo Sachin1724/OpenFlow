@@ -27,6 +27,13 @@ except (ImportError, ValueError):
     from config import get_asset_path
     from engine.audio_recorder import list_microphones
     from engine import model_manager
+try:
+    from .blobatar_widget import BlobatarWidget
+except (ImportError, ValueError):
+    try:
+        from openflow.ui.blobatar_widget import BlobatarWidget
+    except ImportError:
+        from ui.blobatar_widget import BlobatarWidget
 
 
 def _force_topmost(widget: QWidget):
@@ -1379,6 +1386,9 @@ class FloatingPill(QWidget):
         self.capsule_layout.setSpacing(8)
 
         self.indicator = StateIndicator(self.capsule_widget)
+        self.blobatar = BlobatarWidget(size=24, parent=self.capsule_widget)
+        self.blobatar.hide()
+        self._active_dialect = None
         self.text_label = AnimatedText(self.current_mic_name, self._font(10, QFont.Weight.Medium), self.capsule_widget)
         self.text_label.setFixedHeight(24)
 
@@ -1393,6 +1403,25 @@ class FloatingPill(QWidget):
         self.visualizer = WaveformBars(self.capsule_widget, num_bars=7)
         self.btn_more = MoreButton(self.capsule_widget)
         self.btn_more.clicked.connect(self.toggle_morph_hud)
+
+    def is_odia_active(self) -> bool:
+        return self.current_language in ("or", "odia", "or-en", "or-mix") or bool(getattr(self, "_active_dialect", None))
+
+    def _update_indicator_mode(self):
+        use_blob = self.is_odia_active()
+        if use_blob and self.current_state in ("listening", "processing"):
+            self.indicator.hide()
+            self.blobatar.show()
+        else:
+            self.blobatar.hide()
+            if self.capsule_style != "micro" or self.current_state != "idle":
+                self.indicator.show()
+
+    def set_detected_dialect(self, dialect: str):
+        self._active_dialect = dialect
+        if dialect:
+            self._update_badge_text(dialect.upper())
+        self._update_indicator_mode()
 
     def _update_badge_text(self, text: str):
         self.lang_badge.setText(text)
@@ -1416,6 +1445,7 @@ class FloatingPill(QWidget):
             self._cap_w, self._cap_h = 360, 44
             self._snooze_w, self._snooze_h = 76, 8
             self.capsule_layout.addWidget(self.indicator, 0, Qt.AlignmentFlag.AlignVCenter)
+            self.capsule_layout.addWidget(self.blobatar, 0, Qt.AlignmentFlag.AlignVCenter)
             self.capsule_layout.addWidget(self.text_label, 1, Qt.AlignmentFlag.AlignVCenter)
             self.capsule_layout.addWidget(self.lang_badge, 0, Qt.AlignmentFlag.AlignVCenter)
             self.capsule_layout.addWidget(self.visualizer, 0, Qt.AlignmentFlag.AlignVCenter)
@@ -1435,6 +1465,7 @@ class FloatingPill(QWidget):
             self._cap_w, self._cap_h = 148, 32
             self._snooze_w, self._snooze_h = 96, 24
             self.capsule_layout.addWidget(self.indicator, 0, Qt.AlignmentFlag.AlignVCenter)
+            self.capsule_layout.addWidget(self.blobatar, 0, Qt.AlignmentFlag.AlignVCenter)
             self.capsule_layout.addWidget(self.lang_badge, 0, Qt.AlignmentFlag.AlignVCenter)
             self.capsule_layout.addWidget(self.visualizer, 0, Qt.AlignmentFlag.AlignVCenter)
             self.text_label.hide()
@@ -1453,6 +1484,7 @@ class FloatingPill(QWidget):
             self._cap_w, self._cap_h = 88, 24
             self._snooze_w, self._snooze_h = 54, 18
             self.capsule_layout.addWidget(self.indicator, 0, Qt.AlignmentFlag.AlignVCenter)
+            self.capsule_layout.addWidget(self.blobatar, 0, Qt.AlignmentFlag.AlignVCenter)
             self.capsule_layout.addWidget(self.visualizer, 0, Qt.AlignmentFlag.AlignVCenter)
             self.text_label.hide()
             self.text_label.setFixedWidth(0)
@@ -2231,6 +2263,8 @@ class FloatingPill(QWidget):
     def set_amplitude(self, level: float):
         self.visualizer.set_level(level)
         self._target_level = max(0.0, min(1.0, level))
+        if hasattr(self, "blobatar"):
+            self.blobatar.set_level(level)
 
     def show_listening(self, preset_name: str = "Listening"):
         if self.is_expanded_hud:
@@ -2254,6 +2288,7 @@ class FloatingPill(QWidget):
 
         self.current_state = "listening"
         self.indicator.set_state("listening")
+        self._update_indicator_mode()
         if self.capsule_style not in ("compact", "micro"):
             self.text_label.setText(preset_name)
         self._update_badge_text(self._lang_short(self.current_language))
@@ -2296,6 +2331,7 @@ class FloatingPill(QWidget):
             return
         self.current_state = "processing"
         self.indicator.set_state("processing")
+        self._update_indicator_mode()
         if self.capsule_style not in ("compact", "micro"):
             self.text_label.setText("Writing")
         self.visualizer.reset()
@@ -2386,6 +2422,7 @@ class FloatingPill(QWidget):
             self.caption_bubble.fade_out()
         self.current_state = "pasted"  # even under the HUD, or the spinner is waiting when it closes
         self.indicator.set_state("done")
+        self._update_indicator_mode()
         if self.is_expanded_hud:
             return
         if self.capsule_style not in ("compact", "micro"):
