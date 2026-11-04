@@ -24118,9 +24118,31 @@
     const [audioLevel, setAudioLevel] = (0, import_react3.useState)(0.4);
     const [isMicOn, setIsMicOn] = (0, import_react3.useState)(false);
     const [size, setSize] = (0, import_react3.useState)(28);
+    const [gaze, setGaze] = (0, import_react3.useState)({ x: 0, y: 0, tilt: 0 });
+    const capsuleBlobRef = (0, import_react3.useRef)(null);
     const audioContextRef = (0, import_react3.useRef)(null);
     const analyserRef = (0, import_react3.useRef)(null);
     const animationFrameRef = (0, import_react3.useRef)(null);
+    (0, import_react3.useEffect)(() => {
+      const handleMouseMove = (e) => {
+        if (!capsuleBlobRef.current) return;
+        const rect = capsuleBlobRef.current.getBoundingClientRect();
+        const cx = rect.left + rect.width / 2;
+        const cy = rect.top + rect.height / 2;
+        const dx = e.clientX - cx;
+        const dy = e.clientY - cy;
+        const dist = Math.hypot(dx, dy);
+        if (dist < 1) return;
+        const nx = dx / dist;
+        const ny = dy / dist;
+        const reachX = nx * Math.min(1.4, dist * 5e-3);
+        const reachY = ny * Math.min(1.1, dist * 5e-3);
+        const tiltAngle = nx * Math.min(4.5, dist * 8e-3);
+        setGaze({ x: reachX, y: reachY, tilt: tiltAngle });
+      };
+      window.addEventListener("mousemove", handleMouseMove);
+      return () => window.removeEventListener("mousemove", handleMouseMove);
+    }, []);
     const toggleMic = async () => {
       if (!isMicOn) {
         try {
@@ -24154,14 +24176,15 @@
         setAudioLevel(0.3);
       }
     };
-    return /* @__PURE__ */ import_react3.default.createElement("div", { className: "container" }, /* @__PURE__ */ import_react3.default.createElement("header", { className: "header" }, /* @__PURE__ */ import_react3.default.createElement("h1", { className: "title" }, "OpenFlow \xB7 MIRA Blobatar React Sample"), /* @__PURE__ */ import_react3.default.createElement("p", { className: "subtitle" }, "Using official ", /* @__PURE__ */ import_react3.default.createElement("code", null, "@blobatar/react"), " & ", /* @__PURE__ */ import_react3.default.createElement("code", null, "blobatar/motion.css"), " with Gaussian blend (gaslan)")), /* @__PURE__ */ import_react3.default.createElement("div", { className: "stage-card" }, capsuleMode === "island" && /* @__PURE__ */ import_react3.default.createElement("div", { className: "screen-notch-bar" }), /* @__PURE__ */ import_react3.default.createElement("div", { className: "capsule-section" }, /* @__PURE__ */ import_react3.default.createElement("div", { className: `openflow-capsule ${capsuleMode === "island" ? "island" : "floating"}` }, /* @__PURE__ */ import_react3.default.createElement(
+    return /* @__PURE__ */ import_react3.default.createElement("div", { className: "container" }, /* @__PURE__ */ import_react3.default.createElement("header", { className: "header" }, /* @__PURE__ */ import_react3.default.createElement("h1", { className: "title" }, "OpenFlow \xB7 MIRA Blobatar React Sample"), /* @__PURE__ */ import_react3.default.createElement("p", { className: "subtitle" }, "Official ", /* @__PURE__ */ import_react3.default.createElement("code", null, "@blobatar/react"), " capsule with live mouse pointer gaze tracking & head tilt")), /* @__PURE__ */ import_react3.default.createElement("div", { className: "stage-card" }, capsuleMode === "island" && /* @__PURE__ */ import_react3.default.createElement("div", { className: "screen-notch-bar" }), /* @__PURE__ */ import_react3.default.createElement("div", { className: "capsule-section" }, /* @__PURE__ */ import_react3.default.createElement("div", { className: `openflow-capsule ${capsuleMode === "island" ? "island" : "floating"}` }, /* @__PURE__ */ import_react3.default.createElement(
       "div",
       {
+        ref: capsuleBlobRef,
         className: "blobatar-wrapper",
         style: {
           filter: `drop-shadow(0 0 ${8 + audioLevel * 14}px rgba(165, 221, 255, ${0.45 + audioLevel * 0.45}))`,
-          transform: `scale(${1 + audioLevel * 0.15})`,
-          transition: "transform 0.08s ease, filter 0.08s ease"
+          transform: `perspective(500px) rotateY(${gaze.tilt}deg) rotateX(${-gaze.y * 3}deg) translate(${gaze.x * 2}px, ${gaze.y * 2}px) scale(${1 + audioLevel * 0.15})`,
+          transition: "transform 0.05s ease-out, filter 0.08s ease"
         }
       },
       /* @__PURE__ */ import_react3.default.createElement(
@@ -24170,7 +24193,11 @@
           name,
           traits: { shape: shapeTrait },
           animate: animateMode,
-          size
+          size,
+          style: {
+            "--mo-look-x": String(gaze.x),
+            "--mo-look-y": String(gaze.y)
+          }
         }
       )
     ), /* @__PURE__ */ import_react3.default.createElement("span", { className: "capsule-text" }, "Listening"), /* @__PURE__ */ import_react3.default.createElement("span", { className: "dialect-badge" }, "Sambalpuri"), /* @__PURE__ */ import_react3.default.createElement("div", { className: "wave-bars" }, [0, 1, 2, 3].map((i) => /* @__PURE__ */ import_react3.default.createElement(
@@ -24182,14 +24209,14 @@
           height: `${Math.max(4, 4 + audioLevel * 14 * Math.sin((i + 1) * 1.5))}px`
         }
       }
-    ))))), /* @__PURE__ */ import_react3.default.createElement("div", { className: "macro-section" }, /* @__PURE__ */ import_react3.default.createElement("div", { className: "macro-label" }, "High-Definition Living Preview (Hover or Speak to Test)"), /* @__PURE__ */ import_react3.default.createElement(
+    ))))), /* @__PURE__ */ import_react3.default.createElement("div", { className: "macro-section" }, /* @__PURE__ */ import_react3.default.createElement("div", { className: "macro-label" }, "High-Definition Living Preview (Move Mouse Anywhere to See Eye Tracking!)"), /* @__PURE__ */ import_react3.default.createElement(
       "div",
       {
         className: "macro-avatar-box",
         style: {
           filter: `drop-shadow(0 0 ${20 + audioLevel * 25}px rgba(165, 221, 255, ${0.4 + audioLevel * 0.5}))`,
-          transform: `scale(${1 + audioLevel * 0.12})`,
-          transition: "transform 0.1s ease, filter 0.1s ease"
+          transform: `perspective(600px) rotateY(${gaze.tilt * 1.5}deg) rotateX(${-gaze.y * 5}deg) translate(${gaze.x * 6}px, ${gaze.y * 6}px) scale(${1 + audioLevel * 0.12})`,
+          transition: "transform 0.05s ease-out, filter 0.1s ease"
         }
       },
       /* @__PURE__ */ import_react3.default.createElement(
@@ -24198,17 +24225,25 @@
           name,
           traits: { shape: shapeTrait },
           animate: animateMode,
-          size: 120
+          size: 120,
+          style: {
+            "--mo-look-x": String(gaze.x * 1.2),
+            "--mo-look-y": String(gaze.y * 1.2)
+          }
         }
       )
-    ), /* @__PURE__ */ import_react3.default.createElement("div", { className: "macro-meta" }, /* @__PURE__ */ import_react3.default.createElement("span", null, "Name: ", /* @__PURE__ */ import_react3.default.createElement("strong", null, '"', name, '"')), " \xB7", /* @__PURE__ */ import_react3.default.createElement("span", null, "Shape Trait: ", /* @__PURE__ */ import_react3.default.createElement("strong", null, shapeTrait, " (Capsule)")), " \xB7", /* @__PURE__ */ import_react3.default.createElement("span", null, "Mode: ", /* @__PURE__ */ import_react3.default.createElement("strong", null, 'animate="', animateMode, '"')))), /* @__PURE__ */ import_react3.default.createElement("div", { className: "code-box" }, /* @__PURE__ */ import_react3.default.createElement("div", { className: "code-header" }, "Implemented Component Code"), /* @__PURE__ */ import_react3.default.createElement("pre", null, `import { Blobatar } from "@blobatar/react";
+    ), /* @__PURE__ */ import_react3.default.createElement("div", { className: "macro-meta" }, /* @__PURE__ */ import_react3.default.createElement("span", null, "Mouse Gaze: ", /* @__PURE__ */ import_react3.default.createElement("strong", null, "X: ", gaze.x.toFixed(2), ", Y: ", gaze.y.toFixed(2))), " \xB7", /* @__PURE__ */ import_react3.default.createElement("span", null, "Head Tilt: ", /* @__PURE__ */ import_react3.default.createElement("strong", null, gaze.tilt.toFixed(1), "\xB0")), " \xB7", /* @__PURE__ */ import_react3.default.createElement("span", null, "Shape: ", /* @__PURE__ */ import_react3.default.createElement("strong", null, "Capsule (", shapeTrait, ")")))), /* @__PURE__ */ import_react3.default.createElement("div", { className: "code-box" }, /* @__PURE__ */ import_react3.default.createElement("div", { className: "code-header" }, "Implemented Component Code"), /* @__PURE__ */ import_react3.default.createElement("pre", null, `import { Blobatar } from "@blobatar/react";
 import "blobatar/motion.css";
 
-// shape: capsule (with Gaussian blend aura)
+// shape: capsule (with Gaussian blend aura & pointer tracking)
 <Blobatar
   name="${name}"
   traits={{ shape: ${shapeTrait} }}
   animate="${animateMode}"
+  style={{
+    "--mo-look-x": "${gaze.x.toFixed(2)}",
+    "--mo-look-y": "${gaze.y.toFixed(2)}"
+  }}
 />`)), /* @__PURE__ */ import_react3.default.createElement("div", { className: "controls-grid" }, /* @__PURE__ */ import_react3.default.createElement("div", { className: "control-item" }, /* @__PURE__ */ import_react3.default.createElement("label", null, "Capsule Style"), /* @__PURE__ */ import_react3.default.createElement("div", { className: "btn-group" }, /* @__PURE__ */ import_react3.default.createElement(
       "button",
       {

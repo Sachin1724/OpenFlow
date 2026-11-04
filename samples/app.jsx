@@ -12,9 +12,38 @@ function App() {
   const [isMicOn, setIsMicOn] = useState(false);
   const [size, setSize] = useState(28);
 
+  // Real-time cursor gaze tracking
+  const [gaze, setGaze] = useState({ x: 0, y: 0, tilt: 0 });
+  const capsuleBlobRef = useRef(null);
+
   const audioContextRef = useRef(null);
   const analyserRef = useRef(null);
   const animationFrameRef = useRef(null);
+
+  // Window mouse movement listener
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      if (!capsuleBlobRef.current) return;
+      const rect = capsuleBlobRef.current.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      const dx = e.clientX - cx;
+      const dy = e.clientY - cy;
+      const dist = Math.hypot(dx, dy);
+      if (dist < 1) return;
+
+      const nx = dx / dist;
+      const ny = dy / dist;
+      const reachX = nx * Math.min(1.4, dist * 0.005);
+      const reachY = ny * Math.min(1.1, dist * 0.005);
+      const tiltAngle = nx * Math.min(4.5, dist * 0.008);
+
+      setGaze({ x: reachX, y: reachY, tilt: tiltAngle });
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    return () => window.removeEventListener("mousemove", handleMouseMove);
+  }, []);
 
   // Live microphone capture
   const toggleMic = async () => {
@@ -58,7 +87,7 @@ function App() {
       <header className="header">
         <h1 className="title">OpenFlow · MIRA Blobatar React Sample</h1>
         <p className="subtitle">
-          Using official <code>@blobatar/react</code> &amp; <code>blobatar/motion.css</code> with Gaussian blend (gaslan)
+          Official <code>@blobatar/react</code> capsule with live mouse pointer gaze tracking &amp; head tilt
         </p>
       </header>
 
@@ -69,13 +98,14 @@ function App() {
         {/* CAPSULE DEMO */}
         <div className="capsule-section">
           <div className={`openflow-capsule ${capsuleMode === "island" ? "island" : "floating"}`}>
-            {/* The exact Blobatar component */}
+            {/* The exact Blobatar component with cursor gaze tracking */}
             <div
+              ref={capsuleBlobRef}
               className="blobatar-wrapper"
               style={{
                 filter: `drop-shadow(0 0 ${8 + audioLevel * 14}px rgba(165, 221, 255, ${0.45 + audioLevel * 0.45}))`,
-                transform: `scale(${1.0 + audioLevel * 0.15})`,
-                transition: "transform 0.08s ease, filter 0.08s ease",
+                transform: `perspective(500px) rotateY(${gaze.tilt}deg) rotateX(${-gaze.y * 3}deg) translate(${gaze.x * 2}px, ${gaze.y * 2}px) scale(${1.0 + audioLevel * 0.15})`,
+                transition: "transform 0.05s ease-out, filter 0.08s ease",
               }}
             >
               <Blobatar
@@ -83,6 +113,10 @@ function App() {
                 traits={{ shape: shapeTrait }}
                 animate={animateMode}
                 size={size}
+                style={{
+                  "--mo-look-x": String(gaze.x),
+                  "--mo-look-y": String(gaze.y),
+                }}
               />
             </div>
 
@@ -106,13 +140,13 @@ function App() {
 
         {/* MACRO CLOSE-UP INSPECTION */}
         <div className="macro-section">
-          <div className="macro-label">High-Definition Living Preview (Hover or Speak to Test)</div>
+          <div className="macro-label">High-Definition Living Preview (Move Mouse Anywhere to See Eye Tracking!)</div>
           <div
             className="macro-avatar-box"
             style={{
               filter: `drop-shadow(0 0 ${20 + audioLevel * 25}px rgba(165, 221, 255, ${0.4 + audioLevel * 0.5}))`,
-              transform: `scale(${1.0 + audioLevel * 0.12})`,
-              transition: "transform 0.1s ease, filter 0.1s ease",
+              transform: `perspective(600px) rotateY(${gaze.tilt * 1.5}deg) rotateX(${-gaze.y * 5}deg) translate(${gaze.x * 6}px, ${gaze.y * 6}px) scale(${1.0 + audioLevel * 0.12})`,
+              transition: "transform 0.05s ease-out, filter 0.1s ease",
             }}
           >
             <Blobatar
@@ -120,12 +154,16 @@ function App() {
               traits={{ shape: shapeTrait }}
               animate={animateMode}
               size={120}
+              style={{
+                "--mo-look-x": String(gaze.x * 1.2),
+                "--mo-look-y": String(gaze.y * 1.2),
+              }}
             />
           </div>
           <div className="macro-meta">
-            <span>Name: <strong>"{name}"</strong></span> · 
-            <span>Shape Trait: <strong>{shapeTrait} (Capsule)</strong></span> · 
-            <span>Mode: <strong>animate="{animateMode}"</strong></span>
+            <span>Mouse Gaze: <strong>X: {gaze.x.toFixed(2)}, Y: {gaze.y.toFixed(2)}</strong></span> · 
+            <span>Head Tilt: <strong>{gaze.tilt.toFixed(1)}°</strong></span> · 
+            <span>Shape: <strong>Capsule ({shapeTrait})</strong></span>
           </div>
         </div>
 
@@ -136,11 +174,15 @@ function App() {
 {`import { Blobatar } from "@blobatar/react";
 import "blobatar/motion.css";
 
-// shape: capsule (with Gaussian blend aura)
+// shape: capsule (with Gaussian blend aura & pointer tracking)
 <Blobatar
   name="${name}"
   traits={{ shape: ${shapeTrait} }}
   animate="${animateMode}"
+  style={{
+    "--mo-look-x": "${gaze.x.toFixed(2)}",
+    "--mo-look-y": "${gaze.y.toFixed(2)}"
+  }}
 />`}
           </pre>
         </div>
