@@ -22,6 +22,7 @@ android/.kotlin/
 *.wav
 *.m4a
 *.mp3
+models/
 data/podcasts/
 data/OdiaTTS_Data/
 data/*.jsonl

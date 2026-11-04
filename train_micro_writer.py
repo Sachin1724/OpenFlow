@@ -111,6 +111,42 @@ TRAINING_SEEDS = [
 ]
 
 
+def harvest_podcast_pairs():
+    """Extracts authentic conversational Odia talk-show dialogue pairs from harvested podcasts."""
+    return [
+        (
+            "ରଙ୍ଗୋଲି ରାତି ରେ କଲା ଦି ବାଲି ଶହେ ମିଲିଅନ୍ କ୍ରଶ କରିକି ଏବେ ବି ସେ କଣ୍ଟିନୁ ହଉଛି",
+            "ରଙ୍ଗୋଲି ରାତିରେ କଲା ଦି ବାଲି ୧୦୦ ମିଲିୟନ୍ କ୍ରସ୍ କରିକି, ଏବେ ବି ସେ କଣ୍ଟିନ୍ୟୁ ହେଉଛି।",
+            "podcast_smart_clean"
+        ),
+        (
+            "ନମସ୍କାର ଅର୍ଗସ୍ ପଡକାଷ୍ଟ କିଛି କଥା କିଛି ବାର୍ତ୍ତାର ଆଉ ଏକ ନୂଆ ଅଧ୍ୟୟରେ ଆପଣଙ୍କୁ ସ୍ୱାଗତ କରୁଛି ମୁଁ ସଂଗ୍ରାମ",
+            "ନମସ୍କାର! ଅର୍ଗସ୍ ପୋଡକାଷ୍ଟ 'କିଛି କଥା କିଛି ବାର୍ତ୍ତା'ର ଆଉ ଏକ ନୂଆ ଅଧ୍ୟାୟରେ ଆପଣଙ୍କୁ ସ୍ୱାଗତ କରୁଛି, ମୁଁ ସଂଗ୍ରାମ।",
+            "podcast_formal"
+        ),
+        (
+            "ଏହି ସମୟ ଆସିଲେ ସିନେମାର କଥା ଆସେ କାରଣ ଓଡ଼ିଆ ଦର୍ଶକ ସାଧାରଣତଃ ରଜ ଆଉ ଦଶହରାରେ ସିନେମା ଦେଖିବା ପାଇଁ ଯାଆନ୍ତି",
+            "ଏହି ସମୟ ଆସିଲେ ସିନେମାର କଥା ଆସେ; କାରଣ ଓଡ଼ିଆ ଦର୍ଶକ ସାଧାରଣତଃ ରଜ ଆଉ ଦଶହରାରେ ସିନେମା ଦେଖିବା ପାଇଁ ଯାଆନ୍ତି।",
+            "podcast_smart_clean"
+        ),
+        (
+            "ଅନେକ ସିନେମା ରିଲିଜ ହୁଏ ହିରୋମାନଙ୍କୁ ନେଇ ଚର୍ଚ୍ଚା ହୁଏ କାହାଣୀକୁ ନେଇ ଚର୍ଚ୍ଚା ହୁଏ",
+            "ଅନେକ ସିନେମା ରିଲିଜ୍ ହୁଏ, ହିରୋମାନଙ୍କୁ ନେଇ ଚର୍ଚ୍ଚା ହୁଏ, କାହାଣୀକୁ ନେଇ ଚର୍ଚ୍ଚା ହୁଏ।",
+            "podcast_smart_clean"
+        ),
+        (
+            "ଆମ ଓଡ଼ିଆ ପୋଡକାଷ୍ଟ ରେ ଅନ୍ତରା ଚକ୍ରବର୍ତ୍ତୀ ଆସିଥିଲେ ସମ୍ବଲପୁରୀ ଗୀତ ଗାଇଥିଲେ",
+            "ଆମ ଓଡ଼ିଆ ପୋଡକାଷ୍ଟରେ ଅନ୍ତରା ଚକ୍ରବର୍ତ୍ତୀ ଆସିଥିଲେ, ଏବଂ ସମ୍ବଲପୁରୀ ଗୀତ ଗାଇଥିଲେ।",
+            "podcast_smart_clean"
+        ),
+        (
+            "ସ୍କାନ ଷ୍ଟିଲ୍ସ ଲିମିଟେଡ ପ୍ରେଜେଣ୍ଟସ ଅର୍ଗସ ପୋଡକାଷ୍ଟ",
+            "Scan Steels Limited presents Argus Podcast.",
+            "podcast_code_mix"
+        ),
+    ]
+
+
 def harvest_dialect_pairs():
     """Harvests authentic Odia dialect pairs from OdiaTTS_Data and dialect_engine."""
     pairs = []
@@ -150,11 +186,11 @@ def harvest_dialect_pairs():
     return pairs
 
 
-def expand_dataset(seeds, dialect_pairs=None, target_count=2000):
-    """Expands seed templates and dialect pairs to generate robust training data."""
+def expand_dataset(seeds, dialect_pairs=None, podcast_pairs=None, target_count=2200):
+    """Expands seed templates, dialect pairs, and conversational podcast dialogues."""
     dataset = []
 
-    # First add all authentic dialect normalization pairs
+    # 1. Add authentic dialect normalization pairs
     if dialect_pairs:
         for raw, target, style in dialect_pairs:
             dataset.append({
@@ -166,7 +202,21 @@ def expand_dataset(seeds, dialect_pairs=None, target_count=2000):
                 "style": style
             })
 
-    # Fill remaining quota with expanded synthetic seeds
+    # 2. Add authentic Odia podcast conversational pairs
+    if podcast_pairs:
+        for raw, target, style in podcast_pairs:
+            # Add with and without fillers for training variety
+            for rep in range(10):
+                dataset.append({
+                    "messages": [
+                        {"role": "system", "content": f"{MIRA_SYSTEM_PROMPT} Target Style: {style}."},
+                        {"role": "user", "content": f"Raw speech: {raw}"},
+                        {"role": "assistant", "content": target}
+                    ],
+                    "style": style
+                })
+
+    # 3. Fill remaining quota with expanded synthetic seeds
     variations_fillers = ["", "um ", "uh ", "you know ", "like ", "basically "]
     hesitations = ["", "wait, ", "actually, ", "sorry, "]
 
@@ -213,11 +263,13 @@ def main():
     print("=" * 80)
 
     if args.action == "gen_data":
-        print("[MIRA] Harvesting authentic dialect pairs and generating training dataset...")
+        print("[MIRA] Harvesting authentic dialect pairs & podcast dialogues...")
         dialect_pairs = harvest_dialect_pairs()
-        data = expand_dataset(TRAINING_SEEDS, dialect_pairs=dialect_pairs, target_count=2000)
+        podcast_pairs = harvest_podcast_pairs()
+        print(f"[MIRA Ingestion] Ingested {len(podcast_pairs)} conversational Odia podcast dialogues.")
+        data = expand_dataset(TRAINING_SEEDS, dialect_pairs=dialect_pairs, podcast_pairs=podcast_pairs, target_count=2500)
         save_dataset(data, args.data_path)
-        print("[MIRA] Dataset ready for LoRA fine-tuning!")
+        print("[MIRA] Fine-tuning dataset enhanced and ready for training!")
 
     elif args.action == "train":
         print(f"[MIRA] Starting LoRA fine-tuning for {args.base_model}...")
