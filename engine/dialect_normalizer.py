@@ -144,6 +144,59 @@ DIALECT_TO_STANDARD = {
 }
 
 
+QUESTION_WORDS = {
+    "କେମିତି", "କଣ", "କାହିଁକି", "କେଉଁଠି", "କେଉଁଠାରେ", "କେବେ", "କିଏ", "କାହାର", "କେତେ", 
+    "କି", "କାହିଁକିନି", "କେନ୍ତା", "କାଣା", "କାହିଁ", "କାହାକୁ", "କିପରି", "କୋଉଠି", "କେଣେ"
+}
+
+EXCLAMATORY_WORDS = {
+    "ନମସ୍କାର", "ପ୍ରଣାମ", "ସ୍ୱାଗତ", "ଅଭିନନ୍ଦନ", "ଧନ୍ୟବାଦ", "ଶୁଭେଚ୍ଛା",
+    "ଆରେ", "ବାଃ", "ବାହ", "ସୁନ୍ଦର", "ଚମତ୍କାର", "ଶାବାସ", "ସାବଧାନ", "ଜଲ୍ଦି", "ଓହୋ"
+}
+
+EXCLAMATORY_PHRASES = [
+    "ଜୟ ଜଗନ୍ନାଥ", "ଜୟ ଜଗନ୍ନାଥ ମହାପ୍ରଭୁ", "ଶୁଭ ସକାଳ", "ଶୁଭ ସନ୍ଧ୍ୟା", "ଶୁଭ ରାତ୍ରି"
+]
+
+
+def restore_emotion_punctuation(text: str) -> Tuple[str, str]:
+    """
+    Understands sentence emotion (exclamatory/welcoming, interrogative, declarative)
+    and restores natural Odia punctuation (!, ?, ।) while stripping trailing filler noise.
+    """
+    text = text.strip()
+    # 1. Clean trailing stray acoustic filler particles (e.g. " ତ", " ଟ")
+    if text.endswith(" ତ") or text.endswith(" ଟ"):
+        text = text[:-2].rstrip()
+
+    if not text:
+        return text, "neutral"
+
+    # Already punctuated
+    if text.endswith(("।", "॥", "?", "!", ".")):
+        return text, "punctuated"
+
+    tokens = set(tokenize(text))
+
+    # 2. Emotional Analysis:
+    # A. Interrogative (Question emotion)
+    if bool(tokens & QUESTION_WORDS):
+        return text + " ?", "question"
+
+    # B. Exclamatory / Greeting / Enthusiastic emotion
+    is_exclamatory = bool(tokens & EXCLAMATORY_WORDS) or any(p in text for p in EXCLAMATORY_PHRASES)
+    if is_exclamatory:
+        # Natural pause comma after initial greeting
+        if text.startswith("ନମସ୍କାର ") and not text.startswith(("ନମସ୍କାର,", "ନମସ୍କାର!")):
+            text = "ନମସ୍କାର, " + text[len("ନମସ୍କାର "):]
+        elif text.startswith("ଜୟ ଜଗନ୍ନାଥ ") and not text.startswith(("ଜୟ ଜଗନ୍ନାଥ,", "ଜୟ ଜଗନ୍ନାଥ!")):
+            text = "ଜୟ ଜଗନ୍ନାଥ, " + text[len("ଜୟ ଜଗନ୍ନାଥ "):]
+        return text + " !", "exclamatory"
+
+    # C. Declarative Statement
+    return text + " ।", "statement"
+
+
 class DialectNormalizer:
     """MIRA Fast Normalizer: Normalizes regional Odia speech to Standard written Odia in <0.1ms."""
 
@@ -179,16 +232,15 @@ class DialectNormalizer:
                 changes.append(f"acoustic_repair: '{bad_p}' -> '{good_p}'")
 
         if target_style == "verbatim" or dialect == "Standard Odia" or dialect not in DIALECT_TO_STANDARD:
-            # Intelligent punctuation restoration
-            if normalized and not normalized.endswith(("।", "॥", "?", "!", ".")):
-                is_question = bool(re.search(r"\b(କେମିତି|କଣ|କାହିଁକି|କେଉଁଠି|କେବେ|କି|କିଏ|କାହାର)\b", normalized))
-                normalized += " ?" if is_question else " ।"
+            # Intelligent sentence emotion & punctuation restoration
+            normalized, emotion = restore_emotion_punctuation(normalized)
             return {
                 "dialect": dialect,
                 "region": detection.get("region", "Coastal/Standard"),
                 "districts": detection.get("districts", []),
                 "original": text,
                 "normalized": normalized,
+                "emotion": emotion,
                 "confidence": detection["confidence"],
                 "changes_made": changes
             }
@@ -251,10 +303,8 @@ class DialectNormalizer:
                 deduped.append(w)
         final_normalized = " ".join(deduped).strip()
 
-        # Step 4: Intelligent Odia Punctuation Restoration
-        if final_normalized and not final_normalized.endswith(("।", "॥", "?", "!", ".")):
-            is_question = bool(re.search(r"\b(କେମିତି|କଣ|କାହିଁକି|କେଉଁଠି|କେବେ|କି|କିଏ|କାହାର)\b", final_normalized))
-            final_normalized += " ?" if is_question else " ।"
+        # Step 4: Intelligent Sentence Emotion & Punctuation Restoration
+        final_normalized, emotion = restore_emotion_punctuation(final_normalized)
 
         return {
             "dialect": dialect,
@@ -262,6 +312,7 @@ class DialectNormalizer:
             "districts": detection["districts"],
             "original": text,
             "normalized": final_normalized,
+            "emotion": emotion,
             "confidence": detection["confidence"],
             "changes_made": changes
         }

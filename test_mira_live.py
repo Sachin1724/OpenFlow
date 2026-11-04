@@ -81,6 +81,8 @@ def test_single(text: str, translator=None):
     if det['districts']:
         print(f"🏛️  REPRESENTATIVE DISTS: {', '.join(det['districts'][:4])}")
     print(f"✨ MIRA NORMALIZED    : {norm['normalized']} (⏱️ {t_norm:.3f}ms)")
+    if norm.get("emotion"):
+        print(f"🎭 DETECTED EMOTION   : {norm['emotion'].upper()}")
     if norm["changes_made"]:
         print(f"🔄 TRANSFORMATIONS    : {', '.join(norm['changes_made'])}")
     if eng:
