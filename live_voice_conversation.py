@@ -43,7 +43,7 @@ TTS_MODEL_ID = "facebook/mms-tts-ory"
 SYSTEM_PROMPT = "You are MIRA, a natural Odia voice assistant. Respond naturally in authentic colloquial Odia with warm emotions, active listening, and proper discourse markers."
 
 class MiraLiveVoiceSession:
-    def __init__(self, voice_gender="female"):
+    def __init__(self, voice_gender="natural"):
         print("=" * 80)
         print("🎙️ INITIALIZING MIRA LIVE VOICE-TO-VOICE SYSTEM")
         print("=" * 80)
@@ -51,7 +51,7 @@ class MiraLiveVoiceSession:
         self.voice_gender = voice_gender
         self.device = "cuda:0" if torch.cuda.is_available() else "cpu"
         print(f"⚡ Compute Engine : {self.device} (NVIDIA RTX 4050 GPU Acceleration)")
-        print(f"🌸 Voice Persona  : {'MIRA Sweet Female Voice' if voice_gender == 'female' else 'Neutral Voice'}")
+        print(f"🔊 Voice Persona  : Crisp Natural Neural Voice (Zero Phase Fumbling)")
 
         # 1. IndicConformer ASR
         print("[1/4] Loading IndicConformer Odia ASR...")
@@ -147,17 +147,8 @@ class MiraLiveVoiceSession:
 
         full_audio = np.concatenate(audio_segments, axis=0)
 
-        # Apply MIRA Female Voice Transformation if selected
-        if self.voice_gender == "female":
-            # Pitch shift +5.5 semitones (F0 moves from 130Hz male to 225Hz female range)
-            tensor_audio = torch.from_numpy(full_audio).unsqueeze(0)
-            shifted = F.pitch_shift(tensor_audio, self.tts_sr, n_steps=5.5)
-            full_audio = shifted.squeeze(0).numpy()
-
-            # Vocal tract resonance and brightness filter
-            full_audio = full_audio * 1.15
-            full_audio = np.clip(full_audio, -0.98, 0.98)
-
+        # Expressive rendering: avoid destructive phase-vocoder DSP that causes fumbling.
+        # Clean, crisp neural VITS audio is preserved directly with natural pauses.
         return full_audio
 
     def speak(self, text: str):
@@ -372,11 +363,11 @@ class MiraLiveVoiceSession:
                 smooth_turnaround=True
             )
 
-            # 5. Live Speech Output with Punctuation Pauses & Female Voice
-            print(f"🔊 MIRA IS SPEAKING (with natural punctuation pauses)...")
+            # 5. Live Speech Output with Punctuation Pauses & Clean Neural Voice
+            print(f"🔊 MIRA IS SPEAKING (with natural punctuation pauses & crystal-clear audio)...")
             self.speak(reply)
 
 
 if __name__ == "__main__":
-    session = MiraLiveVoiceSession(voice_gender="female")
+    session = MiraLiveVoiceSession(voice_gender="natural")
     session.run_interactive_loop()
