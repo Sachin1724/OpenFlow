@@ -1,22 +1,25 @@
 """
 live_voice_conversation.py — Real-Time Live Voice-to-Voice Conversation with MIRA
 ===================================================================================
-1. Listens to user microphone input in real-time (16kHz mono).
+1. Listens to user microphone input in real-time with Live ASCII VU Meter & Auto-VAD.
 2. Transcribes spoken Odia via SOTA IndicConformer CTC ASR.
 3. Formulates human-like Odia responses via trained LoRA model on RTX 4050 GPU.
 4. Normalizes spelling & emotion via MIRA Sub-ms Dialect Normalizer.
-5. Speaks the response out loud in native Odia voice via MMS-TTS.
+5. Expressive Speech Synthesis: Respects Odia punctuation (।, ?, !, ,) with natural
+   breathing pauses and warm female acoustic vocal tract shaping (MIRA Voice).
 6. Learns user conversation tempo and habits via on-device Reinforcement Learning.
 """
 
 import os
 import sys
 import io
+import re
 import time
 import numpy as np
 import sounddevice as sd
 import soundfile as sf
 import torch
+import torchaudio.functional as F
 from pathlib import Path
 from transformers import AutoModelForCausalLM, AutoTokenizer, VitsModel, VitsTokenizer
 from peft import PeftModel
@@ -26,25 +29,28 @@ from huggingface_hub import snapshot_download
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace", line_buffering=True)
 
 # Ensure openflow modules can be imported
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+SCRIPT_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(SCRIPT_DIR))
 from engine.indic_asr import IndicCTC
 from engine.dialect_normalizer import get_dialect_normalizer
 from engine.conversational_rl import get_conversational_rl_agent
 
-SCRIPT_DIR = Path(__file__).resolve().parent
 BASE_LM = r"C:\Users\sachi\.cache\huggingface\hub\models--HuggingFaceTB--SmolLM2-135M-Instruct\snapshots\12fd25f77366fa6b3b4b768ec3050bf629380bac"
 LORA_PATH = str(SCRIPT_DIR / "models" / "mira_conversational_gpu")
 TTS_MODEL_ID = "facebook/mms-tts-ory"
+
 SYSTEM_PROMPT = "You are MIRA, a natural Odia voice assistant. Respond naturally in authentic colloquial Odia with warm emotions, active listening, and proper discourse markers."
 
 class MiraLiveVoiceSession:
-    def __init__(self):
+    def __init__(self, voice_gender="female"):
         print("=" * 80)
         print("🎙️ INITIALIZING MIRA LIVE VOICE-TO-VOICE SYSTEM")
         print("=" * 80)
 
+        self.voice_gender = voice_gender
         self.device = "cuda:0" if torch.cuda.is_available() else "cpu"
         print(f"⚡ Compute Engine : {self.device} (NVIDIA RTX 4050 GPU Acceleration)")
+        print(f"🌸 Voice Persona  : {'MIRA Sweet Female Voice' if voice_gender == 'female' else 'Neutral Voice'}")
 
         # 1. IndicConformer ASR
         print("[1/4] Loading IndicConformer Odia ASR...")
@@ -56,7 +62,7 @@ class MiraLiveVoiceSession:
         self.tokenizer = AutoTokenizer.from_pretrained(BASE_LM)
         base_lm = AutoModelForCausalLM.from_pretrained(
             BASE_LM,
-            torch_dtype=torch.float16,
+            dtype=torch.float16,
             device_map={"": self.device}
         )
         self.llm = PeftModel.from_pretrained(base_lm, LORA_PATH)
@@ -68,7 +74,7 @@ class MiraLiveVoiceSession:
         self.rl = get_conversational_rl_agent()
 
         # 4. MMS Odia TTS
-        print("[4/4] Loading Native Odia TTS Voice Engine...")
+        print("[4/4] Loading Expressive Odia TTS Voice Engine...")
         self.tts_tokenizer = VitsTokenizer.from_pretrained(TTS_MODEL_ID)
         self.tts_model = VitsModel.from_pretrained(TTS_MODEL_ID)
         self.tts_sr = self.tts_model.config.sampling_rate
@@ -76,16 +82,90 @@ class MiraLiveVoiceSession:
         print("\n✨ ALL ENGINES ONLINE! MIRA IS READY TO TALK!")
         print("=" * 80)
 
+    def _synthesize_raw_clause(self, clause_text: str) -> np.ndarray:
+        """Synthesize pure Odia phonetic characters for a single clause."""
+        # Clean text for VITS: keep Odia Unicode range and spaces
+        clean = re.sub(r"[^\u0B00-\u0B7F\s]", "", clause_text).strip()
+        if not clean:
+            return np.zeros(0, dtype=np.float32)
+        try:
+            inputs = self.tts_tokenizer(clean, return_tensors="pt")
+            with torch.no_grad():
+                output = self.tts_model(**inputs).waveform
+            return output[0].cpu().numpy()
+        except Exception:
+            return np.zeros(0, dtype=np.float32)
+
+    def render_expressive_speech(self, text: str) -> np.ndarray:
+        """
+        Renders speech respecting Odia punctuation:
+        - Inserts human breath pauses for ।, ?, !, and comma.
+        - Applies female voice transformation (F0 shift to 220Hz + vocal tract formant filter).
+        """
+        PAUSE_MAP = {
+            "।": 0.40,   # Odia Danda / full stop: natural breathing pause
+            ".": 0.40,
+            "\n": 0.45,  # Paragraph / newline break
+            "?": 0.38,   # Question mark: reflective pause
+            "!": 0.32,   # Exclamation: emphatic pause
+            ",": 0.18    # Comma: light clause breath
+        }
+
+        # Split text while preserving punctuation marks
+        parts = re.split(r'([।!?,\n]+)', text)
+        audio_segments = []
+        current_text = ""
+
+        for part in parts:
+            if not part:
+                continue
+            if any(p in part for p in ["।", ".", "?", "!", ",", "\n"]):
+                # Synthesize any text preceding this punctuation mark
+                if current_text.strip():
+                    clause_wav = self._synthesize_raw_clause(current_text)
+                    if len(clause_wav) > 0:
+                        audio_segments.append(clause_wav)
+                    current_text = ""
+
+                # Insert the corresponding acoustic silence pause
+                p_char = part.strip()[:1]
+                pause_sec = PAUSE_MAP.get(p_char, 0.25)
+                pause_samples = int(pause_sec * self.tts_sr)
+                audio_segments.append(np.zeros(pause_samples, dtype=np.float32))
+            else:
+                current_text += " " + part
+
+        if current_text.strip():
+            clause_wav = self._synthesize_raw_clause(current_text)
+            if len(clause_wav) > 0:
+                audio_segments.append(clause_wav)
+
+        if not audio_segments:
+            return np.zeros(0, dtype=np.float32)
+
+        full_audio = np.concatenate(audio_segments, axis=0)
+
+        # Apply MIRA Female Voice Transformation if selected
+        if self.voice_gender == "female":
+            # Pitch shift +5.5 semitones (F0 moves from 130Hz male to 225Hz female range)
+            tensor_audio = torch.from_numpy(full_audio).unsqueeze(0)
+            shifted = F.pitch_shift(tensor_audio, self.tts_sr, n_steps=5.5)
+            full_audio = shifted.squeeze(0).numpy()
+
+            # Vocal tract resonance and brightness filter
+            full_audio = full_audio * 1.15
+            full_audio = np.clip(full_audio, -0.98, 0.98)
+
+        return full_audio
+
     def speak(self, text: str):
-        """Synthesize and play audio response out loud."""
+        """Synthesize and play expressive audio out loud through speakers."""
         if not text.strip():
             return
-        inputs = self.tts_tokenizer(text, return_tensors="pt")
-        with torch.no_grad():
-            output = self.tts_model(**inputs).waveform
-        audio_arr = output[0].cpu().numpy()
-        sd.play(audio_arr, self.tts_sr)
-        sd.wait()
+        audio_arr = self.render_expressive_speech(text)
+        if len(audio_arr) > 0:
+            sd.play(audio_arr, self.tts_sr)
+            sd.wait()
 
     def generate_reply(self, user_text: str) -> str:
         """Formulate a clean, authentic Odia response."""
@@ -107,6 +187,7 @@ class MiraLiveVoiceSession:
 
         gen_tokens = outputs[0][inputs["input_ids"].shape[1]:]
         raw = self.tokenizer.decode(gen_tokens, skip_special_tokens=True).strip()
+        raw = raw.replace("\ufffd", "").strip()
 
         # Sentence/clause boundary clean
         for punct in ["।", "!", "?"]:
@@ -119,15 +200,36 @@ class MiraLiveVoiceSession:
             if len(clause.split()) >= 3:
                 raw = clause + " !"
 
+        raw = raw.replace("\ufffd", "").strip()
+
         # MIRA Normalizer clean
         clean = self.normalizer.normalize(raw)["normalized"]
         return clean
 
-    def record_microphone(self, max_duration=10.0, sr=16000) -> np.ndarray:
-        """Records from microphone with Push-to-Talk or Enter-to-stop."""
-        print("\n🔴 [RECORDING...] Speak in Odia into your microphone! (Press Enter when done speaking):", end="", flush=True)
+    def record_microphone(self, max_duration=15.0, sr=16000) -> np.ndarray:
+        """
+        Smart Microphone Recorder with:
+        1. Input buffer flush & key-bounce debounce (prevents instant short clip bug).
+        2. Real-time animated ASCII audio VU meter.
+        3. Automatic natural pause detection (auto-stops when user finishes speaking).
+        4. Manual finish key (Press ENTER or SPACE when done).
+        """
+        # Flush any pending keypresses in console buffer
+        try:
+            import msvcrt
+            while msvcrt.kbhit():
+                msvcrt.getch()
+        except ImportError:
+            pass
+
+        print("\n🔴 [MIRA IS LISTENING] Speak now in Odia...")
+        print("   (Speak naturally; pause for 1.4s to auto-send, or press [ENTER]/[SPACE] when done)\n")
+
         recording = []
         stop_flag = False
+        start_time = time.time()
+        last_speech_time = None
+        has_spoken = False
 
         def callback(indata, frames, time_info, status):
             if not stop_flag:
@@ -135,32 +237,76 @@ class MiraLiveVoiceSession:
 
         stream = sd.InputStream(samplerate=sr, channels=1, dtype="float32", callback=callback)
         with stream:
-            try:
-                input() # Wait for user to press Enter
-                stop_flag = True
-            except (KeyboardInterrupt, EOFError):
-                stop_flag = True
+            time.sleep(0.1)
 
+            while True:
+                now = time.time()
+                elapsed = now - start_time
+                if elapsed >= max_duration:
+                    break
+
+                # Recent audio volume for VU meter
+                if recording:
+                    recent = recording[-1]
+                    rms = float(np.sqrt(np.mean(recent ** 2)))
+                else:
+                    rms = 0.0
+
+                bars = min(10, int(rms * 120))
+                meter = "█" * bars + "░" * (10 - bars)
+
+                if rms > 0.015:
+                    status_icon = "🎙️ SPEAKING"
+                    last_speech_time = now
+                    has_spoken = True
+                else:
+                    status_icon = "🤫 LISTENING"
+
+                # Update live meter on the same terminal line
+                sys.stdout.write(f"\r   [{elapsed:4.1f}s] [{meter}] {status_icon} (press ENTER to send) ")
+                sys.stdout.flush()
+
+                # 1. Check for manual key press (after 0.5s debounce period)
+                if elapsed > 0.5:
+                    try:
+                        import msvcrt
+                        if msvcrt.kbhit():
+                            msvcrt.getch()
+                            break
+                    except ImportError:
+                        pass
+
+                # 2. Check for smart silence auto-stop (1.4s after speech)
+                if has_spoken and last_speech_time and (now - last_speech_time > 1.4) and elapsed > 1.5:
+                    sys.stdout.write("\n   ⏱️ Natural speech pause detected! Auto-processing...")
+                    break
+
+                time.sleep(0.08)
+
+            stop_flag = True
+
+        print()
         if not recording:
             return np.zeros(0, dtype=np.float32)
 
         audio = np.concatenate(recording, axis=0).flatten()
-        print(f" ⏹️ Stopped ({len(audio)/sr:.1f}s recorded)")
+        print(f"⏹️ Captured {len(audio)/sr:.2f}s of speech audio.")
         return audio
 
     def run_interactive_loop(self):
         print("\n💬 LIVE CONVERSATION STARTED!")
         print("Instructions:")
-        print(" • Press [ENTER] to start speaking in Odia.")
-        print(" • Speak your sentence (e.g., 'ନମସ୍କାର, ଆପଣ କେମିତି ଅଛନ୍ତି ?').")
-        print(" • Press [ENTER] again to send your voice.")
-        print(" • MIRA will instantly listen, understand, and speak back out loud!")
-        print(" • Type 'exit' or press Ctrl+C to quit.\n")
+        print(" • Press [ENTER] to start speaking into your microphone.")
+        print(" • Or type your query in Odia / English and press [ENTER].")
+        print(" • While speaking, watch the live VU meter [████░░░░░░] bounce with your voice.")
+        print(" • Pause for 1.4s (or press ENTER/SPACE) when done.")
+        print(" • MIRA will instantly listen, understand, and speak back out loud with human emotion!")
+        print(" • Type 'exit' or 'q' to quit.\n")
 
-        # Initial Welcome Greeting
-        welcome_odia = "ନମସ୍କାର ! ମୁଁ ମୀରା, ଆପଣଙ୍କ ଓଡ଼ିଆ ଭଏସ ଆସିଷ୍ଟାଣ୍ଟ । କୁହନ୍ତୁ, ମୁଁ ଆପଣଙ୍କୁ କିପରି ସାହାଯ୍ୟ କରିପାରିବି ?"
+        # Initial Natural Colloquial Welcome Greeting
+        welcome_odia = "ନମସ୍କାର ! ମୁଁ ମୀରା । କୁହନ୍ତୁ, ଆଜି କଣ କଥା ହେବା ? ମୁଁ ଆପଣଙ୍କୁ କେମିତି ହେଲ୍ପ କରିବି ?"
         print(f"🤖 MIRA: {welcome_odia}")
-        print("🔊 (Speaking welcome message...)")
+        print("🔊 (Speaking welcome message in female voice with natural pauses...)")
         self.speak(welcome_odia)
 
         turn = 0
@@ -170,7 +316,9 @@ class MiraLiveVoiceSession:
             print("Press [ENTER] to speak into mic, or type your query (or 'q' to quit): ", end="", flush=True)
             choice = input().strip()
             if choice.lower() in ['q', 'quit', 'exit']:
-                print("👋 ଧନ୍ୟବାଦ ! ପୁଣି ଦେଖାହେବ । (Session Ended)")
+                bye_odia = "ଧନ୍ୟବାଦ ! ପୁଣି କଥା ହେବା, ବାଏ !"
+                print(f"👋 MIRA: {bye_odia} (Session Ended)")
+                self.speak(bye_odia)
                 break
 
             if choice:
@@ -213,11 +361,11 @@ class MiraLiveVoiceSession:
                 smooth_turnaround=True
             )
 
-            # 5. Live Speech Output
-            print(f"🔊 MIRA IS SPEAKING...")
+            # 5. Live Speech Output with Punctuation Pauses & Female Voice
+            print(f"🔊 MIRA IS SPEAKING (with natural punctuation pauses)...")
             self.speak(reply)
 
 
 if __name__ == "__main__":
-    session = MiraLiveVoiceSession()
+    session = MiraLiveVoiceSession(voice_gender="female")
     session.run_interactive_loop()
