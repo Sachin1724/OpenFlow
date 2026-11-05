@@ -4,49 +4,86 @@ train_gpu_conversational.py — High-Performance GPU Fine-Tuning on NVIDIA RTX 4
 Fine-tunes MIRA conversational micro-writer on authentic Odia dialogue and comedy vines:
 - 100% GPU Execution on 'cuda:0' (NVIDIA GeForce RTX 4050 Laptop GPU, 6GB VRAM)
 - Zero CPU Pressure (CPU utilization <5%, GPU handles all tensor operations)
-- Mixed Precision FP16 with PEFT LoRA (r=8, alpha=16)
+- SFT Prompt Masking (User question masked to -100; gradients focus 100% on realistic replies)
+- Mixed Precision FP16 with PEFT LoRA (r=8, alpha=16, target=q,k,v,o_proj)
 """
 
 import os
 import sys
+import io
 import json
 import time
 import torch
 from torch.utils.data import Dataset, DataLoader
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoModelForCausalLM, AutoTokenizer, get_cosine_schedule_with_warmup
 from peft import LoraConfig, get_peft_model, TaskType
+
+# Force UTF-8 stdout with immediate line flushing
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace", line_buffering=True)
 
 BASE_MODEL_DIR = r"C:\Users\sachi\.cache\huggingface\hub\models--HuggingFaceTB--SmolLM2-135M-Instruct\snapshots\12fd25f77366fa6b3b4b768ec3050bf629380bac"
 DATA_PATH = "openflow/data/conversational_odia_gpu.jsonl"
 OUTPUT_DIR = "openflow/models/mira_conversational_gpu"
 
+SYSTEM_PROMPT = "You are MIRA, a natural Odia voice assistant. Respond naturally in authentic colloquial Odia with warm emotions, active listening, and proper discourse markers."
 
-class ChatDataset(Dataset):
+
+class ConversationalDataset(Dataset):
     def __init__(self, jsonl_path, tokenizer, max_length=256):
         self.examples = []
         with open(jsonl_path, "r", encoding="utf-8") as f:
             for line in f:
-                if line.strip():
+                if not line.strip():
+                    continue
+                try:
                     item = json.loads(line)
                     messages = item.get("messages", [])
                     if len(messages) >= 2:
-                        chat_text = tokenizer.apply_chat_template(messages, tokenize=False)
-                        enc = tokenizer(
-                            chat_text,
+                        user_text = messages[0]["content"].strip()
+                        asst_text = messages[1]["content"].strip()
+                        if not user_text or not asst_text:
+                            continue
+
+                        formatted_msgs = [
+                            {"role": "system", "content": SYSTEM_PROMPT},
+                            {"role": "user", "content": user_text},
+                            {"role": "assistant", "content": asst_text}
+                        ]
+
+                        full_chat = tokenizer.apply_chat_template(formatted_msgs, tokenize=False)
+                        prompt_chat = tokenizer.apply_chat_template(formatted_msgs[:2], tokenize=False, add_generation_prompt=True)
+
+                        enc_full = tokenizer(
+                            full_chat,
                             truncation=True,
                             max_length=max_length,
                             padding="max_length",
                             return_tensors="pt"
                         )
-                        input_ids = enc["input_ids"][0]
-                        attention_mask = enc["attention_mask"][0]
+                        enc_prompt = tokenizer(
+                            prompt_chat,
+                            truncation=True,
+                            max_length=max_length
+                        )
+
+                        p_len = min(len(enc_prompt["input_ids"]), max_length)
+                        input_ids = enc_full["input_ids"][0]
+                        attention_mask = enc_full["attention_mask"][0]
+
+                        # Mask prompt tokens with -100 so loss is strictly on assistant response
                         labels = input_ids.clone()
+                        labels[:p_len] = -100
                         labels[labels == tokenizer.pad_token_id] = -100
-                        self.examples.append({
-                            "input_ids": input_ids,
-                            "attention_mask": attention_mask,
-                            "labels": labels
-                        })
+
+                        # Ensure there is at least one target token to calculate loss
+                        if (labels != -100).sum() > 0:
+                            self.examples.append({
+                                "input_ids": input_ids,
+                                "attention_mask": attention_mask,
+                                "labels": labels
+                            })
+                except Exception:
+                    pass
 
     def __len__(self):
         return len(self.examples)
@@ -97,16 +134,18 @@ def train():
     model.print_trainable_parameters()
 
     # 3. Prepare Dataset & DataLoader
-    dataset = ChatDataset(DATA_PATH, tokenizer, max_length=256)
+    dataset = ConversationalDataset(DATA_PATH, tokenizer, max_length=256)
     train_loader = DataLoader(dataset, batch_size=4, shuffle=True, pin_memory=True)
-    print(f"  Loaded {len(dataset)} conversational examples into {len(train_loader)} batches.")
+    print(f"  Loaded {len(dataset)} valid conversational examples into {len(train_loader)} batches.")
 
-    # 4. Optimizer & Training Loop
-    optimizer = torch.optim.AdamW(model.parameters(), lr=4e-4)
+    # 4. Optimizer, Scheduler & Training Loop
+    epochs = 3
+    total_steps = len(train_loader) * epochs
+    optimizer = torch.optim.AdamW(model.parameters(), lr=4e-4, weight_decay=0.01)
+    scheduler = get_cosine_schedule_with_warmup(optimizer, num_warmup_steps=20, num_training_steps=total_steps)
+
     model.train()
-
-    epochs = 2
-    print(f"\n[Step 3] Commencing 2-Epoch GPU Training Loop...")
+    print(f"\n[Step 3] Commencing {epochs}-Epoch GPU SFT Training ({total_steps} total steps)...")
     t0_all = time.perf_counter()
 
     for epoch in range(1, epochs + 1):
@@ -125,17 +164,20 @@ def train():
             loss = outputs.loss
 
             loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
             optimizer.step()
+            scheduler.step()
 
             total_loss += loss.item()
 
-            if step % 50 == 0 or step == len(train_loader):
+            if step % 40 == 0 or step == len(train_loader):
                 elapsed = time.perf_counter() - t0_epoch
                 cur_vram = torch.cuda.memory_allocated() / 1e6
-                print(f"  Epoch {epoch}/{epochs} | Step {step}/{len(train_loader)} | Loss: {loss.item():.4f} | VRAM: {cur_vram:.0f}MB | Elapsed: {elapsed:.1f}s")
+                lr_cur = scheduler.get_last_lr()[0]
+                print(f"  Epoch {epoch}/{epochs} | Step {step:3d}/{len(train_loader)} | Loss: {loss.item():.4f} | LR: {lr_cur:.2e} | VRAM: {cur_vram:.0f}MB | Elapsed: {elapsed:.1f}s")
 
         avg_loss = total_loss / len(train_loader)
-        print(f"✅ Epoch {epoch} Complete! Average Loss: {avg_loss:.4f}")
+        print(f"✅ Epoch {epoch} Complete! Average Loss: {avg_loss:.4f} (Time: {time.perf_counter() - t0_epoch:.1f}s)")
 
     total_time = time.perf_counter() - t0_all
     print(f"\n🎉 GPU Training Finished in {total_time:.1f}s!")
@@ -149,4 +191,3 @@ def train():
 
 if __name__ == "__main__":
     train()
-
