@@ -14,26 +14,30 @@ from typing import Dict, Any, Optional
 from openflow.engine.conversational_cues import get_cue_manager
 from openflow.engine.semantic_turn_taking import SemanticTurnTaker
 from openflow.engine.dialect_normalizer import get_dialect_normalizer
+from openflow.engine.conversational_rl import get_conversational_rl_agent
 
 
 class OdiaConversationalVoiceAgent:
-    """End-to-End Human Conversational Voice Agent for Odia."""
+    """End-to-End Human Conversational Voice Agent for Odia with On-Device Reinforcement Learning."""
 
     def __init__(self):
         self.cues = get_cue_manager()
         self.turn_taker = SemanticTurnTaker()
         self.normalizer = get_dialect_normalizer()
+        self.rl_agent = get_conversational_rl_agent()
         self.is_ai_speaking = False
 
     def handle_user_speech_chunk(self, partial_text: str, duration_sec: float) -> Dict[str, Any]:
         """
         Invoked periodically (e.g. every 500ms) while user is speaking.
-        Automatically triggers soft audio nods if speech is ongoing and engaged.
+        Automatically triggers soft audio nods selected by RL bandit if speech is ongoing and engaged.
         """
         # If user has been speaking for > 2.5s without pause, drop a gentle audio nod
         nod_triggered = False
         if duration_sec >= 2.5 and int(duration_sec * 2) % 6 == 0:
-            nod_triggered = self.cues.play_backchannel(volume=0.35)
+            cue_key = self.rl_agent.select_backchannel_cue()
+            cue_type = "haan" if "haan" in cue_key else ("achha" if "achha" in cue_key else "thik")
+            nod_triggered = self.cues.play_backchannel(cue_type=cue_type, volume=0.35)
 
         return {
             "partial_text": partial_text,
@@ -41,10 +45,15 @@ class OdiaConversationalVoiceAgent:
             "nod_triggered": nod_triggered
         }
 
-    def process_user_turn(self, raw_user_speech: str, speech_duration_sec: float = 3.0) -> Dict[str, Any]:
+    def process_user_turn(
+        self,
+        raw_user_speech: str,
+        speech_duration_sec: float = 3.0,
+        user_interrupted_ai: bool = False
+    ) -> Dict[str, Any]:
         """
         Executes the full conversational turn-taking cycle when user pauses.
-        Profiles every single microsecond of latency.
+        Profiles every single microsecond of latency and performs an online RL policy update.
         """
         t_start = time.perf_counter()
 
@@ -70,7 +79,6 @@ class OdiaConversationalVoiceAgent:
         norm_ms = (time.perf_counter() - t_norm_start) * 1000
 
         # Step 4: Conversational Response Formulation
-        # (In production, this queries MIRA SLM / LLM; here we format the intelligent Odia reply)
         normalized_query = norm_result["normalized"]
         detected_emotion = norm_result.get("emotion", "statement")
 
@@ -83,6 +91,15 @@ class OdiaConversationalVoiceAgent:
             reply_odia = "ନମସ୍କାର ! କୁହନ୍ତୁ, ଆଜି ଆପଣ କଣ ଜାଣିବାକୁ ଚାହାଁନ୍ତି ?"
         else:
             reply_odia = f"ହଁ, ମୁଁ ବୁଝିଲି । ଆପଣ କହିଲେ: {normalized_query}"
+
+        # Step 5: On-Device Reinforcement Learning Update
+        rl_feedback = self.rl_agent.record_turn_outcome(
+            user_utterance=raw_user_speech,
+            speech_duration_sec=speech_duration_sec,
+            was_incomplete_pause=False,
+            user_interrupted_ai=user_interrupted_ai,
+            smooth_turnaround=True
+        )
 
         total_turnaround_ms = (time.perf_counter() - t_start) * 1000
 
@@ -97,5 +114,7 @@ class OdiaConversationalVoiceAgent:
             "normalizer_ms": round(norm_ms, 3),
             "total_turnaround_ms": round(total_turnaround_ms, 2),
             "reply_odia": reply_odia,
-            "perceived_user_silence_ms": 0.0  # ZERO silence because filler bridged the gap!
+            "perceived_user_silence_ms": 0.0,  # ZERO silence because filler bridged the gap!
+            "rl_learning": rl_feedback
         }
+

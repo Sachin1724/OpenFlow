@@ -6,7 +6,12 @@ Solves the two biggest voice-to-voice problems:
 2. "Don't Stop When I Nod": Ignores short user backchannels ("ହଁ", "ଆଚ୍ଛା") while AI is speaking.
 """
 
-from typing import Dict, Any, Tuple
+from typing import Dict, Any, Tuple, Optional
+
+try:
+    from openflow.engine.conversational_rl import get_conversational_rl_agent
+except ImportError:
+    get_conversational_rl_agent = None
 
 # Words that indicate the user is mid-thought and holding the conversational floor
 INCOMPLETE_CONJUNCTIONS = {
@@ -27,14 +32,26 @@ USER_BACKCHANNEL_TOKENS = {
 class SemanticTurnTaker:
     """Evaluates conversational flow, clause completeness, and backchannels for Odia dialogue."""
 
+    def __init__(self):
+        self.rl_agent = get_conversational_rl_agent() if get_conversational_rl_agent else None
+
     def evaluate_pause(self, current_transcript: str) -> Dict[str, Any]:
         """
         Evaluates whether an observed pause in user speech is a genuine sentence completion
         or a mid-utterance cognitive pause where the AI should wait patiently.
+        Timeouts adapt continuously based on the user's reinforcement-learned speaking tempo.
         """
         text = current_transcript.strip()
+        
+        # Adaptive baseline from RL profile
+        base_timeout = 350
+        incomplete_timeout = 1300
+        if self.rl_agent:
+            base_timeout = self.rl_agent.get_adaptive_turn_timeout(is_incomplete_clause=False)
+            incomplete_timeout = self.rl_agent.get_adaptive_turn_timeout(is_incomplete_clause=True)
+
         if not text:
-            return {"action": "WAIT_USER", "reason": "empty", "timeout_ms": 1500}
+            return {"action": "WAIT_USER", "reason": "empty", "timeout_ms": incomplete_timeout + 200}
 
         tokens = text.split()
         last_word = tokens[-1]
@@ -44,7 +61,7 @@ class SemanticTurnTaker:
             return {
                 "action": "WAIT_USER",
                 "reason": f"trailing_conjunction: '{last_word}'",
-                "timeout_ms": 1400,
+                "timeout_ms": incomplete_timeout + 100,
                 "is_complete": False
             }
 
@@ -53,7 +70,7 @@ class SemanticTurnTaker:
             return {
                 "action": "WAIT_USER",
                 "reason": f"trailing_postposition: '{last_word}'",
-                "timeout_ms": 1200,
+                "timeout_ms": incomplete_timeout,
                 "is_complete": False
             }
 
@@ -62,7 +79,7 @@ class SemanticTurnTaker:
             return {
                 "action": "WAIT_USER",
                 "reason": "trailing_punctuation_pause",
-                "timeout_ms": 1100,
+                "timeout_ms": incomplete_timeout - 100,
                 "is_complete": False
             }
 
@@ -70,7 +87,7 @@ class SemanticTurnTaker:
         return {
             "action": "CLAIM_TURN",
             "reason": "syntactically_complete",
-            "timeout_ms": 350,
+            "timeout_ms": base_timeout,
             "is_complete": True
         }
 
@@ -95,3 +112,4 @@ class SemanticTurnTaker:
             return True, f"user_backchannel: '{clean}'"
 
         return False, "genuine_interruption"
+
