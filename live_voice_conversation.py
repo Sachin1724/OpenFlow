@@ -34,6 +34,7 @@ sys.path.insert(0, str(SCRIPT_DIR))
 from engine.indic_asr import IndicCTC
 from engine.dialect_normalizer import get_dialect_normalizer
 from engine.conversational_rl import get_conversational_rl_agent
+from engine.phonetic_translit import prepare_text_for_tts
 
 BASE_LM = r"C:\Users\sachi\.cache\huggingface\hub\models--HuggingFaceTB--SmolLM2-135M-Instruct\snapshots\12fd25f77366fa6b3b4b768ec3050bf629380bac"
 LORA_PATH = str(SCRIPT_DIR / "models" / "mira_conversational_gpu")
@@ -84,8 +85,9 @@ class MiraLiveVoiceSession:
 
     def _synthesize_raw_clause(self, clause_text: str) -> np.ndarray:
         """Synthesize pure Odia phonetic characters for a single clause."""
-        # Clean text for VITS: keep Odia Unicode range and spaces
-        clean = re.sub(r"[^\u0B00-\u0B7F\s]", "", clause_text).strip()
+        # Convert any middle English words into Odia phonetics so MMS-TTS speaks them!
+        phonetic_text = prepare_text_for_tts(clause_text)
+        clean = re.sub(r"[^\u0B00-\u0B7F\s]", "", phonetic_text).strip()
         if not clean:
             return np.zeros(0, dtype=np.float32)
         try:
@@ -187,7 +189,16 @@ class MiraLiveVoiceSession:
 
         gen_tokens = outputs[0][inputs["input_ids"].shape[1]:]
         raw = self.tokenizer.decode(gen_tokens, skip_special_tokens=True).strip()
-        raw = raw.replace("\ufffd", "").strip()
+
+        # 1. Clean unicode replacement characters and dangling byte glitches
+        raw = raw.replace("\ufffd", "").replace("", "").strip()
+        # 2. Clean glued Latin fragments inside Odia words (e.g. 'ଞj୍ତର' -> 'ଞ୍ତର')
+        raw = re.sub(r'([\u0B00-\u0B7F]+)[a-zA-Z]+', r'\1', raw)
+        raw = re.sub(r'[a-zA-Z]+([\u0B00-\u0B7F]+)', r'\1', raw)
+        # 3. Clean stray single Latin characters
+        raw = re.sub(r'(?<=\s)[a-zA-Z](?=\s)', '', raw)
+        # 4. Remove hallucinated BPE tokens
+        raw = re.sub(r'\b(ilantro|cilantro)\b', 'ଧନିଆ', raw, flags=re.IGNORECASE)
 
         # Sentence/clause boundary clean
         for punct in ["।", "!", "?"]:
