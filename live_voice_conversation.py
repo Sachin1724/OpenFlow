@@ -83,9 +83,8 @@ class MiraLiveVoiceSession:
         print("\n✨ ALL ENGINES ONLINE! MIRA IS READY TO TALK!")
         print("=" * 80)
 
-    def _synthesize_raw_clause(self, clause_text: str) -> np.ndarray:
+    def _synthesize_raw_clause(self, clause_text: str, speaking_rate: float = 1.0) -> np.ndarray:
         """Synthesize pure Odia phonetic characters for a single clause."""
-        # Convert any middle English words into Odia phonetics so MMS-TTS speaks them!
         phonetic_text = prepare_text_for_tts(clause_text)
         clean = re.sub(r"[^\u0B00-\u0B7F\s]", "", phonetic_text).strip()
         if not clean:
@@ -93,27 +92,36 @@ class MiraLiveVoiceSession:
         try:
             inputs = self.tts_tokenizer(clean, return_tensors="pt")
             with torch.no_grad():
-                output = self.tts_model(**inputs).waveform
-            return output[0].cpu().numpy()
+                output = self.tts_model(**inputs, speaking_rate=speaking_rate).waveform
+            audio = output[0].cpu().numpy()
+            
+            # 40ms acoustic fade-out before punctuation
+            taper_len = min(int(0.04 * self.tts_sr), len(audio))
+            if taper_len > 0:
+                taper = np.linspace(1.0, 0.05, taper_len, dtype=np.float32)
+                audio[-taper_len:] *= taper
+            return audio
         except Exception:
             return np.zeros(0, dtype=np.float32)
 
     def render_expressive_speech(self, text: str) -> np.ndarray:
         """
-        Renders speech respecting Odia punctuation:
-        - Inserts human breath pauses for ।, ?, !, and comma.
-        - Applies female voice transformation (F0 shift to 220Hz + vocal tract formant filter).
+        Renders speech respecting Odia punctuation with calibrated prosody:
+        - Statement slows down slightly before full stops (speaking_rate=0.92).
+        - Comma (,): 120ms micro-stop (audible punctuation without breaking sentence flow).
+        - Full stop (। or .): 250ms statement completion breath.
+        - Question (?): 260ms reflective pause.
+        - Exclamation (!): 200ms energetic pause.
         """
         PAUSE_MAP = {
-            "।": 0.40,   # Odia Danda / full stop: natural breathing pause
-            ".": 0.40,
-            "\n": 0.45,  # Paragraph / newline break
-            "?": 0.38,   # Question mark: reflective pause
-            "!": 0.32,   # Exclamation: emphatic pause
-            ",": 0.18    # Comma: light clause breath
+            ",": 0.12,   # Comma: brief 120ms micro-stop
+            "।": 0.25,   # Full Stop: 250ms natural completion breath
+            ".": 0.25,
+            "?": 0.26,   # Question: 260ms
+            "!": 0.20,   # Exclamation: 200ms
+            "\n": 0.30
         }
 
-        # Split text while preserving punctuation marks
         parts = re.split(r'([।!?,\n]+)', text)
         audio_segments = []
         current_text = ""
@@ -122,23 +130,24 @@ class MiraLiveVoiceSession:
             if not part:
                 continue
             if any(p in part for p in ["।", ".", "?", "!", ",", "\n"]):
-                # Synthesize any text preceding this punctuation mark
+                p_char = part.strip()[:1]
+                is_full_stop = p_char in ["।", ".", "?"]
+                rate = 0.92 if is_full_stop else 1.0
+
                 if current_text.strip():
-                    clause_wav = self._synthesize_raw_clause(current_text)
+                    clause_wav = self._synthesize_raw_clause(current_text, speaking_rate=rate)
                     if len(clause_wav) > 0:
                         audio_segments.append(clause_wav)
                     current_text = ""
 
-                # Insert the corresponding acoustic silence pause
-                p_char = part.strip()[:1]
-                pause_sec = PAUSE_MAP.get(p_char, 0.25)
+                pause_sec = PAUSE_MAP.get(p_char, 0.20)
                 pause_samples = int(pause_sec * self.tts_sr)
                 audio_segments.append(np.zeros(pause_samples, dtype=np.float32))
             else:
                 current_text += " " + part
 
         if current_text.strip():
-            clause_wav = self._synthesize_raw_clause(current_text)
+            clause_wav = self._synthesize_raw_clause(current_text, speaking_rate=1.0)
             if len(clause_wav) > 0:
                 audio_segments.append(clause_wav)
 

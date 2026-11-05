@@ -48,7 +48,7 @@ class VoiceStudioCloner:
         print(f"✨ Default Active Reference Voice: {self.current_speaker_name}")
         print("=" * 80)
 
-    def synthesize_clause(self, clause_text: str) -> np.ndarray:
+    def synthesize_clause(self, clause_text: str, speaking_rate: float = 1.0) -> np.ndarray:
         """Synthesize pure Odia phonetic characters for a single clause."""
         phonetic = prepare_text_for_tts(clause_text)
         clean = re.sub(r"[^\u0B00-\u0B7F\s]", "", phonetic).strip()
@@ -57,20 +57,25 @@ class VoiceStudioCloner:
         try:
             inputs = self.tokenizer(clean, return_tensors="pt")
             with torch.no_grad():
-                output = self.model(**inputs).waveform
-            return output[0].cpu().numpy()
+                output = self.model(**inputs, speaking_rate=speaking_rate).waveform
+            audio = output[0].cpu().numpy()
+            taper_len = min(int(0.04 * self.sr), len(audio))
+            if taper_len > 0:
+                taper = np.linspace(1.0, 0.05, taper_len, dtype=np.float32)
+                audio[-taper_len:] *= taper
+            return audio
         except Exception:
             return np.zeros(0, dtype=np.float32)
 
     def render_speech(self, text: str) -> np.ndarray:
-        """Render speech with punctuation pauses and English loanword transliteration."""
+        """Render speech with punctuation pauses, deceleration, and English loanword transliteration."""
         PAUSE_MAP = {
-            "।": 0.40,
-            ".": 0.40,
-            "\n": 0.45,
-            "?": 0.38,
-            "!": 0.32,
-            ",": 0.18
+            ",": 0.12,   # Comma: brief 120ms micro-stop
+            "।": 0.25,   # Full Stop: 250ms completion breath
+            ".": 0.25,
+            "?": 0.26,   # Question: 260ms
+            "!": 0.20,   # Exclamation: 200ms
+            "\n": 0.30
         }
         parts = re.split(r'([।!?,\n]+)', text)
         audio_segments = []
@@ -80,20 +85,23 @@ class VoiceStudioCloner:
             if not part:
                 continue
             if any(p in part for p in ["।", ".", "?", "!", ",", "\n"]):
+                p_char = part.strip()[:1]
+                is_full_stop = p_char in ["।", ".", "?"]
+                rate = 0.92 if is_full_stop else 1.0
+
                 if current_text.strip():
-                    clause_wav = self.synthesize_clause(current_text)
+                    clause_wav = self.synthesize_clause(current_text, speaking_rate=rate)
                     if len(clause_wav) > 0:
                         audio_segments.append(clause_wav)
                     current_text = ""
 
-                p_char = part.strip()[:1]
-                pause_sec = PAUSE_MAP.get(p_char, 0.25)
+                pause_sec = PAUSE_MAP.get(p_char, 0.20)
                 audio_segments.append(np.zeros(int(pause_sec * self.sr), dtype=np.float32))
             else:
                 current_text += " " + part
 
         if current_text.strip():
-            clause_wav = self.synthesize_clause(current_text)
+            clause_wav = self.synthesize_clause(current_text, speaking_rate=1.0)
             if len(clause_wav) > 0:
                 audio_segments.append(clause_wav)
 
@@ -190,3 +198,4 @@ class VoiceStudioCloner:
 if __name__ == "__main__":
     cloner = VoiceStudioCloner()
     cloner.interactive_menu()
+
