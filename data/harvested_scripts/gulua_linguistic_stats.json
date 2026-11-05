@@ -1,0 +1,26 @@
+{
+  "file": "gulua",
+  "duration_seconds": 1744.26,
+  "transcription_seconds": 79.25,
+  "speed_factor": 22.0,
+  "total_words_spoken": 2779,
+  "speech_rate_words_per_minute": 95.6,
+  "emotions_breakdown": {
+    "statement": 67,
+    "question": 45,
+    "exclamatory": 5
+  },
+  "key_discourse_particles": {
+    "ପରା": 1,
+    "ବେ": 0,
+    "ସେଇଠୁ": 0,
+    "ଆଜ୍ଞା": 0,
+    "ଭାଇନା": 0,
+    "ମାନେ": 9,
+    "ହଁ": 19,
+    "ଆଚ୍ଛା": 3,
+    "ଠିକ୍": 2,
+    "ଧତ୍": 0,
+    "ବାବୁ": 2
+  }
+}

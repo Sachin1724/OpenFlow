@@ -1,0 +1,26 @@
+{
+  "file": "kishore",
+  "duration_seconds": 3160.98,
+  "transcription_seconds": 143.96,
+  "speed_factor": 22.0,
+  "total_words_spoken": 7384,
+  "speech_rate_words_per_minute": 140.2,
+  "emotions_breakdown": {
+    "statement": 101,
+    "question": 104,
+    "exclamatory": 6
+  },
+  "key_discourse_particles": {
+    "ପରା": 2,
+    "ବେ": 1,
+    "ସେଇଠୁ": 3,
+    "ଆଜ୍ଞା": 0,
+    "ଭାଇନା": 22,
+    "ମାନେ": 61,
+    "ହଁ": 47,
+    "ଆଚ୍ଛା": 11,
+    "ଠିକ୍": 0,
+    "ଧତ୍": 0,
+    "ବାବୁ": 8
+  }
+}

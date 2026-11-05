@@ -1,0 +1,26 @@
+{
+  "file": "smita_mohanty",
+  "duration_seconds": 3906.64,
+  "transcription_seconds": 173.52,
+  "speed_factor": 22.5,
+  "total_words_spoken": 8394,
+  "speech_rate_words_per_minute": 128.9,
+  "emotions_breakdown": {
+    "statement": 122,
+    "question": 128,
+    "exclamatory": 11
+  },
+  "key_discourse_particles": {
+    "ପରା": 0,
+    "ବେ": 1,
+    "ସେଇଠୁ": 1,
+    "ଆଜ୍ଞା": 0,
+    "ଭାଇନା": 2,
+    "ମାନେ": 66,
+    "ହଁ": 26,
+    "ଆଚ୍ଛା": 3,
+    "ଠିକ୍": 12,
+    "ଧତ୍": 0,
+    "ବାବୁ": 4
+  }
+}

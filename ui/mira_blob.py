@@ -244,3 +244,4 @@ class MiraBlobAvatar(QWidget):
             mouth_w = current_radius * 0.28
             mouth_rect = QRectF(center.x() - mouth_w, mouth_y - 2, mouth_w * 2, 4)
             p.drawArc(mouth_rect, 190 * 16, 160 * 16)
+

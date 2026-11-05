@@ -1,0 +1,26 @@
+{
+  "file": "raju_das",
+  "duration_seconds": 1557.57,
+  "transcription_seconds": 71.63,
+  "speed_factor": 21.7,
+  "total_words_spoken": 2232,
+  "speech_rate_words_per_minute": 86.0,
+  "emotions_breakdown": {
+    "statement": 52,
+    "question": 49,
+    "exclamatory": 3
+  },
+  "key_discourse_particles": {
+    "ପରା": 0,
+    "ବେ": 0,
+    "ସେଇଠୁ": 0,
+    "ଆଜ୍ଞା": 0,
+    "ଭାଇନା": 0,
+    "ମାନେ": 2,
+    "ହଁ": 7,
+    "ଆଚ୍ଛା": 0,
+    "ଠିକ୍": 1,
+    "ଧତ୍": 0,
+    "ବାବୁ": 9
+  }
+}

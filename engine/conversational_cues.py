@@ -141,3 +141,4 @@ def get_cue_manager() -> ConversationalCueManager:
     if _cue_manager is None:
         _cue_manager = ConversationalCueManager()
     return _cue_manager
+
