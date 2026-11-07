@@ -1,0 +1,142 @@
+[
+  {
+    "stem": "bench_sambalpuri_odia",
+    "wav_path": "C:\\Users\\sachi\\Music\\rea\\openflow\\scratch\\bench_sambalpuri_odia.wav",
+    "token_path": "C:\\Users\\sachi\\Music\\rea\\openflow\\alm\\tokens\\bench_sambalpuri_odia_tokens.pt",
+    "duration_s": 25.0,
+    "num_frames": 1875
+  },
+  {
+    "stem": "compare_podcast_conversational",
+    "wav_path": "C:\\Users\\sachi\\Music\\rea\\openflow\\scratch\\compare_podcast_conversational.wav",
+    "token_path": "C:\\Users\\sachi\\Music\\rea\\openflow\\alm\\tokens\\compare_podcast_conversational_tokens.pt",
+    "duration_s": 34.92,
+    "num_frames": 2620
+  },
+  {
+    "stem": "gulua_slice1",
+    "wav_path": "C:\\Users\\sachi\\Music\\rea\\openflow\\scratch\\gulua_slice1.wav",
+    "token_path": "C:\\Users\\sachi\\Music\\rea\\openflow\\alm\\tokens\\gulua_slice1_tokens.pt",
+    "duration_s": 20.0,
+    "num_frames": 1500
+  },
+  {
+    "stem": "gulua_slice2",
+    "wav_path": "C:\\Users\\sachi\\Music\\rea\\openflow\\scratch\\gulua_slice2.wav",
+    "token_path": "C:\\Users\\sachi\\Music\\rea\\openflow\\alm\\tokens\\gulua_slice2_tokens.pt",
+    "duration_s": 20.0,
+    "num_frames": 1500
+  },
+  {
+    "stem": "gulua_slice3",
+    "wav_path": "C:\\Users\\sachi\\Music\\rea\\openflow\\scratch\\gulua_slice3.wav",
+    "token_path": "C:\\Users\\sachi\\Music\\rea\\openflow\\alm\\tokens\\gulua_slice3_tokens.pt",
+    "duration_s": 20.0,
+    "num_frames": 1500
+  },
+  {
+    "stem": "kishore_slice1",
+    "wav_path": "C:\\Users\\sachi\\Music\\rea\\openflow\\scratch\\kishore_slice1.wav",
+    "token_path": "C:\\Users\\sachi\\Music\\rea\\openflow\\alm\\tokens\\kishore_slice1_tokens.pt",
+    "duration_s": 20.0,
+    "num_frames": 1500
+  },
+  {
+    "stem": "kishore_slice2",
+    "wav_path": "C:\\Users\\sachi\\Music\\rea\\openflow\\scratch\\kishore_slice2.wav",
+    "token_path": "C:\\Users\\sachi\\Music\\rea\\openflow\\alm\\tokens\\kishore_slice2_tokens.pt",
+    "duration_s": 20.0,
+    "num_frames": 1500
+  },
+  {
+    "stem": "kishore_slice3",
+    "wav_path": "C:\\Users\\sachi\\Music\\rea\\openflow\\scratch\\kishore_slice3.wav",
+    "token_path": "C:\\Users\\sachi\\Music\\rea\\openflow\\alm\\tokens\\kishore_slice3_tokens.pt",
+    "duration_s": 20.0,
+    "num_frames": 1500
+  },
+  {
+    "stem": "mira_natural_clean",
+    "wav_path": "C:\\Users\\sachi\\Music\\rea\\openflow\\scratch\\mira_natural_clean.wav",
+    "token_path": "C:\\Users\\sachi\\Music\\rea\\openflow\\alm\\tokens\\mira_natural_clean_tokens.pt",
+    "duration_s": 5.82,
+    "num_frames": 437
+  },
+  {
+    "stem": "mira_sambalpuri_juhar",
+    "wav_path": "C:\\Users\\sachi\\Music\\rea\\openflow\\scratch\\mira_sambalpuri_juhar.wav",
+    "token_path": "C:\\Users\\sachi\\Music\\rea\\openflow\\alm\\tokens\\mira_sambalpuri_juhar_tokens.pt",
+    "duration_s": 12.05,
+    "num_frames": 905
+  },
+  {
+    "stem": "podcast_sample_0_conv",
+    "wav_path": "C:\\Users\\sachi\\Music\\rea\\openflow\\scratch\\podcast_sample_0_conv.wav",
+    "token_path": "C:\\Users\\sachi\\Music\\rea\\openflow\\alm\\tokens\\podcast_sample_0_conv_tokens.pt",
+    "duration_s": 6.4,
+    "num_frames": 480
+  },
+  {
+    "stem": "podcast_sample_0_read",
+    "wav_path": "C:\\Users\\sachi\\Music\\rea\\openflow\\scratch\\podcast_sample_0_read.wav",
+    "token_path": "C:\\Users\\sachi\\Music\\rea\\openflow\\alm\\tokens\\podcast_sample_0_read_tokens.pt",
+    "duration_s": 6.68,
+    "num_frames": 501
+  },
+  {
+    "stem": "podcast_sample_1_conv",
+    "wav_path": "C:\\Users\\sachi\\Music\\rea\\openflow\\scratch\\podcast_sample_1_conv.wav",
+    "token_path": "C:\\Users\\sachi\\Music\\rea\\openflow\\alm\\tokens\\podcast_sample_1_conv_tokens.pt",
+    "duration_s": 6.75,
+    "num_frames": 507
+  },
+  {
+    "stem": "podcast_sample_1_read",
+    "wav_path": "C:\\Users\\sachi\\Music\\rea\\openflow\\scratch\\podcast_sample_1_read.wav",
+    "token_path": "C:\\Users\\sachi\\Music\\rea\\openflow\\alm\\tokens\\podcast_sample_1_read_tokens.pt",
+    "duration_s": 7.41,
+    "num_frames": 556
+  },
+  {
+    "stem": "podcast_sample_2_conv",
+    "wav_path": "C:\\Users\\sachi\\Music\\rea\\openflow\\scratch\\podcast_sample_2_conv.wav",
+    "token_path": "C:\\Users\\sachi\\Music\\rea\\openflow\\alm\\tokens\\podcast_sample_2_conv_tokens.pt",
+    "duration_s": 5.74,
+    "num_frames": 431
+  },
+  {
+    "stem": "podcast_sample_2_read",
+    "wav_path": "C:\\Users\\sachi\\Music\\rea\\openflow\\scratch\\podcast_sample_2_read.wav",
+    "token_path": "C:\\Users\\sachi\\Music\\rea\\openflow\\alm\\tokens\\podcast_sample_2_read_tokens.pt",
+    "duration_s": 5.72,
+    "num_frames": 429
+  },
+  {
+    "stem": "sachin_podcast_conv_female",
+    "wav_path": "C:\\Users\\sachi\\Music\\rea\\openflow\\scratch\\sachin_podcast_conv_female.wav",
+    "token_path": "C:\\Users\\sachi\\Music\\rea\\openflow\\alm\\tokens\\sachin_podcast_conv_female_tokens.pt",
+    "duration_s": 31.88,
+    "num_frames": 2392
+  },
+  {
+    "stem": "sachin_podcast_conv_male",
+    "wav_path": "C:\\Users\\sachi\\Music\\rea\\openflow\\scratch\\sachin_podcast_conv_male.wav",
+    "token_path": "C:\\Users\\sachi\\Music\\rea\\openflow\\alm\\tokens\\sachin_podcast_conv_male_tokens.pt",
+    "duration_s": 29.6,
+    "num_frames": 2220
+  },
+  {
+    "stem": "smita_female_extended",
+    "wav_path": "C:\\Users\\sachi\\Music\\rea\\openflow\\scratch\\smita_female_extended.wav",
+    "token_path": "C:\\Users\\sachi\\Music\\rea\\openflow\\alm\\tokens\\smita_female_extended_tokens.pt",
+    "duration_s": 40.0,
+    "num_frames": 3000
+  },
+  {
+    "stem": "smita_female_pure_sample",
+    "wav_path": "C:\\Users\\sachi\\Music\\rea\\openflow\\scratch\\smita_female_pure_sample.wav",
+    "token_path": "C:\\Users\\sachi\\Music\\rea\\openflow\\alm\\tokens\\smita_female_pure_sample_tokens.pt",
+    "duration_s": 20.0,
+    "num_frames": 1500
+  }
+]
