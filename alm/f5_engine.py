@@ -18,7 +18,7 @@ import numpy as np
 import soundfile as sf
 import torch
 
-from openflow.engine.phonetic_translit import odia_to_devanagari
+from openflow.engine.phonetic_translit import odia_to_devanagari, odia_to_roman
 
 
 class F5VoiceEngine:
@@ -99,10 +99,13 @@ class F5VoiceEngine:
         text_to_generate = gen_text
         ref_text_to_use = ref_text
         if use_phonetic_bridge:
+            is_indic_model = any(k in self.model_name.lower() for k in ["hindi", "indic", "deva"])
             if self.contains_odia(gen_text):
-                text_to_generate = odia_to_devanagari(gen_text)
+                text_to_generate = odia_to_devanagari(gen_text) if is_indic_model else odia_to_roman(gen_text)
+                print(f"[F5VoiceEngine] Transliterated target Odia -> {'Devanagari' if is_indic_model else 'Roman'}: {text_to_generate}")
             if self.contains_odia(ref_text):
-                ref_text_to_use = odia_to_devanagari(ref_text)
+                ref_text_to_use = odia_to_devanagari(ref_text) if is_indic_model else odia_to_roman(ref_text)
+                print(f"[F5VoiceEngine] Transliterated ref Odia -> {'Devanagari' if is_indic_model else 'Roman'}: {ref_text_to_use}")
 
         # Run F5-TTS inference
         wav, sr, _ = self.f5_api.infer(
