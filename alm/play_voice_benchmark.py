@@ -1,10 +1,10 @@
 """
 play_voice_benchmark.py - Interactive Audio Player & Benchmark Audition Console
 ================================================================================
-Allows listening to and comparing the three next-gen Odia voice architectures:
-1. MIRA Studio Voice (Matcha-Vocos fine-tuned Odia acoustic engine)
-2. MIRA F5-TTS (Zero-shot Flow-Matching Diffusion Transformer)
-3. Chatterbox 0.5B (Resemble AI conversational dialogue ALM with guided emotion)
+Allows listening to and comparing the verified Odia voice architectures:
+1. MIRA Studio Voice (Female - Smita): Ultra-low latency, crystal-clear Odia booth presence.
+2. MIRA Studio Voice (Male - Kishore): Grounded, poised masculine Odia tone.
+3. Chatterbox 0.5B (Conversational ALM): Auto-regressive prosody modeling with guided emotion.
 """
 import os
 import sys
@@ -19,30 +19,25 @@ BENCHMARK_DIR = Path("openflow/scratch/benchmark_results")
 
 VOICES = {
     "1": {
-        "title": "MIRA Studio Voice (Matcha-Vocos Odia)",
-        "desc": "Ultra-low latency (<600ms, 22.6x real-time), crisp broadcast Odia, natural smoothing",
+        "title": "MIRA Studio Voice (Female / Smita)",
+        "desc": "Ultra-low latency (<600ms, 15x-22x real-time), crisp broadcast Odia, natural smoothing",
         "file": BENCHMARK_DIR / "1_mira_studio_voice.wav",
     },
     "2": {
-        "title": "MIRA F5-TTS (Zero-Shot DiT - Smita Voice Clone)",
-        "desc": "Flow-Matching Euler ODE solver, cloned from 3s reference audio, rich prosody",
-        "file": BENCHMARK_DIR / "2_mira_f5_tts.wav",
+        "title": "MIRA Studio Voice (Male / Kishore)",
+        "desc": "Fast, authentic male Odia conversational host with grounded vocal presence",
+        "file": BENCHMARK_DIR / "1_mira_studio_voice_kishore.wav",
     },
     "3": {
-        "title": "MIRA F5-TTS (Zero-Shot DiT - Kishore Voice Clone)",
-        "desc": "Male voice reference clone with expressive natural intonation",
-        "file": BENCHMARK_DIR / "2_mira_f5_tts_kishore.wav",
-    },
-    "4": {
         "title": "Chatterbox 0.5B (Conversational ALM with Guided Emotion)",
-        "desc": "Llama auto-regressive prosody backbone, guided emotion exaggeration, Devanagari bridge",
+        "desc": "Llama auto-regressive prosody backbone, guided emotion exaggeration, Roman phonetic bridge",
         "file": BENCHMARK_DIR / "3_chatterbox_0.5b.wav",
     },
 }
 
 def print_banner():
     print("\n" + "=" * 76)
-    print("       MIRA NEXT-GEN VOICE ARCHITECTURE AUDITION & BENCHMARK CONSOLE       ")
+    print("       MIRA ODIA VOICE ARCHITECTURE AUDITION & BENCHMARK CONSOLE       ")
     print("=" * 76)
     print("Benchmark Prompt:")
     print("  'ନମସ୍କାର ଆଜ୍ଞା ! ରୟାଲ ରେଷ୍ଟୁରାଣ୍ଟକୁ ଆପଣଙ୍କୁ ସ୍ୱାଗତ ।")
@@ -53,7 +48,7 @@ def print_banner():
 def show_menu():
     print("\nSelect a voice architecture to audition:")
     for k, v in VOICES.items():
-        exists = " [READY]" if v["file"].exists() else " [GENERATING / DOWNLOADING]"
+        exists = " [READY]" if v["file"].exists() else " [GENERATING]"
         print(f"  [{k}] {v['title']}{exists}")
         print(f"      Description: {v['desc']}")
         if v["file"].exists():
@@ -62,7 +57,7 @@ def show_menu():
                 print(f"      Specs: {info.duration:.2f}s | {info.samplerate}Hz | Mono WAV")
             except Exception:
                 pass
-    print("  [5] Run Complete 3-Way Benchmark Suite")
+    print("  [4] Run Complete Voice Benchmark Suite")
     print("  [Q] Quit")
     print("-" * 76)
 
@@ -89,19 +84,18 @@ def main():
     print_banner()
     while True:
         show_menu()
-        choice = input("\nEnter choice (1-5, Q): ").strip().lower()
+        choice = input("\nEnter choice (1-4, Q): ").strip().lower()
         if choice in ["q", "quit", "exit"]:
             print("\nExiting audition console. Goodbye!")
             break
         elif choice in VOICES:
             play_audio(VOICES[choice]["file"])
-        elif choice == "5":
-            print("\n>>> Launching full 3-way benchmark...")
+        elif choice == "4":
+            print("\n>>> Launching full voice benchmark...")
             import subprocess
             subprocess.run([sys.executable, "openflow/alm/benchmark_voice_engines.py"])
         else:
-            print("\nInvalid choice. Please select 1, 2, 3, 4, 5, or Q.")
+            print("Invalid selection. Please choose an option from the menu.")
 
 if __name__ == "__main__":
     main()
-
