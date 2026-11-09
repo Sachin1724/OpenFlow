@@ -27,6 +27,7 @@ try:
     from openflow.engine.transcriber import Transcriber, engine_model_name, StreamingSession
     from openflow.engine.remote_transcriber import RemoteTranscriber
     from openflow.engine.formatter import TextFormatter
+    from openflow.engine.dialect_detector import identify_dialect
     from openflow.engine.injector import WindowInjector
     from openflow.engine.hotkey_manager import GlobalHotkeyManager
     from openflow.engine.sound_effects import play_start_sound, play_stop_sound, play_paste_sound
@@ -51,6 +52,7 @@ except Exception:
         from .engine.transcriber import Transcriber, engine_model_name, StreamingSession
         from .engine.remote_transcriber import RemoteTranscriber
         from .engine.formatter import TextFormatter
+        from .engine.dialect_detector import identify_dialect
         from .engine.injector import WindowInjector
         from .engine.hotkey_manager import GlobalHotkeyManager
         from .engine.sound_effects import play_start_sound, play_stop_sound, play_paste_sound
@@ -74,6 +76,7 @@ except Exception:
         from engine.transcriber import Transcriber, engine_model_name, StreamingSession
         from engine.remote_transcriber import RemoteTranscriber
         from engine.formatter import TextFormatter
+        from engine.dialect_detector import identify_dialect
         from engine.injector import WindowInjector
         from engine.hotkey_manager import GlobalHotkeyManager
         from engine.sound_effects import play_start_sound, play_stop_sound, play_paste_sound
@@ -89,7 +92,7 @@ except Exception:
         try:
             from __init__ import __version__
         except Exception:
-            __version__ = "1.3.3"
+            __version__ = "1.3.4"
 
 _BOOT_T0 = time.perf_counter()
 
@@ -1130,12 +1133,15 @@ class OpenFlowApp(QObject):
     def _handle_ui_start(self):
         if self.config.get("show_floating_pill", True):
             tone_name = self.config.get("tone_preset", "smart_clean").replace("_", " ").title()
+            # Each utterance re-detects from scratch; otherwise the previous turn's dialect
+            # suppresses the badge update for this one.
+            self._last_dialect_badge = None
             self.floating_pill.show_listening(tone_name)
 
     @pyqtSlot()
     def _handle_ui_stop(self):
         if self.config.get("show_floating_pill", True):
-            self.floating_pill.show_processing()
+            self.floating_pill.show_refining()
 
     @pyqtSlot(str)
     def _handle_status(self, message: str):
@@ -1164,10 +1170,37 @@ class OpenFlowApp(QObject):
         if self.config.get("show_floating_pill", True):
             self.floating_pill.set_amplitude(level)
 
+    # Badge names stay short: the capsule elides by pixels and the badge competes with the
+    # transcript for width.
+    _DIALECT_BADGE = {
+        "Sambalpuri": "SAMBALPURI", "Ganjami": "GANJAMI", "Kalahandia": "KALAHANDIA",
+        "Anugulia": "ANUGULIA", "Baleswari": "BALESWARI", "Standard Odia": "ODIA",
+    }
+
     @pyqtSlot(str)
     def _handle_ui_realtime_text(self, text: str):
-        if self.config.get("show_floating_pill", True):
-            self.floating_pill.update_realtime_text(text)
+        if not self.config.get("show_floating_pill", True):
+            return
+        self.floating_pill.update_realtime_text(text)
+        self._update_live_dialect(text)
+
+    def _update_live_dialect(self, text: str):
+        """Reclassify the partial transcript and update the capsule badge in place.
+
+        Only runs while Odia is the active language: on English the capsule keeps the plain
+        monochrome indicator, which is the whole point of the distinction.
+        """
+        if not text or not self.floating_pill.is_odia_active():
+            return
+        result = identify_dialect(text)
+        # Below this the markers are too thin to justify flipping the badge under the user.
+        if result.get("confidence", 0.0) < 0.80:
+            return
+        badge = self._DIALECT_BADGE.get(result.get("dialect", ""))
+        if badge and badge != getattr(self, "_last_dialect_badge", None):
+            # Cached so a steady dialect does not re-lay-out the badge on every partial.
+            self._last_dialect_badge = badge
+            self.floating_pill.set_detected_dialect(badge)
 
     @pyqtSlot(str, int, int)
     def _handle_ui_complete(self, text: str, words: int, latency: int):
