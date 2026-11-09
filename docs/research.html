@@ -376,7 +376,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); height: 44px; curs
   display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 16px; border-radius: 999px;
   background: rgba(10, 132, 255, 0.12); border: 1px solid rgba(10, 132, 255, 0.35);
   color: #70b4ff; font-size: 13px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
-  margin-bottom: 16px; text-decoration: none;
+  margin-bottom: 16px; text-decoration: none; white-space: nowrap; flex: none;
 }
 .live-dot {
   width: 8px; height: 8px; border-radius: 50%; background: #0a84ff;
@@ -432,6 +432,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); height: 44px; curs
   padding: 0 8px; transition: filter 0.2s;
 }
 .wf-part:hover { filter: brightness(1.2); cursor: help; }
+.wf-part-thin { min-width: 3px; padding: 0; }
 .wf-legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12.5px; color: var(--body-soft); margin-top: 10px; }
 .wf-legend-item { display: flex; align-items: center; gap: 6px; }
 .wf-legend-swatch { width: 10px; height: 10px; border-radius: 3px; }
@@ -605,8 +606,8 @@ input[type=range] { width: 100%; accent-color: var(--accent); height: 44px; curs
         <div class="wf-bar" id="mira-wf-bar">
           <div class="wf-part" style="width:69.7%;background:#0a84ff" title="IndicCTC ASR: 84.1ms">IndicCTC 84.1ms</div>
           <div class="wf-part" style="width:25.7%;background:#30d158" title="IndicTrans2 Translation: 31.0ms">IndicTrans2 31.0ms</div>
-          <div class="wf-part" style="width:4.3%;background:#ffd60a" title="Audio Mel Framing &amp; Bus: 5.2ms">Bus 5.2ms</div>
-          <div class="wf-part" style="width:0.3%;background:#ff375f" title="MIRA Repair + Normalizer + Emotion: 0.36ms">MIRA 0.36ms</div>
+          <div class="wf-part" style="width:4.3%;background:#ffd60a" title="Audio Mel Framing &amp; Bus: 5.2ms">Bus</div>
+          <div class="wf-part wf-part-thin" style="width:0.3%;background:#ff375f" title="MIRA Repair + Normalizer + Emotion: 0.36ms"></div>
         </div>
         <div class="wf-legend">
           <div class="wf-legend-item"><span class="wf-legend-swatch" style="background:#0a84ff"></span> Acoustic ASR (84.1ms)</div>
@@ -1158,10 +1159,11 @@ node docs/figures/research/inline-data.mjs</code></pre></div>
     var avatarCard = $('#mira-avatar-interactive');
     var blobHead = $('#blob-head');
     var blobEyes = $('#blob-eyes');
-    if (avatarCard && blobHead && blobEyes) {
+    var blobSvg = $('#blob-svg');
+    if (avatarCard && blobHead && blobEyes && blobSvg) {
       window.addEventListener('mousemove', function (ev) {
-        var rect = avatarCard.getBoundingClientRect();
-        var cx = rect.left + 120;
+        var rect = blobSvg.getBoundingClientRect();
+        var cx = rect.left + rect.width / 2;
         var cy = rect.top + rect.height / 2;
         var dx = ev.clientX - cx;
         var dy = ev.clientY - cy;
