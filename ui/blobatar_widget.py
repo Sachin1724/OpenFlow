@@ -2,15 +2,18 @@
 blobatar_widget.py — Native PyQt6 Widget for Official @blobatar/react SVG
 ==========================================================================
 Renders the exact Blobatar character (name='alain00', traits={{ shape: 0.65 }})
-with animated breathing, eye blinks, audio reactivity, Gaussian diffuse glow ("gaslan"),
-and real-time mouse pointer gaze and 3D head tilt tracking.
+with animated breathing, eye blinks, audio reactivity, and real-time mouse pointer gaze
+and head tilt tracking.
+
+Rendered flat, with no glow, gradient or sheen behind it, so the shape sits on the
+capsule background instead of floating on a lighter disc of its own.
 """
 
 import math
 import time
 from typing import Tuple
 from PyQt6.QtCore import Qt, QTimer, QRectF, QPointF, QByteArray
-from PyQt6.QtGui import QPainter, QColor, QPen, QBrush, QRadialGradient, QCursor
+from PyQt6.QtGui import QPainter, QColor, QPen, QCursor
 from PyQt6.QtWidgets import QWidget
 from PyQt6.QtSvg import QSvgRenderer
 
@@ -59,9 +62,6 @@ class BlobatarWidget(QWidget):
         self.base_size = size
         self.head_color = head_color
         self.eye_color = eye_color
-        
-        # Glow & Gaussian settings ("gaslan")
-        self.glow_color = QColor(head_color)
         
         # Audio & animation state
         self.phase = 0.0
@@ -147,27 +147,13 @@ class BlobatarWidget(QWidget):
         center = QPointF(w / 2.0, h / 2.0)
         boost = self.smoothed_level
 
-        # -------------------------------------------------------------
-        # 1. GAUSSIAN DIFFUSE AURA ("gaslan")
-        # -------------------------------------------------------------
-        aura_r = (w / 2.0) * (1.15 + boost * 0.4)
-        grad = QRadialGradient(center, aura_r)
-        alpha = int(120 + boost * 110)
-        alpha = min(235, alpha)
-
-        gc = self.glow_color
-        grad.setColorAt(0.00, QColor(gc.red(), gc.green(), gc.blue(), int(alpha * 0.85)))
-        grad.setColorAt(0.35, QColor(gc.red(), gc.green(), gc.blue(), int(alpha * 0.45)))
-        grad.setColorAt(0.65, QColor(gc.red(), gc.green(), gc.blue(), int(alpha * 0.18)))
-        grad.setColorAt(0.85, QColor(gc.red(), gc.green(), gc.blue(), int(alpha * 0.05)))
-        grad.setColorAt(1.00, QColor(gc.red(), gc.green(), gc.blue(), 0))
-
-        p.setPen(Qt.PenStyle.NoPen)
-        p.setBrush(QBrush(grad))
-        p.drawEllipse(center, aura_r, aura_r)
+        # No aura, no gradient, no sheen. Blobatar is a flat geometric shape: a solid
+        # fill against whatever is behind it. A radial glow painted under the head is
+        # what stops it sitting cleanly on the capsule -- it rings the shape with a
+        # lighter disc instead of letting the background show through.
 
         # -------------------------------------------------------------
-        # 2. 3D HEAD TILT & BREATHING PARALLAX
+        # HEAD TILT & BREATHING PARALLAX
         # -------------------------------------------------------------
         p.save()
         p.translate(center)

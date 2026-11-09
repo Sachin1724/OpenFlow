@@ -420,12 +420,13 @@ class AnimatedText(QWidget):
         if text == self._text:
             return
         self._x0 = self._x_cur
-        # Speech continuation / edit recognition: don't flip vertically on minor punctuation changes
-        is_grow = bool(self._text and (
-            text.startswith(self._text) or 
-            text.lower().startswith(self._text[:min(8, len(self._text))].lower()) or
-            (len(text) >= len(self._text) and abs(len(text) - len(self._text)) <= 12)
-        ))
+        # Speech continuation: keep the text in place and extend it, instead of flipping the
+        # whole label, while a partial transcript grows.
+        # Grow mode paints _prev followed by _text[len(_prev):], so it only renders the right
+        # string when _text genuinely starts with _prev. A looser test (matching prefixes, or
+        # merely similar lengths) sends real label changes down this path and paints a hybrid
+        # of the two: "Refining" -> "Pasted 4 words" came out as "Refining words".
+        is_grow = bool(self._text and text.startswith(self._text))
         self._mode = "grow" if is_grow else "swap"
         self._prev = self._text
         self._text = text
@@ -1409,7 +1410,7 @@ class FloatingPill(QWidget):
 
     def _update_indicator_mode(self):
         use_blob = self.is_odia_active()
-        if use_blob and self.current_state in ("listening", "processing"):
+        if use_blob and self.current_state in ("listening", "processing", "refining"):
             self.indicator.hide()
             self.blobatar.show()
         else:
@@ -2069,7 +2070,12 @@ class FloatingPill(QWidget):
 
     def update_language(self, lang_code: str):
         self.current_language = lang_code
+        # Drop any detected dialect: is_odia_active() treats a set dialect as proof of Odia,
+        # so a stale one would keep the blob and the regional badge up after a switch
+        # back to English.
+        self._active_dialect = None
         self._update_badge_text(self._lang_short(lang_code))
+        self._update_indicator_mode()
 
     def _on_mic_selected(self, index: int):
         self.update_connected_mic(self.mic_combo.currentText())
@@ -2334,6 +2340,21 @@ class FloatingPill(QWidget):
         self._update_indicator_mode()
         if self.capsule_style not in ("compact", "micro"):
             self.text_label.setText("Writing")
+        self.visualizer.reset()
+        self.visualizer.setVisible(False)
+        self.update()
+
+    def show_refining(self):
+        """MIRA is rewriting the raw transcript: fillers out, numerals and acronyms formatted."""
+        if hasattr(self, "caption_bubble"):
+            self.caption_bubble.fade_out()
+        if self.is_expanded_hud:
+            return
+        self.current_state = "refining"
+        self.indicator.set_state("processing")
+        self._update_indicator_mode()
+        if self.capsule_style not in ("compact", "micro"):
+            self.text_label.setText("Refining")
         self.visualizer.reset()
         self.visualizer.setVisible(False)
         self.update()
