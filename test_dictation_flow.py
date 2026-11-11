@@ -14,7 +14,8 @@ class _Recorder:
 
     def stop_recording(self):
         self.is_recording = False
-        return np.zeros(16000, np.float32)
+        # 1 s of a quiet tone: digital silence is now dropped as "Microphone silent" before any worker runs
+        return (0.1 * np.sin(np.arange(16000) * 2 * np.pi * 220 / 16000)).astype(np.float32)
 
 
 def _app(worker):

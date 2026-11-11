@@ -482,6 +482,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); height: 44px; curs
     <a class="mark" href="index.html"><img src="img/icon.png" alt="" width="34" height="34">OpenFlow</a>
     <ul>
       <li><a href="index.html">Home</a></li>
+      <li><a href="app.html">App</a></li>
       <li><a href="changelog.html">Changelog</a></li>
       <li><a href="research.html" aria-current="page">Research</a></li>
       <li><a href="index.html#get">Get</a></li>
@@ -545,7 +546,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); height: 44px; curs
         <li class="mira-step">
           <span class="step-tag">Morphology</span>
           <h4>Dialect normalizer</h4>
-          <p>One suffix engine for Sambalpuri (Kosali), Ganjami, Kalahandia and Baleswari, covering 225,270 words.</p>
+          <p>Phrase, verb and suffix rules for Sambalpuri (Kosali), Ganjami, Kalahandia and Baleswari.</p>
           <div class="metric">0.04<small>ms</small></div>
         </li>
         <li class="mira-step">
@@ -592,7 +593,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); height: 44px; curs
       <li class="rv"><b>25×</b><h4>Give Odia its own ear</h4><p>On a one-hour Odia podcast Whisper small guessed Bengali and looped a single Tibetan character. AI4Bharat’s IndicCTC, quantized to int8, transcribed it at 25× real time, the guest’s name included.</p></li>
       <li class="rv"><b>172</b><h4>Listen to 19 districts</h4><p>172 real recordings from the OdiaTTS set, six dialects. IndicCTC transcribes each one 43× to 47× faster than real time on a CPU.</p></li>
       <li class="rv"><b>0.025 ms</b><h4>Tell the dialects apart</h4><p>A rule-based classifier names the dialect in 0.025 ms. It got all 17 test sentences right across six dialects and 30 districts.</p></li>
-      <li class="rv"><b>225,270</b><h4>Rewrite into written Odia</h4><p>Phrase, verb and suffix rules, backed by a 225,270-entry dictionary, turn regional forms into standard Odia and restore the danda and question mark in under 0.05 ms.</p></li>
+      <li class="rv"><b>0.027 ms</b><h4>Rewrite into written Odia</h4><p>Phrase, verb and suffix rules turn regional forms into standard Odia and restore the danda and question mark. A separate 225,270-entry table keeps English words in English.</p></li>
       <li class="rv"><b>0.077</b><h4>Train a small writer</h4><p>SmolLM2-135M, fine-tuned with LoRA on an RTX 4050 in 204.6 seconds. Loss fell from 1.39 to 0.077, and the model ships as 129 MB of int8.</p></li>
       <li class="rv"><b>0.28 ms</b><h4>Fix the foot</h4><p>Repairs for slurred word joins, removal of trailing fillers, and punctuation chosen from the sentence’s tone: greeting, question or statement.</p></li>
       <li class="rv"><b>3.2×</b><h4>Give MIRA a voice</h4><p>Meta’s Odia VITS speaks at 3.2× real time on a CPU. Fed back into IndicCTC, its own speech decodes word for word in 116 ms.</p></li>
@@ -764,6 +765,11 @@ input[type=range] { width: 100%; accent-color: var(--accent); height: 44px; curs
       <img src="img/mira-capsule.gif" width="360" height="44" loading="lazy" alt="The OpenFlow capsule: English dictation with the plain indicator, then Odia with MIRA showing, the badge changing to SAMBALPURI mid-sentence, Refining, and the pasted result">
       <figcaption><strong>The real capsule, recorded.</strong>English keeps the plain indicator. Switch to Odia and MIRA appears; speak Sambalpuri and the badge follows mid-sentence, then the capsule refines and pastes. Captured from the app’s own widget.</figcaption>
     </figure>
+
+    <div class="sec-head sub">
+      <h3 class="rv">The full model card</h3>
+      <p class="rv" style="--d:1">Parameters, weights, decoding settings and every benchmark in one place. <a href="mira.html" style="text-decoration:underline">Open the MIRA model card</a></p>
+    </div>
 
   </div>
 </section>

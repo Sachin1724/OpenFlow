@@ -16,7 +16,7 @@ import argparse
 import numpy as np
 
 # Force UTF-8 on Windows terminal
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # in place: replacing the object broke pytest capture
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from engine import model_manager
@@ -224,6 +224,9 @@ def main():
         test_single(args.text, translator=tr)
     else:
         run_battery()
+
+test_single.__test__ = False  # a console helper; pytest must not collect it as a test
+
 
 if __name__ == "__main__":
     main()
