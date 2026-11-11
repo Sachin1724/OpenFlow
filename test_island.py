@@ -74,3 +74,18 @@ def test_island_caption_types_in_below_the_island():
     QTest.qWait(400)
     assert not b.isVisible() or b.windowOpacity() < 0.1
     isl.deactivate()
+
+
+def test_tap_cancel_leaves_listen_and_refining_exists():
+    # A mis-pressed hotkey cancels with a message while the island is listening; it must not stay in "listen".
+    isl = IslandPill(**ARGS)
+    isl.activate()
+    isl.show_listening()
+    isl.show_message("Hold to speak", duration_ms=1800)
+    assert isl._state == "msg", isl._state
+    isl.show_listening()
+    isl.show_refining()
+    assert isl._state == "write", isl._state
+    isl.show_message("Didn't catch that", duration_ms=1800)
+    assert isl._state == "msg", isl._state
+    isl.deactivate()

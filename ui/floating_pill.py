@@ -1211,7 +1211,7 @@ class FloatingPill(QWidget):
     sig_hide_idle_changed = pyqtSignal(bool)
 
     LANGS = [
-        ("auto", "Auto Detect"), ("en-in", "English (India) / Hinglish"), ("or", "Odia / Odia-English"), ("or-mix", "Odia + English words"),
+        ("or-auto", "Auto: Odia + English"), ("auto", "Auto Detect"), ("en-in", "English (India) / Hinglish"), ("or", "Odia / Odia-English"), ("or-mix", "Odia + English words"),
         ("or-en", "Odia → English"), ("hi", "Hindi"), ("en", "English (US/UK)"), ("translate", "Any language → English"),
         ("es", "Spanish"), ("fr", "French"), ("de", "German"), ("zh", "Chinese"), ("ja", "Japanese"),
         ("pt", "Portuguese"), ("it", "Italian"), ("ar", "Arabic"), ("ru", "Russian"),
@@ -1406,7 +1406,7 @@ class FloatingPill(QWidget):
         self.btn_more.clicked.connect(self.toggle_morph_hud)
 
     def is_odia_active(self) -> bool:
-        return self.current_language in ("or", "odia", "or-en", "or-mix") or bool(getattr(self, "_active_dialect", None))
+        return self.current_language in ("or", "odia", "or-en", "or-mix", "or-auto") or bool(getattr(self, "_active_dialect", None))
 
     def _update_indicator_mode(self):
         use_blob = self.is_odia_active()
@@ -1996,6 +1996,8 @@ class FloatingPill(QWidget):
             return "OR→EN"
         if code == "or-mix":
             return "OR+EN"
+        if code == "or-auto":
+            return "OR/EN"
         if code == "translate":
             return "→EN"
         return code.upper()

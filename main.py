@@ -92,7 +92,7 @@ except Exception:
         try:
             from __init__ import __version__
         except Exception:
-            __version__ = "1.3.4"
+            __version__ = "1.4.0"
 
 _BOOT_T0 = time.perf_counter()
 
@@ -287,6 +287,8 @@ class OpenFlowApp(QObject):
         self.main_window.config_changed.connect(self._on_config_changed)
         self.main_window.sig_capsule_opacity.connect(self.floating_pill.set_opacity)
         self.main_window.sig_capsule_size.connect(self._apply_capsule_size)
+        self.main_window.sig_transcribe_file.connect(self._transcribe_file)
+        self.main_window.sig_toggle_live.connect(self._toggle_playing)
         self.main_window.sig_model_switch_requested.connect(self._on_request_switch_model)
         self.main_window.sig_model_download_requested.connect(self._on_request_download_model)
         self.main_window.sig_model_delete_requested.connect(self._on_request_delete_model)
@@ -390,6 +392,8 @@ class OpenFlowApp(QObject):
         self.act_playing = menu.addAction("Transcribe What's Playing")
         self.act_playing.setCheckable(True)
         self.act_playing.triggered.connect(self._toggle_playing)
+        # Every start/stop path sets this check mark, so the dashboard's Tools button follows it
+        self.act_playing.toggled.connect(self.main_window.set_live_running)
 
         act_file = menu.addAction("Transcribe Audio File...")
         act_file.triggered.connect(self._transcribe_file)
@@ -968,10 +972,15 @@ class OpenFlowApp(QObject):
             session.feed(audio_chunk)  # commit finished phrases so release only decodes the tail
 
         if self.config.get("realtime_preview", True):
-            partial_text = self.transcriber.transcribe_partial(audio_chunk)
-            if partial_text:
-                committed = session.committed_text if session else ""
-                full_preview = f"{committed} {partial_text}".strip() if committed else partial_text
+            # Preview only the audio not yet committed: committed phrases are already text, re-decoding
+            # them duplicated words, and shipping the whole recording to the engine process every
+            # 0.55 s grew with every second spoken. 10 s caps the copy if no phrase has committed yet.
+            start = session.pending_from if session else 0
+            partial_text = self.transcriber.transcribe_partial(audio_chunk[max(start, len(audio_chunk) - 16000 * 10):])
+            committed = session.committed_text if session else ""
+            # A slow engine rests its preview between calls; committed phrases still show meanwhile.
+            full_preview = f"{committed} {partial_text}".strip()
+            if full_preview:
                 self.bridge.sig_realtime_text.emit(full_preview)
 
     def _on_auto_silence(self):
@@ -1051,7 +1060,8 @@ class OpenFlowApp(QObject):
             if self._voice_edit(raw_text, job):
                 return
 
-            if self.config.get("language") in ("or", "odia", "or-en", "or-mix", "or-std"):
+            # By what was heard, not the setting: in Auto an English sentence comes back as "en-in".
+            if detected_lang in ("or", "odia", "or-en", "or-mix", "or-auto"):
                 try:
                     from engine.dialect_normalizer import normalize_dialect
                     norm_res = normalize_dialect(raw_text, target_style="standard")

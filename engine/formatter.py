@@ -10,6 +10,7 @@ from .refiner import (
     format_code_identifiers,
     SPOKEN_COMMANDS,
 )
+from .odia_refine import refine_odia
 
 
 class TextFormatter:
@@ -35,6 +36,12 @@ class TextFormatter:
         # Verbatim mode: only custom dictionary substitutions, no rewriting
         if tone_preset == "verbatim":
             return self._apply_dictionary(raw)
+
+        # Odia has its own refinement pass: refiner.py's patterns are all Latin-script and
+        # match nothing in Odia text, so without this the transcript reached the editor raw.
+        if language in ("or", "odia", "or-en", "or-mix", "or-auto"):
+            refined = refine_odia(raw, strip_fillers=(tone_preset != "verbatim"))
+            return self._apply_dictionary(refined)
 
         # For languages other than English, Hinglish, and Indian English,
         # Whisper handles sentence boundaries; apply self-corrections and custom vocab

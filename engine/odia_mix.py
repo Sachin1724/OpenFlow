@@ -23,9 +23,15 @@ SHORT = set("i a is it in on of to the so and but you we my me he she do go no o
             "all are was has had have not now how who why what when this that then than there they our your yes".split())
 # Common Odia words that sound like English ones (ଫୁଲ flower, not "full"; ମୋର my, not "more")
 ODIA = set("ଟି ଟା ଏ ମୋର କଣ ବନ ଆର ଦାନ କାର ଶୋ କଷ୍ଟ ଦି ଫୁଲ ବାଟ ମାନ ଦାମ ଦାମ୍ ପ୍ର ସାନ ବାଣ କେଶ ସନ ସନ୍ ପର ସେଲ୍ "
-           "ଦୋଷ ମାନି ସାପ ଷ୍ଟାର ଏସ୍ ଏସ ଏନ୍ ଏନ ଏମ୍ ଏମ ଓ ତ ଦଶ ଆଠ ବନାନ ମାପ ହାନ ମାଈ ଆଶ ଆଶ୍".split())
+           "କର କରି ଦୋଷ ମାନି ସାପ ଷ୍ଟାର ଏସ୍ ଏସ ଏନ୍ ଏନ ଏମ୍ ଏମ ଓ ତ ଦଶ ଆଠ ବନାନ ମାପ ହାନ ମାଈ ଆଶ ଆଶ୍".split())
 SUFFIXES = ("ର", "ରେ", "ରୁ", "କୁ", "ଟା", "ଟି")  # କାମ+ର "of work", not "camera"
-OVERRIDE = {"ଅଫ": "of", "ଓକେ": "OK", "ହଭ": "have", "ଏମବିଏ": "MBA"}
+OVERRIDE = {"ଅଫ": "of", "ଓକେ": "OK", "ହଭ": "have", "ଏମବିଏ": "MBA",
+            # Brand and app names: not in the pronouncing dictionary the table is built from, but
+            # among the English words people say most inside Odia sentences.
+            "ୟୁଟ୍ୟୁବ": "YouTube", "ୟୁଟୁବ": "YouTube", "ୟୁଟ୍ୟୁବ୍": "YouTube",
+            "ହ୍ୱାଟସଆପ": "WhatsApp", "ୱାଟସଆପ": "WhatsApp", "ହ୍ୱାଟସ୍ଆପ୍": "WhatsApp", "ୱାଟ୍ସଆପ୍": "WhatsApp",
+            "ଫେସବୁକ": "Facebook", "ଇନଷ୍ଟାଗ୍ରାମ": "Instagram", "ଇନ୍ସଟାଗ୍ରାମ": "Instagram",
+            "ଗୁଗଲ": "Google", "ଜିମେଲ": "Gmail", "ଜିମେଲ୍": "Gmail", "ଚାଟଜିପିଟି": "ChatGPT"}
 MARGIN = 1.0  # English must be e^1 likelier than the Odia reading
 TABLE_PATH = os.path.join(os.path.dirname(__file__), "odia_english.tsv.gz")
 
