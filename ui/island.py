@@ -36,7 +36,7 @@ INK, DIM = QColor("#ffffff"), QColor("#9a9fa9")
 REC, OK, WARN, INFO = QColor("#ff453a"), QColor("#30d158"), QColor("#ff9f0a"), QColor("#0a84ff")
 DIMS = {"idle": (92, 26, 14), "listen": (236, 40, 20), "write": (188, 40, 20), "done": (160, 40, 20),
         "note": (344, 62, 26), "msg": (260, 44, 22), "panel": (356, 284, 30)}
-LANG_SHORT = {"auto": "AUTO", "en-in": "EN-IN", "or-mix": "OR+EN", "or-en": "OR→EN", "translate": "→EN"}
+LANG_SHORT = {"auto": "AUTO", "en-in": "EN-IN", "or-mix": "OR+EN", "or-auto": "OR/EN", "or-en": "OR→EN", "translate": "→EN"}
 
 
 class IslandPill(QWidget):
@@ -203,6 +203,7 @@ class IslandPill(QWidget):
 
     def update_language(self, code):
         self.current_language = code
+        self._active_dialect = None  # a stale dialect would keep is_odia_active() true after switching to English
         self.update()
 
     # -- geometry -----------------------------------------------------------
@@ -267,7 +268,7 @@ class IslandPill(QWidget):
                 self._done_timer.start(1400)
 
     def is_odia_active(self) -> bool:
-        return self.current_language in ("or", "odia", "or-mix", "or-en") or bool(getattr(self, "_active_dialect", None))
+        return self.current_language in ("or", "odia", "or-mix", "or-en", "or-auto") or bool(getattr(self, "_active_dialect", None))
 
     def set_detected_dialect(self, dialect: str):
         self._active_dialect = dialect
@@ -442,6 +443,12 @@ class IslandPill(QWidget):
     def show_message(self, text, duration_ms=2200):
         low = text.lower()
         icon = "warn" if any(k in low for k in ("error", "fail", "couldn", "stopped", "too long", "unavailable", "wrong")) else "info"
+        if self._state in ("listen", "write"):
+            # Dictation ended without text (a tap, too short, silent): leave the live state now. Queued, the
+            # message only shows after the next pasted result, so the island sits in "recording" until then.
+            self._preempt()
+            self._start_note(text, "", icon, duration_ms, None, None)
+            return
         self._push(text, "", icon, duration_ms)
 
     def show_mic_event(self, mic_name, status="connected"):
@@ -485,6 +492,8 @@ class IslandPill(QWidget):
             return
         self._preempt()
         self._go("write")
+
+    show_refining = show_processing  # the island has no separate refining face
 
     def show_pasted(self, word_count=0, latency_ms=0):
         self._preempt()

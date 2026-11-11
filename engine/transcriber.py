@@ -86,7 +86,20 @@ PARAKEET_LANGS = {
 
 
 # Settings that mean Odia speech; the "odia" model runs AI4Bharat IndicConformer for these.
-ODIA_LANGS = {"or", "odia", "or-en", "or-mix"}  # "or-en": main.py translates to English; "or-mix": English words in English letters
+ODIA_LANGS = {"or", "odia", "or-en", "or-mix", "or-auto"}  # "or-en": main.py translates to English; "or-mix": English words in English letters
+# "or-auto": Odia or English per sentence, no switching. The Odia model hears every sentence first
+# (~90 ms); an English sentence comes out of it as Odia-script spellings of English words, which
+# odia_mix turns back into English, so a mostly-English result means English was spoken and the
+# sentence is decoded again with a Whisper model kept loaded beside it.
+MIX_LANGS = {"or-mix", "or-auto"}
+
+
+def _mostly_english(text: str) -> bool:
+    """Measured on real speech after odia_mix: English sentences 43-73% Latin words, Odia ones 0-33%.
+    ponytail: one ratio; an Odia sentence full of English nouns can cross it. Add Whisper's own
+    language probability as a tie-break if that happens in practice."""
+    words = text.split()
+    return len(words) >= 3 and sum(bool(re.fullmatch(r"[A-Za-z'.,?!-]+", w)) for w in words) / len(words) >= 0.4
 
 
 def resolve_model_name(base_model: str, language: str) -> str:
@@ -127,8 +140,12 @@ def _physical_cores() -> int:
 # laptop got only 2 threads under the old "half the logical cores" rule (2 -> 4 threads: -35% latency).
 _THREADS = min(8, max(2, _physical_cores()))
 # A preview still decoding when the key is released makes the final pass wait for it
-# (base on 2 cores: 1.8 s -> 3.3 s). Slower previews than this switch themselves off.
+# (base on 2 cores: 1.8 s -> 3.3 s). A preview slower than the budget rests for 3x its own time,
+# so it is busy at most a quarter of the time; only one slower than _PREVIEW_OFF_S switches off.
+# ponytail: duty cap, not cancellation -- a release can still wait out one in-flight preview
+# (Whisper small on CPU: ~1.2 s, 25% of the time). Cancel the decode if that shows up in latency.
 _PREVIEW_BUDGET_S = 0.4
+_PREVIEW_OFF_S = 1.5
 _HUNG_S = 10.0  # a model call holding the lock this long never comes back (seen with CUDA)
 
 
@@ -197,6 +214,9 @@ class Transcriber:
         self.on_status = None           # optional callback(str) for "downloading/ready" messages
         self._loaded_device = ""
         self._preview_slow = False      # this model/device can't preview without delaying the final text
+        self._preview_resume = 0.0      # monotonic time a slow preview's rest ends
+        self._en = None                 # "or-auto": Whisper kept loaded beside the Odia model
+        self._en_loading = False
         self._slow_preview_streak = 0
         self.on_progress = None         # optional callback(percent:int, model_name:str) while downloading
         self.is_loading = False
@@ -300,6 +320,8 @@ class Transcriber:
             if self.on_status:
                 self.on_status("Model odia ready")
             self._warmup_model()
+            if self.language == "or-auto":
+                self._ensure_english()
             return
 
         if target_name.endswith("-ov"):
@@ -355,6 +377,53 @@ class Transcriber:
             if self.on_status:
                 self.on_status(f"Model {target_name} ready (CPU)")
             self._warmup_model()
+
+    def _ensure_english(self):
+        """Loads the English half of "or-auto" in the background; Odia keeps working meanwhile."""
+        if self._en is not None or self._en_loading:
+            return
+        self._en_loading = True
+
+        def load():
+            try:
+                # The user's own Whisper size if they picked one, else whichever multilingual one is on disk.
+                # ponytail: Whisper only; a Parakeet English half would need its own recognizer object.
+                picks = [resolve_model_name(self.model_size, "en-in")] if self.model_size not in ("odia", "parakeet") else []
+                picks += ["small", "base", "medium", "tiny"]
+                name = next((n for n in picks if model_manager.cached_path(n)), None)
+                if name is None:
+                    print("[OpenFlow] Auto Odia/English: no Whisper model downloaded; English is written from the Odia model")
+                    if self.on_status:
+                        self.on_status("Auto mode: get a Whisper model in Model Library for English")
+                    return
+                device = "cpu" if self.device == "npu" else self.device
+                try:
+                    self._en = faster_whisper.WhisperModel(model_manager.cached_path(name), device=device,
+                                                           compute_type=self.compute_type, cpu_threads=_THREADS)
+                except Exception:
+                    self._en = faster_whisper.WhisperModel(model_manager.cached_path(name), device="cpu",
+                                                           compute_type="int8", cpu_threads=_THREADS)
+                print(f"[OpenFlow] Auto Odia/English: {name} ready for English sentences")
+            except Exception as e:
+                print(f"[OpenFlow] Auto Odia/English: English model failed to load ({e})")
+            finally:
+                self._en_loading = False
+
+        threading.Thread(target=load, daemon=True, name="openflow-english-half").start()
+
+    def _english_text(self, audio: np.ndarray) -> str:
+        segments, _ = self._en.transcribe(
+            audio,
+            beam_size=1 if self.device in ("cpu", "npu") else 2,
+            temperature=0.0,
+            **_whisper_args("en-in"),
+            vad_filter=False,
+            condition_on_previous_text=False,
+            repetition_penalty=1.1,
+            without_timestamps=True,
+            initial_prompt="Indian English dictation with standard punctuation, capitalization, and accurate terminology.",
+        )
+        return _drop_loop(" ".join(s.text.strip() for s in segments).strip())
 
     def _load_parakeet(self, model_path: str):
         """Parakeet runs through sherpa-onnx on the CPU; self.model holds its recognizer."""
@@ -432,6 +501,7 @@ class Transcriber:
         """Free GPU/RAM while idle; transcribe() reloads lazily."""
         with self._locked():
             self.model = None
+            self._en = None
             self._current_loaded_name = ""
             gc.collect()
 
@@ -443,14 +513,18 @@ class Transcriber:
         if language:
             self.language = language
         self._load_model()
+        if self.language == "or-auto" and self._current_loaded_name == "odia":
+            self._ensure_english()  # Odia was already loaded, so the load above returned early
 
     def reset_preview_budget(self):
         """Called at start of dictation so cold chunks or previous utterances don't permanently mute preview."""
         self._preview_slow = False
+        self._preview_resume = 0.0
 
     def transcribe_partial(self, audio: np.ndarray) -> str:
         """Fast real-time preview (beam_size=1, greedy) for streaming into the capsule."""
-        if self.model is None or self._preview_slow or len(audio) < 8000 or not _has_speech(audio[-16000 * 3:]):
+        if (self.model is None or self._preview_slow or time.monotonic() < self._preview_resume
+                or len(audio) < 8000 or not _has_speech(audio[-16000 * 3:])):
             return ""
         lock = self._lock
         if not lock.acquire(blocking=False):  # model is swapping, skip preview
@@ -458,10 +532,16 @@ class Transcriber:
 
         start = time.perf_counter()
         try:
-            # Slicing the last 3.0 seconds (48,000 samples) instead of 8s keeps decode latency under 80ms
-            sample = audio[-16000 * 3:]
             if self._current_loaded_name in ("parakeet", "odia"):
-                return _drop_loop(self._parakeet_text(sample, beam=False))
+                # CTC decodes 10 s greedily in ~300 ms, so the preview covers everything since the last
+                # committed phrase instead of flipping between 3-second fragments.
+                text = self._parakeet_text(audio[-16000 * 10:], beam=False)
+                if self.language in MIX_LANGS:  # English words show in English while still speaking
+                    from .odia_mix import to_mixed
+                    text = to_mixed(text, getattr(self.model, "lm", None))
+                return _drop_loop(text)
+            # Whisper: the last 3.0 seconds (48,000 samples) instead of 8s keeps decode latency down
+            sample = audio[-16000 * 3:]
             segments, _ = self.model.transcribe(
                 sample,
                 **_whisper_args(self.language),
@@ -475,9 +555,11 @@ class Transcriber:
             return ""
         finally:
             took = time.perf_counter() - start
-            if took > _PREVIEW_BUDGET_S:
+            if took > _PREVIEW_OFF_S:
                 self._preview_slow = True
                 print(f"[OpenFlow] Live preview took {took * 1000:.0f} ms; turning it off so final text isn't delayed")
+            elif took > _PREVIEW_BUDGET_S:
+                self._preview_resume = time.monotonic() + 3 * took
             lock.release()
 
     def transcribe(
@@ -555,9 +637,20 @@ class Transcriber:
         if self._current_loaded_name in ("parakeet", "odia"):
             with self._locked():
                 full_text = self._parakeet_text(audio)
-                if lang == "or-mix":
+                if lang in MIX_LANGS:
                     from .odia_mix import to_mixed
                     full_text = to_mixed(full_text, getattr(self.model, "lm", None))
+            # Fast English can also come out of the Odia model as one or two glued "words"
+            # (କମ୍ଫର୍ଟେବଲସୋଲିଟ for 8 s of speech); real Odia ran at 0.8+ words a second.
+            sparse = len(full_text.split()) < 3 and duration_seconds >= 3.0
+            if lang == "or-auto" and (sparse or _mostly_english(full_text)):
+                if self._en is None:
+                    self._ensure_english()  # switched to Auto after Odia loaded: English joins shortly
+                else:
+                    en_text = self._english_text(audio)
+                    if en_text and (not sparse or _mostly_english(full_text) or len(en_text.split()) >= 4):
+                        latency_ms = int((time.perf_counter() - start_time) * 1000)
+                        return en_text, duration_seconds, latency_ms, "en-in"
             latency_ms = int((time.perf_counter() - start_time) * 1000)
             return _drop_loop(full_text), duration_seconds, latency_ms, lang
 
@@ -669,12 +762,26 @@ class StreamingSession:
         """Returns the space-joined text of all completed phrase chunks so far."""
         return " ".join(self._texts).strip()
 
+    @property
+    def pending_from(self) -> int:
+        """Sample where the not-yet-committed audio starts: the live preview only needs what follows."""
+        return self._done
+
     def feed(self, audio: np.ndarray):
         """Recorder's growing buffer (same start as the final one). Never blocks the caller for long."""
         if self._closed or not self._busy.acquire(blocking=False):
             return
         try:
+            # Continuous speech can run 30 s without a 0.7 s sentence pause, and then nothing commits
+            # and release decodes it all at once. Past 8 s pending, a 0.3 s breath is a good-enough cut,
+            # judged against this speaker's own level: between-word gaps rarely reach absolute silence
+            # over a room or mic noise floor.
             cut = None if self._closed else find_pause(audio, self._done)
+            if cut is None and not self._closed and len(audio) - self._done >= 8 * 16000:
+                seg = audio[self._done:]
+                n = len(seg) // 1024
+                level = float(np.median(np.sqrt(np.mean(seg[:n * 1024].reshape(n, 1024) ** 2, axis=1))))
+                cut = find_pause(audio, self._done, min_pending_s=8.0, pause_s=0.3, threshold=max(0.008, 0.3 * level))
             if cut is None:
                 return
             text, *_ = self._t.transcribe(audio[self._done:self._done + cut], self._lang, self._prompt)

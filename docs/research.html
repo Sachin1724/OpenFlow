@@ -149,7 +149,7 @@ ul { list-style: none; padding: 0; }
 .sec { padding-block: clamp(72px, 8vw, 140px); }
 .sec.alt { background: var(--surface); }
 .sec-head { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: clamp(16px, 2vw, 32px); row-gap: 20px; align-items: end; margin-bottom: clamp(32px, 4vw, 56px); }
-.sec-head h2 { grid-column: 1 / 8; font-size: var(--step-head); }
+.sec-head h2, .sec-head h3 { grid-column: 1 / 8; font-size: var(--step-head); }
 .sec-head p { grid-column: 8 / 13; color: var(--body-soft); max-width: 44ch; }
 .sec-head p strong { color: var(--ink); font-weight: 500; }
 .panel { background: var(--surface-2); border-radius: var(--r); padding: clamp(20px, 2.4vw, 36px); }
@@ -322,7 +322,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); height: 44px; curs
   .shape { position: relative; right: auto; top: auto; translate: none; margin-left: auto; margin-right: calc(var(--sw) * -0.22); }
   .nav ul li:not(:last-child) { display: none; }
   .stats ul { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 40px; }
-  .sec-head h2, .sec-head p, .get h2, .get .side { grid-column: 1 / 13; }
+  .sec-head h2, .sec-head h3, .sec-head p, .get h2, .get .side { grid-column: 1 / 13; }
   .cols, .cols.pair-12 { grid-template-columns: 1fr; }
   .fig { grid-template-columns: 1fr; }
   .method .col { grid-column: 1 / 13; }
@@ -371,125 +371,104 @@ input[type=range] { width: 100%; accent-color: var(--accent); height: 44px; curs
   .btn, .chip, .pt .d, .srow .dot, .tip { transition: none; }
 }
 
-/* ==================== ACTIVE RESEARCH: PROJECT MIRA ==================== */
-.live-pill {
-  display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 16px; border-radius: 999px;
-  background: rgba(10, 132, 255, 0.12); border: 1px solid rgba(10, 132, 255, 0.35);
-  color: #70b4ff; font-size: 13px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
-  margin-bottom: 16px; text-decoration: none; white-space: nowrap; flex: none;
-}
-.live-dot {
-  width: 8px; height: 8px; border-radius: 50%; background: #0a84ff;
-  box-shadow: 0 0 10px #0a84ff; animation: live-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-@keyframes live-pulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.35; transform: scale(0.8); }
-}
+/* ==================== ACTIVE RESEARCH: PROJECT MIRA ====================
+   Same system as the rest of the page: tone steps instead of lines, one radius, sentence case, nothing under 14px. */
+.live-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex: none; animation: live-pulse 2s cubic-bezier(.4, 0, .6, 1) infinite; }
+@keyframes live-pulse { 50% { opacity: .35; transform: scale(.8); } }
+.chip .live-dot { margin-right: 10px; }
+#mira code { font-family: var(--font-or); font-size: 1em; background: var(--surface-3); padding: 0 .3em; border-radius: 6px; }
+#mira .stamp { display: block; margin-top: 14px; color: var(--soft); font-size: 15px; }
 
-.mira-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 20px; margin-top: 24px; }
+.mira-hero-card { background: var(--surface-2); border-radius: var(--r); padding: clamp(24px, 3.4vw, 44px); }
+.mira-hero-card > p { color: var(--body-soft); margin-top: 10px; max-width: 70ch; }
+.mira-hero-card > p strong { color: var(--ink); font-weight: 500; }
+.mira-arch { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-top: 28px; padding: 0; list-style: none; }
+.mira-step { background: var(--surface-3); border-radius: 18px; padding: 22px 20px; display: flex; flex-direction: column; }
+.mira-step.hot { background: var(--accent); color: var(--accent-ink); }
+.mira-step .step-tag { font-size: 14px; color: var(--soft); margin-bottom: 4px; }
+.mira-step h4 { font-size: 17px; font-weight: 500; margin: 0 0 8px; }
+.mira-step p { font-size: 15px; color: var(--body-soft); line-height: 1.45; flex-grow: 1; }
+.mira-step.hot .step-tag, .mira-step.hot p { color: var(--accent-ink); }
+#mira .mira-step.hot code { background: rgba(0, 0, 0, .14); }
+.mira-step .metric { font-size: var(--step-lead); font-weight: 500; letter-spacing: -0.02em; margin-top: 18px; font-variant-numeric: tabular-nums; }
+.mira-step .metric small { font-size: 15px; font-weight: 400; letter-spacing: 0; margin-left: 2px; }
 
-.mira-hero-card {
-  grid-column: 1 / 13;
-  background: linear-gradient(135deg, rgba(11, 42, 74, 0.6) 0%, rgba(28, 28, 30, 0.95) 100%);
-  border: 1px solid rgba(10, 132, 255, 0.28);
-  border-radius: var(--r);
-  padding: clamp(24px, 3.4vw, 44px);
-  position: relative;
-  overflow: hidden;
-}
-.mira-hero-card::after {
-  content: ""; position: absolute; top: -100px; right: -100px; width: 340px; height: 340px;
-  border-radius: 50%; background: radial-gradient(circle, rgba(10, 132, 255, 0.16) 0%, transparent 70%);
-  pointer-events: none;
-}
+.wf-container { margin-top: 12px; background: var(--surface); border-radius: 18px; padding: 22px 24px; }
+.wf-head { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 6px 16px; }
+.wf-head h4 { font-size: 17px; font-weight: 500; margin: 0; }
+.wf-head span { font-size: 15px; color: #32d74b; }
+.wf-bar { display: flex; height: 40px; border-radius: 999px; overflow: hidden; gap: 2px; padding: 3px; background: var(--surface-3); margin: 16px 0 14px; }
+.wf-part { height: 100%; border-radius: 999px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 500; color: #000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 10px; min-width: 4px; }
+.wf-part-thin { padding: 0; }
+.wf-legend { display: flex; flex-wrap: wrap; gap: 8px 20px; font-size: 14px; color: var(--body-soft); }
+.wf-legend-item { display: flex; align-items: center; gap: 8px; }
+.wf-legend-swatch { width: 10px; height: 10px; border-radius: 999px; flex: none; }
 
-.mira-badge-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
-.mira-arch { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-top: 24px; }
-.mira-step {
-  background: rgba(0, 0, 0, 0.42); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 18px;
-  padding: 20px 18px; display: flex; flex-direction: column; transition: transform 0.3s var(--ease), border-color 0.25s;
-}
-.mira-step:hover { transform: translateY(-3px); border-color: rgba(10, 132, 255, 0.5); }
-.mira-step.hot { border-color: rgba(10, 132, 255, 0.5); background: linear-gradient(180deg, rgba(10, 132, 255, 0.14) 0%, rgba(0, 0, 0, 0.5) 100%); }
-.mira-step .step-tag { font-size: 11px; font-weight: 700; color: #70b4ff; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
-.mira-step h4 { font-size: 16px; font-weight: 500; color: #fff; margin: 0 0 6px; }
-.mira-step p { font-size: 13.5px; color: var(--body-soft); line-height: 1.45; margin: 0; flex-grow: 1; }
-.mira-step .metric { font-size: 22px; font-weight: 600; color: #fff; margin-top: 14px; font-variant-numeric: tabular-nums; display: flex; align-items: baseline; gap: 4px; }
-.mira-step .metric small { font-size: 12px; color: var(--soft); font-weight: 400; }
+.mira-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.mira-case { background: var(--surface-2); border-radius: var(--r); padding: clamp(20px, 2.5vw, 32px); display: flex; flex-direction: column; }
+.case-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.case-head > span:last-child { font-size: 15px; font-weight: 500; }
+.mira-case.fail .case-head > span:last-child { color: #ff6961; }
+.mira-case.pass .case-head > span:last-child { color: #32d74b; }
+.case-chip { height: 32px; padding: 0 14px; border-radius: 999px; font-size: 14px; font-weight: 500; display: inline-flex; align-items: center; }
+.case-chip.err { background: rgba(255, 69, 58, .2); color: #ff6961; }
+.case-chip.ok { background: rgba(50, 215, 75, .2); color: #32d74b; }
+.case-body { display: grid; gap: 8px; }
+.case-row { background: var(--surface); border-radius: 14px; padding: 14px 16px; }
+.case-row .k { font-size: 14px; color: var(--soft); margin-bottom: 4px; }
+.case-row .v { font-size: 16px; line-height: 1.45; }
+.case-row .v.or { font-size: 18px; }
+.case-row .v.bad { color: #ff6961; }
+.case-row .v.good { color: #32d74b; }
+.case-row .v small { display: block; margin-top: 4px; font-size: 14px; color: var(--soft); font-weight: 400; }
 
-.wf-container {
-  margin-top: 28px; background: rgba(0, 0, 0, 0.35); border-radius: 18px; padding: 22px 24px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-}
-.wf-bar {
-  display: flex; height: 38px; border-radius: 999px; overflow: hidden; gap: 2px; padding: 3px;
-  background: var(--surface-4); margin: 14px 0 12px;
-}
-.wf-part {
-  height: 100%; border-radius: 999px; display: flex; align-items: center; justify-content: center;
-  font-size: 11.5px; font-weight: 600; color: #000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  padding: 0 8px; transition: filter 0.2s;
-}
-.wf-part:hover { filter: brightness(1.2); cursor: help; }
-.wf-part-thin { min-width: 3px; padding: 0; }
-.wf-legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12.5px; color: var(--body-soft); margin-top: 10px; }
-.wf-legend-item { display: flex; align-items: center; gap: 6px; }
-.wf-legend-swatch { width: 10px; height: 10px; border-radius: 3px; }
+.mira-dialects { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+.d-card { background: var(--surface-2); border-radius: var(--r); padding: 24px; display: flex; flex-direction: column; }
+.d-card h4 { font-size: 17px; font-weight: 500; margin: 0 0 4px; }
+.d-card .dists { font-size: 14px; color: var(--soft); margin-bottom: 16px; }
+.d-card .sample-box { margin-top: auto; background: var(--surface); border-radius: 14px; padding: 14px 16px; font-family: var(--font-or); font-size: 16px; line-height: 1.5; }
+.d-card .sample-box .raw { color: #ff9f0a; }
+.d-card .sample-box .norm { color: #32d74b; font-weight: 500; margin-top: 6px; }
 
-.mira-case {
-  grid-column: span 6; background: var(--surface-3); border-radius: var(--r);
-  padding: clamp(20px, 2.5vw, 32px); display: flex; flex-direction: column;
-}
-.mira-case.fail { border: 1px solid rgba(255, 69, 58, 0.25); background: linear-gradient(180deg, rgba(255, 69, 58, 0.05) 0%, var(--surface-3) 100%); }
-.mira-case.pass { border: 1px solid rgba(50, 215, 75, 0.3); background: linear-gradient(180deg, rgba(50, 215, 75, 0.05) 0%, var(--surface-3) 100%); }
-.case-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
-.case-chip { height: 26px; padding: 0 10px; border-radius: 999px; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; }
-.case-chip.err { background: rgba(255, 69, 58, 0.2); color: #ff6961; }
-.case-chip.ok { background: rgba(50, 215, 75, 0.2); color: #32d74b; }
-.case-body { display: grid; gap: 12px; font-size: 14.5px; }
-.case-row { background: rgba(0, 0, 0, 0.3); border-radius: 12px; padding: 12px 14px; }
-.case-row .k { font-size: 11.5px; color: var(--soft); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px; }
-.case-row .v { font-size: 15px; color: #fff; line-height: 1.45; }
-.case-row .v.or { font-family: var(--font-or); font-size: 17px; }
+.mira-avatar-card { background: var(--surface-2); border-radius: var(--r); padding: clamp(24px, 4vw, 48px); display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 40px; align-items: center; }
+.mira-avatar-card > div > p { color: var(--body-soft); margin-top: 12px; max-width: 62ch; }
+.mira-avatar-card .chips { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+.avatar-stage { display: flex; flex-direction: column; align-items: center; }
+.avatar-blob-wrap { width: 180px; height: 180px; border-radius: 999px; background: var(--surface); display: grid; place-items: center; }
+.avatar-svg-container { width: 120px; height: 120px; cursor: crosshair; }
+.avatar-svg-container svg { width: 100%; height: 100%; overflow: visible; }
+.avatar-caption { margin-top: 16px; font-size: 14px; color: var(--soft); text-align: center; }
 
-.mira-dialects {
-  grid-column: 1 / 13; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 16px; margin-top: 14px;
-}
-.d-card {
-  background: var(--surface-3); border-radius: 18px; padding: 20px; border: 1px solid rgba(255, 255, 255, 0.06);
-}
-.d-card h4 { font-size: 16px; color: #fff; display: flex; align-items: center; justify-content: space-between; margin: 0 0 6px; }
-.d-card .dists { font-size: 12px; color: var(--soft); margin-bottom: 12px; }
-.d-card .sample-box { background: rgba(0, 0, 0, 0.35); border-radius: 10px; padding: 10px 12px; font-size: 13px; line-height: 1.5; }
-.d-card .sample-box .raw { color: #ff9f0a; font-family: var(--font-or); }
-.d-card .sample-box .norm { color: #32d74b; font-family: var(--font-or); font-weight: 500; }
+/* how it was built: open rows on the section ground, the number carries each step */
+.mira-build { list-style: none; padding: 0; margin: 0; display: grid; gap: clamp(28px, 3vw, 44px); }
+.mira-build li { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 3fr) minmax(0, 6fr); column-gap: clamp(16px, 2vw, 32px); align-items: baseline; }
+.mira-build b { font-size: clamp(2rem, 1.4rem + 1.8vw, 3.25rem); font-weight: 500; letter-spacing: -0.04em; line-height: 1; font-variant-numeric: tabular-nums; }
+.mira-build h4 { font-size: var(--step-lead); font-weight: 500; letter-spacing: -0.02em; line-height: 1.15; margin: 0; }
+.mira-build p { color: var(--body-soft); max-width: 60ch; }
 
-.mira-avatar-card {
-  grid-column: 1 / 13; background: radial-gradient(circle at 50% 30%, #10263f 0%, var(--surface-2) 75%);
-  border: 1px solid rgba(10, 132, 255, 0.35); border-radius: var(--r); padding: clamp(24px, 4vw, 44px);
-  display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 36px; align-items: center;
-}
-.avatar-stage { display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; }
-.avatar-blob-wrap {
-  position: relative; width: 140px; height: 140px; display: flex; align-items: center; justify-content: center;
-}
-.gaslan-glow {
-  position: absolute; width: 120px; height: 120px; border-radius: 50%;
-  background: radial-gradient(circle, rgba(165, 221, 255, 0.35) 0%, rgba(10, 132, 255, 0.15) 45%, transparent 70%);
-  filter: blur(14px); pointer-events: none; animation: gaslan-pulse 3s ease-in-out infinite alternate;
-}
-@keyframes gaslan-pulse {
-  0% { transform: scale(0.92); opacity: 0.6; }
-  100% { transform: scale(1.15); opacity: 1.0; }
-}
-.avatar-svg-container { position: relative; z-index: 2; width: 88px; height: 88px; cursor: crosshair; }
-.avatar-caption { margin-top: 14px; font-size: 12px; color: var(--soft); text-align: center; }
+/* pick a sentence */
+.mira-try h3 { margin-bottom: 20px; }
+.mira-try .try-out { margin-top: 20px; }
+.mira-try .note { margin-top: 14px; }
+.try-out.swap .v { animation: try-in .45s var(--ease); }
+@keyframes try-in { from { opacity: 0; transform: translateY(8px); } }
+#mira .mira-try { margin-top: clamp(56px, 6vw, 96px); }
+#mira .fig { margin-top: 16px; }
+
+#mira .sub { margin-top: clamp(56px, 6vw, 96px); }
+#mira .mira-grid, #mira .mira-dialects, #mira .mira-avatar-card, #mira #mira-bench-card { margin-top: 16px; }
+#mira .mira-avatar-card { margin-top: clamp(56px, 6vw, 96px); }
 
 @media (max-width: 900px) {
-  .mira-case { grid-column: 1 / 13; }
+  .mira-grid { grid-template-columns: 1fr; }
+  .mira-build li { grid-template-columns: 1fr; row-gap: 8px; }
   .mira-avatar-card { grid-template-columns: 1fr; justify-items: center; text-align: center; }
+  .mira-avatar-card .chips { justify-content: center; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .live-dot { animation: none; }
+  #blob-head, #blob-eyes { transition: none !important; }
+  .try-out.swap .v { animation: none; }
 }
 
 </style>
@@ -513,7 +492,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); height: 44px; curs
     <h1 class="rv">Measured, not claimed.</h1>
     <p class="lead rv" style="--d:1">Every OpenFlow benchmark in the open: public speech data, one ordinary PC, and the code to repeat it.</p>
     <div class="actions rv" style="--d:2">
-      <a class="chip" href="#mira" style="background: rgba(10, 132, 255, 0.16); color: #70b4ff; border: 1px solid rgba(10, 132, 255, 0.38);"><span class="live-dot" style="margin-right:6px"></span>Active Research: Project MIRA</a>
+      <a class="chip" href="#mira"><span class="live-dot" aria-hidden="true"></span>New research: Project MIRA</a>
       <a class="btn" href="#odia">Explore the charts</a>
       <a class="btn quiet" href="#method">How we measured</a>
     </div>
@@ -537,242 +516,254 @@ input[type=range] { width: 100%; accent-color: var(--accent); height: 44px; curs
 <section class="sec" id="mira" aria-labelledby="mira-h">
   <div class="wrap">
     <div class="sec-head">
-      <div class="mira-badge-row">
-        <a class="live-pill" href="#mira"><span class="live-dot"></span>Active Research · In Progress</a>
-        <span class="chip" style="pointer-events:none;background:var(--surface-3);color:var(--soft);font-size:12px;height:32px;">Updated Nov 2026</span>
-      </div>
-      <h2 id="mira-h" class="rv">Project MIRA: Solving Human-Like Odia Voice AI.</h2>
+      <h2 id="mira-h" class="rv">Project MIRA: Odia, heard right.</h2>
       <p class="rv" style="--d:1">
-        Existing commercial models fail on spoken Odia: they slur words into grotesque mistranslations (e.g. <em>“Odia assistant”</em> → <em>“foot assistant”</em>), stumble on Western Kosali/Sambalpuri grammar, and choke on CPU latency. <strong>MIRA (Multimodal Intelligent Refinement & Acoustic Assistant)</strong> achieves an end-to-end <strong>120.7 ms turnaround</strong> on an ordinary CPU, repairs phonetic boundary slurring in 0.28 ms, and unifies 4 regional Odia dialects with 0% hallucination.
+        Commercial models slur spoken Odia into mistranslations (<em>“Odia assistant”</em> becomes <em>“foot assistant”</em>), stumble on Western Kosali and Sambalpuri grammar, and choke on CPU latency. <strong>MIRA (Multimodal Intelligent Refinement &amp; Acoustic Assistant)</strong> turns a sentence around in <strong>120.7 ms</strong> on an ordinary CPU, repairs boundary slurring in 0.28 ms, and handles 4 regional dialects with 0% hallucination.
+        <span class="stamp"><span class="live-dot" aria-hidden="true"></span> Active research, updated November 2026</span>
       </p>
     </div>
 
-    <!-- MIRA ML Pipeline Card -->
     <div class="mira-hero-card rv">
-      <div class="mira-badge-row">
-        <span class="chip" style="background:#000;color:#70b4ff;border:1px solid rgba(10,132,255,0.4);font-weight:600">The 5-Stage Neural Edge Pipeline</span>
-        <span class="chip" style="background:rgba(50,215,75,0.15);color:#32d74b;font-weight:500">120.7 ms Total Turnaround</span>
-        <span class="chip" style="background:rgba(255,255,255,0.1);color:#fff">Zero GPU Required (Pure CPU)</span>
-        <span class="chip" style="background:rgba(255,255,255,0.1);color:#fff">&lt;150 MB Total RAM</span>
-      </div>
-      <h3>How MIRA Solves Human-Like Odia Speech on the Edge</h3>
-      <p style="color:var(--body-soft);margin-top:8px;max-width:75ch">
-        Instead of passing audio into an unpredictable 7-billion parameter hallucinating black-box, MIRA decouples acoustic perception, phonetic boundary self-repair, dynamic morphological rules, affective pragmatics, and voice synthesis into distinct sub-millisecond layers.
+      <h3>Five layers, all on the CPU</h3>
+      <p>
+        Instead of passing audio to a 7-billion-parameter black box that can hallucinate, MIRA splits the job into separate layers: acoustic perception, boundary self-repair, dialect rules, emotion and cadence, and speech synthesis. <strong>120.7 ms end to end, under 150 MB of RAM, no GPU.</strong>
       </p>
 
-      <div class="mira-arch">
-        <div class="mira-step">
-          <span class="step-tag">Layer 1 · Perception</span>
+      <ol class="mira-arch">
+        <li class="mira-step">
+          <span class="step-tag">Perception</span>
           <h4>IndicCTC ASR</h4>
           <p>80-band log-mel spectrogram, non-autoregressive CTC decoding. Listens at 45.2× real-time speed.</p>
-          <div class="metric">84.1 <small>ms</small></div>
-        </div>
+          <div class="metric">84.1<small>ms</small></div>
+        </li>
+        <li class="mira-step hot">
+          <span class="step-tag">Acoustic repair</span>
+          <h4>Phonetic self-repair</h4>
+          <p>Catches plosive-vowel boundary slurring (<code lang="or">ଆପଣଙ୍କ + ଓଡ଼ିଆ</code> → <code lang="or">ଗୋଡ଼ିଆ</code>) before it distorts the meaning.</p>
+          <div class="metric">0.28<small>ms</small></div>
+        </li>
+        <li class="mira-step">
+          <span class="step-tag">Morphology</span>
+          <h4>Dialect normalizer</h4>
+          <p>One suffix engine for Sambalpuri (Kosali), Ganjami, Kalahandia and Baleswari, covering 225,270 words.</p>
+          <div class="metric">0.04<small>ms</small></div>
+        </li>
+        <li class="mira-step">
+          <span class="step-tag">Pragmatics</span>
+          <h4>Emotion and cadence</h4>
+          <p>Strips conversational fillers (<code lang="or">ତ</code>, <code lang="or">ଟ</code>) and restores the punctuation the speaker meant: <code>!</code> <code>?</code> <code>,</code> <code lang="or">।</code></p>
+          <div class="metric">0.04<small>ms</small></div>
+        </li>
+        <li class="mira-step">
+          <span class="step-tag">Speech synthesis</span>
+          <h4>VITS Odia voice</h4>
+          <p>Offline neural text-to-speech that speaks natural Odia at 3.2× real-time speed on a CPU.</p>
+          <div class="metric">3.2×<small>RTF</small></div>
+        </li>
+      </ol>
 
-        <div class="mira-step hot">
-          <span class="step-tag">Layer 2 · Acoustic Repair</span>
-          <h4>Phonetic Self-Repair</h4>
-          <p>Intercepts plosive-vocalic boundary slurring (e.g., <code>ଆପଣଙ୍କ + ଓଡ଼ିଆ</code> → <code>ଗୋଡ଼ିଆ</code>) in real time before semantic distortion.</p>
-          <div class="metric">0.28 <small>ms</small></div>
-        </div>
-
-        <div class="mira-step">
-          <span class="step-tag">Layer 3 · Morphology</span>
-          <h4>Dialect Normalizer</h4>
-          <p>Universal suffix engine for Sambalpuri (Kosali), Ganjami, Kalahandia, and Baleswari covering 225,270 words.</p>
-          <div class="metric">0.04 <small>ms</small></div>
-        </div>
-
-        <div class="mira-step">
-          <span class="step-tag">Layer 4 · Pragmatics</span>
-          <h4>Emotion &amp; Cadence</h4>
-          <p>Strips conversational noise (<code>" ତ"</code>, <code>" ଟ"</code>) and restores authentic emotive punctuation (<code>!</code>, <code>?</code>, <code>,</code>, <code>।</code>).</p>
-          <div class="metric">0.04 <small>ms</small></div>
-        </div>
-
-        <div class="mira-step">
-          <span class="step-tag">Layer 5 · Speech Synthesis</span>
-          <h4>VITS Odia Voice</h4>
-          <p>Offline neural text-to-speech generating natural human Odia phonemes at 3.2× real-time speed on CPU.</p>
-          <div class="metric">3.2× <small>RTF</small></div>
-        </div>
-      </div>
-
-      <!-- Waterfall Timeline -->
       <div class="wf-container">
-        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-          <h4 style="font-size:15px;color:#fff;margin:0">End-to-End Latency Breakdown (120.7 ms Total)</h4>
-          <span style="font-size:13px;color:#32d74b;font-weight:600">Faster than Human Auditory Reaction (150 ms)</span>
+        <div class="wf-head">
+          <h4>Where the 120.7 ms goes</h4>
+          <span>Faster than human reaction time (150 ms)</span>
         </div>
-        <div class="wf-bar" id="mira-wf-bar">
-          <div class="wf-part" style="width:69.7%;background:#0a84ff" title="IndicCTC ASR: 84.1ms">IndicCTC 84.1ms</div>
-          <div class="wf-part" style="width:25.7%;background:#30d158" title="IndicTrans2 Translation: 31.0ms">IndicTrans2 31.0ms</div>
-          <div class="wf-part" style="width:4.3%;background:#ffd60a" title="Audio Mel Framing &amp; Bus: 5.2ms">Bus</div>
-          <div class="wf-part wf-part-thin" style="width:0.3%;background:#ff375f" title="MIRA Repair + Normalizer + Emotion: 0.36ms"></div>
+        <div class="wf-bar" id="mira-wf-bar" role="img" aria-label="IndicCTC ASR 84.1 ms, IndicTrans2 translation 31.0 ms, framing and bus 5.2 ms, MIRA repair and emotion 0.36 ms">
+          <div class="wf-part" style="width:69.7%;background:#0a84ff">IndicCTC 84.1 ms</div>
+          <div class="wf-part" style="width:25.7%;background:#30d158">IndicTrans2 31.0 ms</div>
+          <div class="wf-part wf-part-thin" style="width:4.3%;background:#ffd60a"></div>
+          <div class="wf-part wf-part-thin" style="width:0.3%;background:#ff375f"></div>
         </div>
         <div class="wf-legend">
-          <div class="wf-legend-item"><span class="wf-legend-swatch" style="background:#0a84ff"></span> Acoustic ASR (84.1ms)</div>
-          <div class="wf-legend-item"><span class="wf-legend-swatch" style="background:#30d158"></span> Fast Translation (31.0ms)</div>
-          <div class="wf-legend-item"><span class="wf-legend-swatch" style="background:#ffd60a"></span> Framing &amp; Bus (5.2ms)</div>
-          <div class="wf-legend-item"><span class="wf-legend-swatch" style="background:#ff375f"></span> MIRA Repair &amp; Emotion (0.36ms)</div>
+          <div class="wf-legend-item"><span class="wf-legend-swatch" style="background:#0a84ff"></span>Acoustic ASR 84.1 ms</div>
+          <div class="wf-legend-item"><span class="wf-legend-swatch" style="background:#30d158"></span>Translation 31.0 ms</div>
+          <div class="wf-legend-item"><span class="wf-legend-swatch" style="background:#ffd60a"></span>Framing and bus 5.2 ms</div>
+          <div class="wf-legend-item"><span class="wf-legend-swatch" style="background:#ff375f"></span>MIRA repair and emotion 0.36 ms</div>
         </div>
       </div>
     </div>
 
-    <!-- Comparative Case Study: The "Foot" Assistant Bug -->
-    <div class="sec-head" style="margin-top:48px">
-      <h3 class="rv">Case Study: The Acoustic Boundary Slurring Catastrophe</h3>
-      <p class="rv" style="--d:1">Why generic voice assistants fail when speaking or hearing rapid Odia, and how MIRA's phonetic lattice boundary repair fixes it in &lt;0.3 ms.</p>
+    <div class="sec-head sub">
+      <h3 class="rv">How MIRA was built</h3>
+      <p class="rv" style="--d:1">Ten steps from a broken English transcript to an Odia assistant that listens, writes and speaks. Every number here comes from the project’s progress log.</p>
+    </div>
+
+    <ol class="mira-build">
+      <li class="rv"><b>0</b><h4>Clean up the draft</h4><p>A 934-character prompt was steering Whisper into invented names. Cut to under 150 characters, Whisper small transcribed a 68-minute English podcast at 85% accuracy with no hallucinations.</p></li>
+      <li class="rv"><b>25×</b><h4>Give Odia its own ear</h4><p>On a one-hour Odia podcast Whisper small guessed Bengali and looped a single Tibetan character. AI4Bharat’s IndicCTC, quantized to int8, transcribed it at 25× real time, the guest’s name included.</p></li>
+      <li class="rv"><b>172</b><h4>Listen to 19 districts</h4><p>172 real recordings from the OdiaTTS set, six dialects. IndicCTC transcribes each one 43× to 47× faster than real time on a CPU.</p></li>
+      <li class="rv"><b>0.025 ms</b><h4>Tell the dialects apart</h4><p>A rule-based classifier names the dialect in 0.025 ms. It got all 17 test sentences right across six dialects and 30 districts.</p></li>
+      <li class="rv"><b>225,270</b><h4>Rewrite into written Odia</h4><p>Phrase, verb and suffix rules, backed by a 225,270-entry dictionary, turn regional forms into standard Odia and restore the danda and question mark in under 0.05 ms.</p></li>
+      <li class="rv"><b>0.077</b><h4>Train a small writer</h4><p>SmolLM2-135M, fine-tuned with LoRA on an RTX 4050 in 204.6 seconds. Loss fell from 1.39 to 0.077, and the model ships as 129 MB of int8.</p></li>
+      <li class="rv"><b>0.28 ms</b><h4>Fix the foot</h4><p>Repairs for slurred word joins, removal of trailing fillers, and punctuation chosen from the sentence’s tone: greeting, question or statement.</p></li>
+      <li class="rv"><b>3.2×</b><h4>Give MIRA a voice</h4><p>Meta’s Odia VITS speaks at 3.2× real time on a CPU. Fed back into IndicCTC, its own speech decodes word for word in 116 ms.</p></li>
+      <li class="rv"><b>1,400 ms</b><h4>Learn when to wait</h4><p>MIRA holds back when a sentence ends on “but” or “and”, hears <span lang="or">ହଁ</span> as a nod rather than an interruption, and tunes its patience to each speaker on the device.</p></li>
+      <li class="rv"><b>60 FPS</b><h4>Give it a face</h4><p>The capsule shows MIRA while you dictate Odia: it watches your cursor, blinks, and breathes with your voice.</p></li>
+    </ol>
+
+    <div class="sec-head sub">
+      <h3 class="rv">When “Odia” becomes “foot”</h3>
+      <p class="rv" style="--d:1">Why generic assistants mishear fast spoken Odia, and how MIRA’s boundary repair fixes it in under 0.3 ms.</p>
     </div>
 
     <div class="mira-grid rv">
       <div class="mira-case fail">
         <div class="case-head">
-          <span class="case-chip err">Standard Models (Whisper + LLM)</span>
-          <span style="color:#ff6961;font-size:13px;font-weight:500">Semantic Failure</span>
+          <span class="case-chip err">Whisper + LLM</span>
+          <span>Meaning lost</span>
         </div>
         <div class="case-body">
           <div class="case-row">
-            <div class="k">Spoken Audio Input</div>
-            <div class="v or">“ନମସ୍କାର ମୁଁ ମୀରା ଆପଣଙ୍କ ଓଡ଼ିଆ ଭଏସ ଆସିଷ୍ଟାଣ୍ଟ ତ”</div>
+            <div class="k">Spoken</div>
+            <div class="v or" lang="or">“ନମସ୍କାର ମୁଁ ମୀରା ଆପଣଙ୍କ ଓଡ଼ିଆ ଭଏସ ଆସିଷ୍ଟାଣ୍ଟ ତ”</div>
           </div>
           <div class="case-row">
-            <div class="k">Acoustic Boundary Phenomenon</div>
-            <div class="v">Velar stop <code>ଆପଣଙ୍କ</code> (…k) + open vowel <code>ଓଡ଼ିଆ</code> (o…) co-articulates into voiced plosive: <code>[ଗୋଡ଼ିଆ]</code> ("godia").</div>
+            <div class="k">What happens at the word boundary</div>
+            <div class="v">The final k of <code lang="or">ଆପଣଙ୍କ</code> runs into the open o of <code lang="or">ଓଡ଼ିଆ</code> and is heard as a voiced g: <code lang="or">ଗୋଡ଼ିଆ</code> (“godia”).</div>
           </div>
           <div class="case-row">
-            <div class="k">Model Output (Raw ASR)</div>
-            <div class="v or" style="color:#ff6961">“ନମସ୍କାର ମୁଁ ମିୀରା ଆପଣଙ୍କ ଗୋଡ଼ିଆ ଭୟସ ଆସିଷ୍ଟାଣ୍ଟ ତ”</div>
+            <div class="k">Raw transcript</div>
+            <div class="v or bad" lang="or">“ନମସ୍କାର ମୁଁ ମିୀରା ଆପଣଙ୍କ ଗୋଡ଼ିଆ ଭୟସ ଆସିଷ୍ଟାଣ୍ଟ ତ”</div>
           </div>
           <div class="case-row">
-            <div class="k">English Translation</div>
-            <div class="v" style="color:#ff6961"><strong>“Hello, I am Meera, your foot voice assistant.”</strong> <br><small style="color:var(--soft)">(In Odia, 'ଗୋଡ଼' means foot/leg. Trailing 'ତ' left as unpunctuated noise)</small></div>
+            <div class="k">In English</div>
+            <div class="v bad"><strong>“Hello, I am Meera, your foot voice assistant.”</strong><small><span lang="or">ଗୋଡ଼</span> means foot or leg. The trailing <span lang="or">ତ</span> stays in as noise.</small></div>
           </div>
         </div>
       </div>
 
       <div class="mira-case pass">
         <div class="case-head">
-          <span class="case-chip ok">OpenFlow MIRA Pipeline</span>
-          <span style="color:#32d74b;font-size:13px;font-weight:500">0.41 ms Repair</span>
+          <span class="case-chip ok">OpenFlow MIRA</span>
+          <span>Repaired in 0.41 ms</span>
         </div>
         <div class="case-body">
           <div class="case-row">
-            <div class="k">Spoken Audio Input</div>
-            <div class="v or">“ନମସ୍କାର ମୁଁ ମୀରା ଆପଣଙ୍କ ଓଡ଼ିଆ ଭଏସ ଆସିଷ୍ଟାଣ୍ଟ ତ”</div>
+            <div class="k">Spoken</div>
+            <div class="v or" lang="or">“ନମସ୍କାର ମୁଁ ମୀରା ଆପଣଙ୍କ ଓଡ଼ିଆ ଭଏସ ଆସିଷ୍ଟାଣ୍ଟ ତ”</div>
           </div>
           <div class="case-row">
-            <div class="k">MIRA Phonetic &amp; Emotion Filter</div>
-            <div class="v">Repairs <code>ଗୋଡ଼ିଆ ଭୟସ</code> → <code>ଓଡ଼ିଆ ଭଏସ</code>. Strips trailing filler <code>" ତ"</code>. Detects <code>EXCLAMATORY</code> greeting emotion.</div>
+            <div class="k">What MIRA does</div>
+            <div class="v">Repairs <code lang="or">ଗୋଡ଼ିଆ ଭୟସ</code> → <code lang="or">ଓଡ଼ିଆ ଭଏସ</code>, drops the trailing filler <code lang="or">ତ</code>, and reads the line as an exclamatory greeting.</div>
           </div>
           <div class="case-row">
-            <div class="k">MIRA Normalized Output</div>
-            <div class="v or" style="color:#32d74b"><strong>“ନମସ୍କାର, ମୁଁ ମୀରା ଆପଣଙ୍କ ଓଡ଼ିଆ ଭଏସ ଆସିଷ୍ଟାଣ୍ଟ !”</strong></div>
+            <div class="k">Final text</div>
+            <div class="v or good" lang="or"><strong>“ନମସ୍କାର, ମୁଁ ମୀରା ଆପଣଙ୍କ ଓଡ଼ିଆ ଭଏସ ଆସିଷ୍ଟାଣ୍ଟ !”</strong></div>
           </div>
           <div class="case-row">
-            <div class="k">English Translation</div>
-            <div class="v" style="color:#32d74b"><strong>“Hello, I am Meera, your Odia voice assistant!”</strong> <br><small style="color:var(--soft)">(Natural pause comma restored after greeting, exclamation mark applied)</small></div>
+            <div class="k">In English</div>
+            <div class="v good"><strong>“Hello, I am Meera, your Odia voice assistant!”</strong><small>A pause comma after the greeting, and the exclamation it was spoken with.</small></div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Interactive Benchmark Matrix -->
-    <div class="panel rv" id="mira-bench-card" style="margin-top:36px">
-      <div class="tools" role="group" aria-label="MIRA Benchmark Options">
+    <div class="panel rv" id="mira-bench-card">
+      <div class="tools" role="group" aria-label="MIRA benchmark">
         <span class="lbl">Benchmark</span>
-        <button class="chip" type="button" data-mb="latency" aria-pressed="true">Turnaround Latency</button>
-        <button class="chip" type="button" data-mb="memory" aria-pressed="false">Memory Footprint</button>
-        <button class="chip" type="button" data-mb="dialect" aria-pressed="false">Dialect Error Rate</button>
-        <button class="chip" type="button" data-mb="hallucination" aria-pressed="false">Hallucination on Fillers</button>
+        <button class="chip" type="button" data-mb="latency" aria-pressed="true">Turnaround latency</button>
+        <button class="chip" type="button" data-mb="memory" aria-pressed="false">Memory footprint</button>
+        <button class="chip" type="button" data-mb="dialect" aria-pressed="false">Dialect error rate</button>
+        <button class="chip" type="button" data-mb="hallucination" aria-pressed="false">Hallucination on fillers</button>
+        <button class="chip" type="button" data-mb="district" aria-pressed="false">Real recordings</button>
       </div>
       <div class="bars" id="mira-bench-bars"></div>
       <p class="note" id="mira-bench-note"></p>
     </div>
 
-    <!-- 4 Linguistic Dialect Zones -->
-    <div class="sec-head" style="margin-top:48px">
-      <h3 class="rv">Linguistic Generalization: 4 Regional Odia Dialects</h3>
-      <p class="rv" style="--d:1">MIRA's dynamic rule normalizer recognizes authentic regional variants across 30 Odisha districts in 0.04 ms without GPU dependencies.</p>
+    <div class="sec-head sub">
+      <h3 class="rv">Four dialects, one normalizer</h3>
+      <p class="rv" style="--d:1">MIRA’s rule normalizer recognizes regional variants across 30 Odisha districts in 0.04 ms, with no GPU.</p>
     </div>
 
     <div class="mira-dialects rv">
       <div class="d-card">
-        <h4>Central &amp; Coastal <span class="chip" style="background:#0a84ff;color:#000;font-size:11px;height:24px;padding:0 8px">Standard</span></h4>
+        <h4>Central and coastal</h4>
         <div class="dists">Puri, Cuttack, Khordha, Kendrapara, Jagatsinghpur</div>
-        <div class="sample-box">
+        <div class="sample-box" lang="or">
           <div class="raw">ମୁଁ ଭୁବନେଶ୍ୱର ଯାଉଛି ଆପଣ କଣ କରୁଛନ୍ତି ତ</div>
-          <div class="norm" style="margin-top:6px">→ ମୁଁ ଭୁବନେଶ୍ୱର ଯାଉଛି, ଆପଣ କଣ କରୁଛନ୍ତି ?</div>
+          <div class="norm">→ ମୁଁ ଭୁବନେଶ୍ୱର ଯାଉଛି, ଆପଣ କଣ କରୁଛନ୍ତି ?</div>
         </div>
       </div>
-
       <div class="d-card">
-        <h4>Western (Kosali / Sambalpuri) <span class="chip" style="background:#ff9f0a;color:#000;font-size:11px;height:24px;padding:0 8px">Western</span></h4>
+        <h4>Western (Kosali, Sambalpuri)</h4>
         <div class="dists">Sambalpur, Bargarh, Balangir, Jharsuguda, Sonepur</div>
-        <div class="sample-box">
+        <div class="sample-box" lang="or">
           <div class="raw">ତୁଇ କେନ୍ତା ଅଛୁ ବେ, ମୁଇଁ ଘରକେ ଜାଉଛେ</div>
-          <div class="norm" style="margin-top:6px">→ ତୁ କେମିତି ଅଛୁ, ମୁଁ ଘରକୁ ଯାଉଛି ।</div>
+          <div class="norm">→ ତୁ କେମିତି ଅଛୁ, ମୁଁ ଘରକୁ ଯାଉଛି ।</div>
         </div>
       </div>
-
       <div class="d-card">
-        <h4>Southern (Ganjami / Desia) <span class="chip" style="background:#bf5af2;color:#fff;font-size:11px;height:24px;padding:0 8px">Southern</span></h4>
+        <h4>Southern (Ganjami, Desia)</h4>
         <div class="dists">Ganjam, Gajapati, Koraput, Rayagada, Nabarangpur</div>
-        <div class="sample-box">
+        <div class="sample-box" lang="or">
           <div class="raw">କୁଆଡେ ଜଉଚୁ ବାବୁ, କାଇଁକିନି ଆସିଲୁନି</div>
-          <div class="norm" style="margin-top:6px">→ କେଉଁଆଡେ ଯାଉଛ ବାବୁ, କାହିଁକି ଆସିଲ ନାହିଁ ?</div>
+          <div class="norm">→ କେଉଁଆଡେ ଯାଉଛ ବାବୁ, କାହିଁକି ଆସିଲ ନାହିଁ ?</div>
         </div>
       </div>
-
       <div class="d-card">
-        <h4>Northern (Baleswari) <span class="chip" style="background:#30d158;color:#000;font-size:11px;height:24px;padding:0 8px">Northern</span></h4>
+        <h4>Northern (Baleswari)</h4>
         <div class="dists">Baleswar, Mayurbhanj, Bhadrak</div>
-        <div class="sample-box">
+        <div class="sample-box" lang="or">
           <div class="raw">ଭାତ ଖାଏଲୁ କିନି, କେଉଁ ଟା ପଟ କି ଜିବୁ</div>
-          <div class="norm" style="margin-top:6px">→ ଭାତ ଖାଇଲୁ କି, କେଉଁ ଦିଗରେ ଯିବୁ ?</div>
+          <div class="norm">→ ଭାତ ଖାଇଲୁ କି, କେଉଁ ଦିଗରେ ଯିବୁ ?</div>
         </div>
       </div>
     </div>
 
-    <!-- Interactive Organic Blobatar Preview -->
-    <div class="mira-avatar-card rv" id="mira-avatar-interactive" style="margin-top:36px">
+    <div class="panel rv mira-try" id="mira-try">
+      <h3>Pick a sentence, see what MIRA writes</h3>
+      <div class="tools" role="group" aria-label="Example sentence">
+        <button class="chip" type="button" data-try="sambalpuri" aria-pressed="true">Sambalpuri</button>
+        <button class="chip" type="button" data-try="ganjami" aria-pressed="false">Ganjami</button>
+        <button class="chip" type="button" data-try="kalahandia" aria-pressed="false">Kalahandia</button>
+        <button class="chip" type="button" data-try="anugulia" aria-pressed="false">Anugulia</button>
+        <button class="chip" type="button" data-try="baleswari" aria-pressed="false">Baleswari</button>
+        <button class="chip" type="button" data-try="greeting" aria-pressed="false">A greeting</button>
+        <button class="chip" type="button" data-try="question" aria-pressed="false">A question</button>
+      </div>
+      <div class="case-body try-out" aria-live="polite">
+        <div class="case-row"><div class="k">Heard</div><div class="v or" lang="or" id="try-raw">ହେ ସାଙ୍ଗ କେନ୍ତା ଅଛ, କାଣା କରୁଛ</div></div>
+        <div class="case-row"><div class="k">MIRA writes</div><div class="v or good" lang="or" id="try-norm">ହେ ସାଙ୍ଗ କେମିତି ଅଛ କଣ କରୁଛ ?</div></div>
+        <div class="case-row"><div class="k">In English</div><div class="v" id="try-en">“Hey buddy, how are you doing?”</div></div>
+      </div>
+      <p class="note" id="try-time">Normalized in 0.33 ms. Outputs recorded from <code>test_mira_live.py</code>, not generated on this page.</p>
+    </div>
+
+    <div class="mira-avatar-card rv" id="mira-avatar-interactive">
       <div class="avatar-stage">
         <div class="avatar-blob-wrap">
-          <div class="gaslan-glow"></div>
           <div class="avatar-svg-container" id="web-blobatar">
-            <svg id="blob-svg" viewBox="0 0 100 100" width="88" height="88" style="overflow:visible">
-              <defs>
-                <filter id="mira-gaslan-glow" x="-30%" y="-30%" width="160%" height="160%">
-                  <feGaussianBlur stdDeviation="3.5" result="blur"/>
-                  <feComposite in="SourceGraphic" in2="blur" operator="over"/>
-                </filter>
-              </defs>
-              <g id="blob-head" transform-origin="50 51.2" style="transition:transform 0.08s ease-out">
-                <circle cx="33.69" cy="51.21" r="19.09" fill="#a5ddff" filter="url(#mira-gaslan-glow)"/>
-                <circle cx="66.31" cy="51.21" r="19.09" fill="#a5ddff" filter="url(#mira-gaslan-glow)"/>
-                <path d="M 66.31 32.12 H 33.69 A 19.09 19.09 0 0 0 14.6 51.21 V 51.21 A 19.09 19.09 0 0 0 33.69 70.3 H 66.31 A 19.09 19.09 0 0 0 85.4 51.21 V 51.21 A 19.09 19.09 0 0 0 66.31 32.12 Z" fill="#a5ddff" filter="url(#mira-gaslan-glow)"/>
-              </g>
-              <g id="blob-eyes" style="transition:transform 0.05s ease-out">
-                <circle id="eye-l" cx="37.88" cy="51.21" r="4.24" fill="#071117"/>
-                <circle id="eye-r" cx="62.12" cy="51.21" r="4.24" fill="#071117"/>
+            <svg id="blob-svg" viewBox="0 0 100 100" role="img" aria-label="MIRA, a round blue character with two dark eyes">
+              <g id="blob-head" transform-origin="48.85 51.21" style="transition:transform 0.08s ease-out" fill="#a5ddff">
+                <circle cx="33.69" cy="51.21" r="19.09"/>
+                <circle cx="64" cy="51.21" r="19.09"/>
+                <path d="M33.69 32.12H64V70.3H33.69Z"/>
+                <g id="blob-eyes" style="transition:transform 0.05s ease-out;transform-origin:50px 49.5px" fill="#071117">
+                  <path d="M43.34 48.83C45.07 57.03 45.07 57.05 42.18 57.66C39.29 58.27 39.28 58.26 37.54 50.06C35.8 41.86 35.81 41.84 38.7 41.23C41.59 40.62 41.6 40.63 43.34 48.83Z"/>
+                  <path d="M64.23 49.01C65.85 56.61 65.84 56.63 62.71 57.29C59.58 57.96 59.57 57.95 57.96 50.34C56.34 42.74 56.34 42.72 59.47 42.06C62.6 41.39 62.61 41.4 64.23 49.01Z"/>
+                </g>
               </g>
             </svg>
           </div>
         </div>
-        <div class="avatar-caption">Move your cursor to track gaze &amp; head tilt</div>
+        <p class="avatar-caption">Move your cursor: MIRA follows it.</p>
       </div>
       <div>
-        <span class="chip" style="background:#000;color:#70b4ff;border:1px solid rgba(10,132,255,0.4);font-size:12px;margin-bottom:12px">Visual Empathy Interaction</span>
-        <h3 style="color:#fff">The MIRA Living Blobatar</h3>
-        <p style="color:var(--body-soft);margin-top:10px;line-height:1.6">
-          Traditional voice UIs use cold mechanical spinners or robotic glowing orbs. MIRA introduces an organic character based on the official <code>@blobatar/react</code> design system with shape ratio 0.65. Using a real-time mathematical gaze vector, MIRA tracks the user's cursor across screen coordinates with parallax 3D head tilt and responsive eye tracking at 60 FPS, melting smoothly into OpenFlow's dark glass capsule via multi-stop Gaussian aura ("gaslan").
+        <h3>MIRA has a face</h3>
+        <p>
+          Voice tools usually show a spinner or a glowing orb. While you dictate Odia, the OpenFlow capsule shows MIRA instead, built on <code>@blobatar/react</code> (shape 0.65). It follows your cursor with its eyes and a small head tilt, blinks, and breathes with your voice at 60 FPS. It is drawn flat, with no glow behind it, so it sits flush on the dark capsule.
         </p>
-        <div style="display:flex;gap:12px;margin-top:18px;flex-wrap:wrap">
-          <div class="chip static">60 FPS Cursor Tracking</div>
-          <div class="chip static">Gaussian Aura ("gaslan")</div>
-          <div class="chip static">Auto-activated on Odia Dialects</div>
+        <div class="chips">
+          <span class="chip static">Follows the cursor at 60 FPS</span>
+          <span class="chip static">Shows up for Odia and its dialects</span>
         </div>
       </div>
     </div>
+
+    <figure class="fig tile rv">
+      <img src="img/mira-capsule.gif" width="360" height="44" loading="lazy" alt="The OpenFlow capsule: English dictation with the plain indicator, then Odia with MIRA showing, the badge changing to SAMBALPURI mid-sentence, Refining, and the pasted result">
+      <figcaption><strong>The real capsule, recorded.</strong>English keeps the plain indicator. Switch to Odia and MIRA appears; speak Sambalpuri and the badge follows mid-sentence, then the capsule refines and pastes. Captured from the app’s own widget.</figcaption>
+    </figure>
 
   </div>
 </section>
@@ -1107,6 +1098,20 @@ node docs/figures/research/inline-data.mjs</code></pre></div>
         ],
         max: 130
       },
+      district: {
+        title: 'Real district recordings',
+        unit: 'ms',
+        note: '<strong>Time to transcribe one real recording, lower is better.</strong> One speaker per dialect from the OdiaTTS set, clips of 3.6 to 8.0 seconds, IndicCTC int8 on a CPU. Every clip ran 43× to 47× faster than real time.',
+        items: [
+          { name: 'Standard Odia', sub: 'Puri · 4.2 s clip · 44.1× real time', v: 95, val: '95 ms', hot: true },
+          { name: 'Sambalpuri', sub: 'Deogarh · 5.0 s clip · 46.6× real time', v: 107, val: '107 ms', hot: true },
+          { name: 'Ganjami', sub: 'Ganjam · 4.2 s clip · 46.2× real time', v: 91, val: '91 ms', hot: true },
+          { name: 'Anugulia', sub: 'Angul · 3.8 s clip · 43.8× real time', v: 86, val: '86 ms', hot: true },
+          { name: 'Baleswari', sub: 'Mayurbhanj · 3.6 s clip · 44.9× real time', v: 80, val: '80 ms', hot: true },
+          { name: 'Kalahandia', sub: 'Kalahandi · 8.0 s clip · 43.4× real time', v: 184, val: '184 ms', hot: true }
+        ],
+        max: 200
+      },
       hallucination: {
         title: 'Hallucination on Fillers & Silence',
         unit: '%',
@@ -1161,6 +1166,15 @@ node docs/figures/research/inline-data.mjs</code></pre></div>
     var blobEyes = $('#blob-eyes');
     var blobSvg = $('#blob-svg');
     if (avatarCard && blobHead && blobEyes && blobSvg) {
+      // Eyes carry gaze and blink in one transform, so neither overwrites the other.
+      var gx = 0, gy = 0, lid = 1;
+      var setEyes = function () {
+        blobEyes.style.transform = 'translate(' + gx.toFixed(2) + 'px, ' + gy.toFixed(2) + 'px) scaleY(' + lid + ')';
+      };
+      if (!matchMedia('(prefers-reduced-motion: reduce)').matches) setInterval(function () {
+        lid = 0.1; setEyes();
+        setTimeout(function () { lid = 1; setEyes(); }, 140);  // same 0.14 s blink as the capsule
+      }, 3500);
       window.addEventListener('mousemove', function (ev) {
         var rect = blobSvg.getBoundingClientRect();
         var cx = rect.left + rect.width / 2;
@@ -1169,13 +1183,40 @@ node docs/figures/research/inline-data.mjs</code></pre></div>
         var dy = ev.clientY - cy;
         var dist = Math.hypot(dx, dy) || 1;
         var factor = Math.min(1.0, dist / 400);
-        var gx = (dx / dist) * 3.6 * factor;
-        var gy = (dy / dist) * 2.8 * factor;
+        gx = (dx / dist) * 3.6 * factor;
+        gy = (dy / dist) * 2.8 * factor;
         var tilt = (dx / dist) * 5.0 * factor;
         blobHead.style.transform = 'rotate(' + tilt.toFixed(2) + 'deg)';
-        blobEyes.style.transform = 'translate(' + gx.toFixed(2) + 'px, ' + gy.toFixed(2) + 'px)';
+        setEyes();
       });
     }
+  })();
+
+  // ---------- MIRA: pick a sentence (outputs recorded from test_mira_live.py) ----------
+  (function () {
+    var host = $('#mira-try');
+    if (!host) return;
+    var T = {
+      sambalpuri: ['ହେ ସାଙ୍ଗ କେନ୍ତା ଅଛ, କାଣା କରୁଛ', 'ହେ ସାଙ୍ଗ କେମିତି ଅଛ କଣ କରୁଛ ?', 'Hey buddy, how are you doing?', 'Normalized in 0.33 ms.'],
+      ganjami: ['ଏହି ଔଷଧଡା ସକାଳୁ ଓ ସନ୍ଧ୍ୟାରେ ଖାଅ ଆଜ୍ଞା', 'ଏହି ଔଷଧ ସକାଳୁ ଓ ସନ୍ଧ୍ୟାରେ ଖାଆନ୍ତୁ ।', 'Take this medicine in the morning and in the evening.', 'Normalized in 0.09 ms.'],
+      kalahandia: ['ଖରାଦିନ ନେ ଆମ୍ବ ମିଳୁଛେ', 'ଖରାଦିନେ ଆମ୍ବ ମିଳୁଛି ।', 'In summer, mangoes are available.', 'Normalized in 0.05 ms.'],
+      anugulia: ['ତୁଇ ଆସେ ଆମେ ଏକାଢି ଯିବା', 'ତୁ ଆସ ଆମେ ଏକାଠି ଯିବା ।', 'You come, let’s go together.', 'Normalized in 0.06 ms.'],
+      baleswari: ['ବେ ବସ୍ ଷ୍ଟାଣ୍ଡ ଟା ପଟ କି', 'ବସ୍ ଷ୍ଟାଣ୍ଡ କେଉଁ ଦିଗରେ ।', 'In which direction is the bus stand.', 'Normalized in 0.06 ms.'],
+      greeting: ['ନମସ୍କାର ମୁଁ ମିୀରା ଆପଣଙ୍କ ଗୋଡ଼ିଆ ଭୟସ ଆସିଷ୍ଟାଣ୍ଟ ତ', 'ନମସ୍କାର, ମୁଁ ମୀରା ଆପଣଙ୍କ ଓଡ଼ିଆ ଭଏସ ଆସିଷ୍ଟାଣ୍ଟ !', 'Hello, I am Meera, your Odia voice assistant!', 'Repaired and punctuated in 0.055 ms.'],
+      question: ['ଆପଣ କେମିତି ଅଛନ୍ତି ତ', 'ଆପଣ କେମିତି ଅଛନ୍ତି ?', 'How are you doing?', '65.5 ms end to end, translation included.']
+    };
+    var out = $('.try-out', host);
+    $$('[data-try]', host).forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var t = T[btn.getAttribute('data-try')];
+        $$('[data-try]', host).forEach(function (b) { b.setAttribute('aria-pressed', String(b === btn)); });
+        $('#try-raw').textContent = t[0];
+        $('#try-norm').textContent = t[1];
+        $('#try-en').textContent = '“' + t[2] + '”';
+        $('#try-time').firstChild.textContent = t[3] + ' ';
+        out.classList.remove('swap'); void out.offsetWidth; out.classList.add('swap');
+      });
+    });
   })();
 
   // ---------- key numbers ----------

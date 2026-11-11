@@ -338,7 +338,7 @@ def _style_table(t: QTableWidget):
     t.horizontalHeader().setDefaultAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
 
 
-NAV = [("Dictate", [("History", 0), ("Meeting Notes", 1), ("Vocabulary", 2)]),
+NAV = [("Dictate", [("History", 0), ("Meeting Notes", 1), ("Vocabulary", 2)]), ("Tools", [("Transcribe", 7)]),
        ("Library", [("Model Library", 3)]), ("Preferences", [("Settings", 4)]), ("Insights", [("Analytics", 5)])]
 COL_W = 760  # content column; wider windows keep it readable instead of stretching rows
 
@@ -353,6 +353,8 @@ class MainWindow(QMainWindow):
     sig_hotkey_recording = pyqtSignal(bool)
     sig_capsule_opacity = pyqtSignal(float)  # live while the slider moves
     sig_capsule_size = pyqtSignal()          # width / height / auto-scale changed; read the values from config
+    sig_transcribe_file = pyqtSignal()       # Tools: same actions as the tray menu
+    sig_toggle_live = pyqtSignal()
 
     def __init__(self, db: Database, config: dict):
         super().__init__()
@@ -390,7 +392,7 @@ class MainWindow(QMainWindow):
         self.stack = QStackedWidget(self)
         for page in (self._create_history_tab(), self._create_meetings_tab(), self._create_dictionary_tab(),
                      self._create_models_tab(), self._create_settings_tab(), self._create_stats_tab(),
-                     self._create_about_tab()):
+                     self._create_about_tab(), self._create_tools_tab()):
             self.stack.addWidget(page)
         outer.addWidget(self._build_sidebar())
 
@@ -1247,6 +1249,21 @@ class MainWindow(QMainWindow):
         self.update_status_label.show()
 
     # -- about --------------------------------------------------------------
+
+    def _create_tools_tab(self) -> QWidget:
+        root, body, _ = self._page("Transcribe", "Turn any audio into text, on this PC. Transcripts are saved in Meeting Notes.")
+        g, _ = self._section(body, "Tools")
+        g.add("Transcribe a file", _btn("Choose file…", "primary", True, self.sig_transcribe_file.emit),
+              "Audio or video: MP3, M4A, WAV, MP4, MKV and more. Odia, English and your other languages.")
+        self.live_btn = _btn("Start", small=True, slot=self.sig_toggle_live.emit)
+        g.add("Live transcribe what's playing", self.live_btn,
+              "Captions for YouTube, a podcast or a lecture as it plays, from your speakers. Your microphone stays off.")
+        body.addStretch()
+        return root
+
+    def set_live_running(self, running: bool):
+        """Mirrors the tray's "Transcribe What's Playing" check mark."""
+        self.live_btn.setText("Stop" if running else "Start")
 
     def _create_about_tab(self) -> QWidget:
         try:

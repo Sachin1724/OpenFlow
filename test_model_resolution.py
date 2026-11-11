@@ -154,3 +154,19 @@ def test_word_lm_picks_the_real_word():
 def test_odia_mix_keeps_odia_words():
     from openflow.engine.odia_mix import to_mixed
     assert to_mixed("ବିଜନେସ ଫ୍ରେଣ୍ଡଲି ନଥିଲା ଆଉ ମୋର ଫୁଲ ଅଫ ଦ ୱର୍ଲ୍ଡ") == "business friendly ନଥିଲା ଆଉ ମୋର ଫୁଲ of the world"
+
+
+def test_auto_odia_english_routing():
+    from openflow.engine.transcriber import _mostly_english, resolve_model_name
+    assert resolve_model_name("small", "or-auto") == "odia"  # Odia model hears every sentence first
+    # real Odia-model output after odia_mix, from the measurement in _mostly_english's docstring
+    assert _mostly_english("before ବି ସଷ୍ଟାର୍ to does episode as ଏସ୍ a one request please subscribe ଅବ channel")
+    assert not _mostly_english("ନମସ୍କାର madame ଆଜି ଆପଣଙ୍କ ମେନୁରେ କଣ କଣ special item ଅଛି ନ୍")
+    assert not _mostly_english("ଜଗନ୍ନାଥ ମନ୍ଦିର on ଗର୍ବ")
+    assert not _mostly_english("ok")  # too short to call
+
+
+def test_brand_names_stay_english():
+    from openflow.engine.odia_mix import to_mixed
+    assert to_mixed("ମୁଁ ୟୁଟ୍ୟୁବ ରେ ଦେଖୁଛି") == "ମୁଁ YouTube ରେ ଦେଖୁଛି"
+    assert to_mixed("ହ୍ୱାଟସଆପ ରେ ପଠାଅ") == "WhatsApp ରେ ପଠାଅ"

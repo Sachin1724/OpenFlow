@@ -258,7 +258,8 @@ ul { list-style: none; padding: 0; }
 
 <div class="bar wrap">
   <nav class="jump" aria-label="Versions">
-    <a class="chip next" href="#v1-3-3">1.3.3</a>
+    <a class="chip next" href="#v1-4-0">1.4.0</a>
+    <a class="chip" href="#v1-3-3">1.3.3</a>
     <a class="chip" href="#v0-1-2-android">Android 0.1.2</a>
     <a class="chip" href="#v1-3-2">1.3.2</a>
     <a class="chip" href="#v1-3-1">1.3.1</a>
@@ -286,11 +287,50 @@ ul { list-style: none; padding: 0; }
 
 <main id="releases">
 
+<article class="rel" id="v1-4-0" data-v="1.4.0">
+  <div class="in wrap">
+    <div class="ver rv">
+      <h2><span class="sr">OpenFlow version </span>1.4.0</h2>
+      <div class="meta"><span class="chip next static">11 November 2026</span><span class="chip static">Latest</span></div>
+      <div style="margin-top: 14px;">
+        <a class="btn" href="https://github.com/Sachin1724/OpenFlow/releases/download/v1.4.0/OpenFlow-Setup.exe">Download Setup</a>
+      </div>
+    </div>
+    <div class="notes rv" style="--d:1">
+      <section class="group" data-g="new">
+        <h3>New</h3>
+        <ul>
+          <li><strong>Auto: Odia + English.</strong> A new language choice that works out, sentence by sentence, whether you spoke Odia or English. No more switching by hand. Odia sentences stay as fast as before; English sentences are written by Whisper.</li>
+          <li><strong>MIRA cleans up Odia dictation.</strong> Hesitations (<span lang="or">ମାନେ</span>, <span lang="or">ଆଚ୍ଛା</span>) are dropped, spoken corrections (<span lang="or">ଚାରିଟାରେ ନା ନା ପାଞ୍ଚଟାରେ</span>) keep only the correction, amounts become numbers (<span lang="or">ପାଞ୍ଚ ଶହ ଟଙ୍କା</span> &rarr; ₹500), and regional dialects are written in standard Odia.</li>
+          <li><strong>Tools in the dashboard.</strong> A new Transcribe page: transcribe an audio or video file, or start live captions for whatever is playing (YouTube, a podcast, a lecture) without opening the tray menu.</li>
+          <li><strong>App names stay in English.</strong> With "Odia + English words", YouTube, WhatsApp, Google, Instagram, Gmail and ChatGPT are written in English letters inside Odia sentences.</li>
+        </ul>
+      </section>
+      <section class="group" data-g="better">
+        <h3>Better</h3>
+        <ul>
+          <li><strong>Long sentences finish fast.</strong> Speech is now written in pieces while you talk, even without long pauses. Releasing the key after 30 seconds of Odia took 1.5 s; it now takes about 0.13 s.</li>
+          <li><strong>Live text for English.</strong> The capsule now shows your English words while you speak. On slower PCs it shows each finished phrase instead of switching live text off.</li>
+          <li><strong>Steadier live text.</strong> The capsule grows the sentence you are saying instead of jumping between short fragments, and no longer repeats words.</li>
+        </ul>
+      </section>
+      <section class="group" data-g="fixes">
+        <h3>Fixes</h3>
+        <ul>
+          <li><strong>Island capsule stuck in recording.</strong> A quick tap of the hotkey, a too-short recording or an empty result could leave the island showing "recording" until the next dictation. It now shows the message and goes back to rest.</li>
+          <li><strong>Island crash on release.</strong> Fixed the "IslandPill object has no attribute show_refining" startup error dialog.</li>
+          <li><strong>Odia words no longer cut.</strong> Words that contain <span lang="or">ରହ</span> or <span lang="or">ଛାଡ଼</span> (like <span lang="or">ରହିବି</span>, <span lang="or">ଛାଡ଼ି</span>) were damaged by the correction rules. Only the doubled forms (<span lang="or">ରହ ରହ</span>) count as corrections now.</li>
+        </ul>
+      </section>
+    </div>
+  </div>
+</article>
+
 <article class="rel" id="v1-3-3" data-v="1.3.3">
   <div class="in wrap">
     <div class="ver rv">
       <h2><span class="sr">OpenFlow version </span>1.3.3</h2>
-      <div class="meta"><span class="chip next static">1 November 2026</span><span class="chip static">Latest</span></div>
+      <div class="meta"><span class="chip static">1 November 2026</span></div>
       <div style="margin-top: 14px;">
         <a class="btn" href="https://github.com/Sachin1724/OpenFlow/releases/download/v1.3.3/OpenFlow-Setup.exe">Download Setup</a>
       </div>
