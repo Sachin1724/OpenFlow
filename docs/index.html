@@ -121,6 +121,7 @@
 <link rel="icon" href="img/icon.png">
 <link rel="preconnect" href="https://api.fontshare.com">
 <link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=general-sans@400,500&display=swap">
+<link rel="stylesheet" href="oil.css">
 <style>
 :root {
   --bg: #F5EFE6;
@@ -450,30 +451,6 @@ section { position: relative; }
 .js .btn.rv { transition: opacity .8s var(--ease), transform .8s var(--ease), translate .45s var(--ease), scale .2s var(--ease), color .3s;
   transition-delay: calc(var(--i, 0) * 80ms), calc(var(--i, 0) * 80ms), 0s, 0s, 0s; }
 
-/* the island: this page's own nav. A pill flush to the top edge; opening reveals the same box, so it is symmetrical at any width */
-.isle {
-  position: absolute; z-index: 50; top: 0; left: 50%; translate: -50% 0; background: var(--surface-2); color: var(--ink);
-  border-radius: 0 0 28px 28px; font-size: 15px;
-}
-.isle-dot { display: none; }
-.isle-body { display: flex; align-items: center; gap: 32px; padding: 0 28px; height: 56px; white-space: nowrap; }
-.isle .mark { display: flex; align-items: center; gap: 10px; font-weight: 500; font-size: 17px; line-height: 1; letter-spacing: -0.01em; }
-.isle .mark img { width: 24px; height: 24px; flex: none; transition: transform .5s var(--ease); }
-.isle .mark:hover img { transform: rotate(-8deg) scale(1.1); }
-.isle ul { list-style: none; padding: 0; display: flex; align-items: center; gap: 24px; line-height: 1; color: var(--soft); }
-.isle li { display: flex; align-items: center; }
-.isle ul a:not(.btn) { display: inline-flex; align-items: center; height: 36px; padding: 0 4px; transition: color .25s; }
-.isle ul a:not(.btn):hover { color: var(--ink); }
-.isle .btn { height: 34px; padding: 0 18px; font-size: 14px; }
-.js .isle { position: fixed; clip-path: inset(0 calc(50% - 48px) calc(100% - 28px) calc(50% - 48px) round 0 0 16px 16px); transition: clip-path .8s var(--ease); }
-.js .isle.open, .js .isle:focus-within { clip-path: inset(0 0 0 0 round 0 0 28px 28px); }
-.js .isle-body { opacity: 0; transition: opacity .25s; }
-.js .isle.open .isle-body, .js .isle:focus-within .isle-body { opacity: 1; transition: opacity .45s .2s; }
-.js .isle-dot { display: block; position: absolute; left: 50%; top: 0; width: 96px; height: 28px; translate: -50% 0; border: 0; background: none; cursor: pointer; transition: opacity .2s; }
-.js .isle-dot::before { content: ""; position: absolute; left: 50%; top: 50%; width: 6px; height: 6px; margin: -3px; border-radius: 50%; background: #7895B2; }
-.js .isle.open .isle-dot, .js .isle:focus-within .isle-dot { opacity: 0; pointer-events: none; }
-.isle-dot:focus-visible { outline-offset: -4px; border-radius: 0 0 16px 16px; }
-
 /* hero: one pill, cropped only by the right edge of the viewport; copy and demo share one centre line */
 .hero { --copyw: clamp(360px, 38vw, 560px); --ph: clamp(460px, 64vh, 660px);
   position: relative; min-height: clamp(640px, 100svh, 960px); overflow: hidden; padding: 120px var(--pad) 56px; display: flex; align-items: center; }
@@ -676,39 +653,53 @@ section[id] { scroll-margin-top: 24px; }
   .js .isle, .js .isle-body, .pane { transition-duration: .01s; }
   .pill[data-state="listening"] .ind::after, .caret, .bar-top .rec::before, .caps p { animation: none; }
 }
+
+
+/* statement chips: small steel capsules drawn in the palette (were cropped dark screenshots) */
+.slot.mini { width: 2.3em; height: .92em; border-radius: 999px; background: var(--accent); display: inline-flex; align-items: center; justify-content: center; gap: .09em; vertical-align: -0.1em; overflow: visible; }
+.slot.mini i { width: .09em; height: .42em; border-radius: 99px; background: var(--ink); }
+.slot.mini i:nth-child(2), .slot.mini i:nth-child(4) { height: .26em; }
+.slot.mini i:nth-child(3) { height: .55em; }
+.slot.mini b { color: var(--ink); font-size: .55em; font-weight: 600; }
+.slot.mini u { width: .22em; height: .22em; border-radius: 50%; background: var(--ink); }
+.features.pad { padding-block: clamp(64px, 8vw, 120px); }
+.features .after { grid-column: 1 / 8; margin-top: 32px; }
+/* the scroll transition drives these: no CSS transition fighting it once the entrance has played */
+.hero .rv.in, .hero .actions.rv.in { transition: none; }
+/* redesign: centred hero; the live demo sits on a full-width steel stage that hands off to the band */
+.hero { display: grid; justify-items: center; align-content: center; text-align: center; gap: clamp(22px, 3.2vh, 36px); min-height: 100svh; padding: 104px var(--pad) 56px; overflow: visible; }
+.hero-copy { width: auto; max-width: 880px; }
+.hero h1 { font-size: clamp(3.2rem, 1.6rem + 5.4vw, 6.6rem); line-height: .95; }
+.hero p.lead { margin: 22px auto 0; max-width: 46ch; }
+.hero .actions { margin-top: 0; justify-content: center; }
+.stage { position: relative; top: auto; left: auto; translate: none; width: min(1120px, 100%); height: auto; padding: clamp(24px, 3vw, 40px); border-radius: clamp(36px, 5vw, 80px); justify-content: center; will-change: transform, clip-path; }
+.stage .demo { width: min(620px, 100%); text-align: left; }
+.stage .note-card { min-height: 170px; }
+.js .stage { transform: none; opacity: 1; transition: none; }
+.band { width: calc(100% - 2 * var(--pad)); max-width: 1120px; margin: clamp(24px, 4vw, 48px) auto 0; }
+.js.motion .band { opacity: 0; }
+@media (prefers-reduced-motion: reduce) { .js.motion .band { opacity: 1; } }
 </style>
-<script>document.documentElement.classList.add('js')</script>
+<script>document.documentElement.classList.add('js'); if (!matchMedia('(prefers-reduced-motion: reduce)').matches) document.documentElement.classList.add('motion')</script>
 </head>
 <body>
+<a class="skip" href="#main">Skip to content</a>
+<nav class="sn" aria-label="Main"><div class="sn-in">
+  <a class="sn-brand" href="index.html" aria-current="page"><span class="sn-mark" id="mark" aria-hidden="true"><i style="--h:40"></i><i style="--h:80"></i><i style="--h:100"></i><i style="--h:60"></i><i style="--h:85"></i></span>OpenFlow</a>
+  <ul>
+    <li><a href="app.html">Windows</a></li>
+    <li><a href="android.html">Android</a></li>
+    <li><a href="research.html">Research</a></li>
+    <li><a href="mira.html">MIRA</a></li>
+    <li><a href="changelog.html">Changelog</a></li>
+    <li><a class="sn-cta" href="https://github.com/Sachin1724/OpenFlow/releases/latest/download/OpenFlow-Setup.exe">Download</a></li>
+  </ul>
+</div></nav>
 
 <header class="hero" id="top">
-  <nav class="isle" id="isle" aria-label="Main">
-    <button class="isle-dot" type="button" aria-expanded="false" aria-controls="isleBody" aria-label="Open the menu"></button>
-    <div class="isle-body" id="isleBody">
-      <a class="mark" href="#top"><img src="img/icon.png" alt="" width="24" height="24">OpenFlow</a>
-      <ul>
-        <li><a href="#island">Island</a></li>
-        <li><a href="#dashboard">Dashboard</a></li>
-        <li><a href="#odia">Odia</a></li>
-        <li><a href="app.html">Windows app</a></li>
-        <li><a href="android.html">Android app</a></li>
-        <li><a href="research.html">Research</a></li>
-        <li><a href="mira.html">MIRA</a></li>
-        <li><a href="#meetings">Meetings</a></li>
-        <li><a href="#android">Android (beta)</a></li>
-        <li><a href="changelog.html">Versions</a></li>
-        <li><a class="btn" href="#get">Get</a></li>
-      </ul>
-    </div>
-  </nav>
-
   <div class="hero-copy">
-    <h1 class="rv">Speak.<br>It types.</h1>
+    <h1 class="rv">Speak. It types.</h1>
     <p class="lead rv" style="--i:1">Free voice dictation for Windows that never leaves your PC. Hold a key, talk, and the words land in any app. The demo here is the real thing, so try it.</p>
-    <div class="actions rv" style="--i:2">
-      <a class="btn big" href="https://github.com/Sachin1724/OpenFlow/releases/latest/download/OpenFlow-Setup.exe">Download for Windows (.exe)</a>
-      <a class="btn big light-quiet" href="changelog.html">See what's new</a>
-    </div>
   </div>
 
   <div class="stage" id="stage">
@@ -725,15 +716,22 @@ section[id] { scroll-margin-top: 24px; }
       </div>
     </div>
   </div>
+  <div class="actions rv" style="--i:2">
+      <a class="btn big" href="https://github.com/Sachin1724/OpenFlow/releases/latest/download/OpenFlow-Setup.exe">Download for Windows (.exe)</a>
+      <a class="btn big light-quiet" href="changelog.html">See what's new</a>
+  </div>
 </header>
+
+<main id="main">
+<div class="band" id="band" role="note"><p>Nothing leaves your PC.</p></div>
 
 <section class="features pad" aria-labelledby="f-h">
   <h2 class="sr" id="f-h">What it does</h2>
   <div class="grid">
     <p class="statement rv">
-      Hold a key and talk<span class="slot"><img class="r" src="img/pill-listening.png" alt="The OpenFlow capsule while listening" width="720" height="88"></span>,
-      and the words land in any app<span class="slot"><img src="img/pill-done.png" alt="The capsule confirming 24 words pasted" width="720" height="88"></span>,
-      in 99 languages, on your own PC<span class="slot"><img src="img/pill-idle.png" alt="The idle capsule showing the active microphone" width="720" height="88"></span>.
+      Hold a key and talk<span class="slot mini" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>,
+      and the words land in any app<span class="slot mini" aria-hidden="true"><b>✓</b></span>,
+      in 99 languages, on your own PC<span class="slot mini" aria-hidden="true"><u></u></span>.
     </p>
     <div class="after">
       <p class="rv">No subscription, no word counter, no cloud. The model downloads once and works offline after that.</p>
@@ -821,7 +819,6 @@ section[id] { scroll-margin-top: 24px; }
   <div class="more rv" style="display:flex;gap:12px;flex-wrap:wrap"><a class="btn big light-quiet" href="changelog.html">Every version, in detail</a><a class="btn big light-quiet" href="app.html">See the whole app</a></div>
 </section>
 
-<div class="band rv" role="note"><p>Nothing leaves your PC.</p></div>
 
 <section class="odia pad" id="odia" aria-labelledby="o-h">
   <div class="grid">
@@ -1249,6 +1246,8 @@ draw(still.matches ? 6 : 0);
   </div>
 </section>
 
+</main>
+
 <footer class="foot">
   <div class="name" aria-hidden="true"><b>OpenFlow</b></div>
   <a class="get-pill" href="https://github.com/Sachin1724/OpenFlow/releases/latest/download/OpenFlow-Setup.exe"><span>Download for Windows (.exe)</span>
@@ -1625,25 +1624,6 @@ draw(still.matches ? 6 : 0);
 (() => {
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  /* ---- the page's own island: a pill flush to the top edge that springs open ---- */
-  const isle = document.getElementById('isle'), dot = isle.querySelector('.isle-dot'), ibody = isle.querySelector('.isle-body');
-  let over = false, shut = 0;
-  const setOpen = on => { isle.classList.toggle('open', on); dot.setAttribute('aria-expanded', on); };
-  const openFor = ms => { clearTimeout(shut); setOpen(true); if (ms) shut = setTimeout(() => { if (!over && !isle.contains(document.activeElement)) setOpen(false); }, ms); };
-  if (reduce) { setOpen(true); isle.classList.add('static'); }
-  else {
-    const small = matchMedia('(max-width: 900px)').matches;  // on a phone the menu opens only when tapped: it would cover the headline
-    if (!small) setTimeout(() => openFor(2800), 900);
-    isle.addEventListener('pointerenter', () => { over = true; openFor(); });
-    isle.addEventListener('pointerleave', () => { over = false; openFor(900); });
-    isle.addEventListener('focusin', () => openFor());
-    isle.addEventListener('focusout', e => { if (!isle.contains(e.relatedTarget)) openFor(500); });
-    dot.addEventListener('click', () => openFor(4500));
-    isle.querySelectorAll('a').forEach(a => a.addEventListener('click', () => { over = false; openFor(250); }));
-    let y = scrollY;
-    addEventListener('scroll', () => { const d = scrollY - y; y = scrollY; if (d < -8 && !small) openFor(2200); else if (d > 8 && !over) { clearTimeout(shut); setOpen(false); } }, { passive: true });
-  }
-
   /* ---- pill tabs: click, arrow keys, Home and End; panels crossfade ---- */
   function tabs(list, onShow) {
     const t = [...list.querySelectorAll('[role=tab]')];
@@ -1687,6 +1667,32 @@ draw(still.matches ? 6 : 0);
     try { await navigator.clipboard.writeText(text); }
     catch (e) { const r = document.createRange(); r.selectNodeContents(document.getElementById('cmdText')); const s = getSelection(); s.removeAllRanges(); s.addRange(r); try { document.execCommand('copy'); } catch (e2) {} }
     copy.textContent = 'Copied'; setTimeout(() => { copy.textContent = 'Copy'; }, 1800);
+  });
+})();
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+<script>
+(() => {
+  // Scroll: the steel stage tightens into the band's pill and slides onto it; then the band speaks.
+  // Clip-path and transform only, scrubbed to the scroll, so scrolling back reverses it.
+  if (!window.gsap || !window.ScrollTrigger) { document.documentElement.classList.remove('motion'); return; }
+  gsap.registerPlugin(ScrollTrigger);
+  gsap.matchMedia().add('(prefers-reduced-motion: no-preference)', () => {
+    const stage = document.getElementById('stage'), band = document.getElementById('band');
+    let m = { y: 0, inset: 0, r: 80 };
+    const measure = () => {
+      gsap.set(stage, { y: 0, clipPath: 'inset(0px 0px 0px 0px round 80px)' });
+      const a = stage.getBoundingClientRect(), b = band.getBoundingClientRect();
+      m = { y: (b.top + b.height / 2) - (a.top + a.height / 2), inset: Math.max(0, (a.height - b.height) / 2), r: b.height / 2 };
+    };
+    const tl = gsap.timeline({ scrollTrigger: { trigger: '.hero', start: 'top top', end: () => '+=' + Math.round(innerHeight * .75), scrub: true, invalidateOnRefresh: true, onRefreshInit: measure } });
+    tl.fromTo('#heroDemo', { opacity: 1 }, { opacity: 0, duration: .3, ease: 'none', immediateRender: false }, 0)
+      .fromTo('.hero-copy, .hero .actions', { opacity: 1, y: 0 }, { opacity: 0, y: -30, duration: .4, ease: 'none', immediateRender: false }, 0)
+      .fromTo(stage, { y: 0, clipPath: 'inset(0px 0px 0px 0px round 80px)' },
+        { y: () => m.y, clipPath: () => `inset(${m.inset}px 0px ${m.inset}px 0px round ${m.r}px)`, duration: 1, ease: 'none', immediateRender: false }, 0)
+      .fromTo(band, { opacity: 0 }, { opacity: 1, duration: .03, immediateRender: false }, .97)
+      .fromTo(stage, { opacity: 1 }, { opacity: 0, duration: .03, immediateRender: false }, .97);
   });
 })();
 </script>

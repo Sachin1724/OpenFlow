@@ -18,6 +18,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+Oriya:wght@400;500&display=swap">
 <link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600&display=swap">
+<link rel="stylesheet" href="oil.css">
 <style>
 :root {
   --canvas: #F5EFE6;
@@ -188,6 +189,11 @@ table.models { width: 100%; border-collapse: collapse; background: var(--paper);
   .capsule .wave i, .field .in .caret { animation: none; }
 }
 
+
+/* redesign: shared nav; on wide screens the hero holds while the capsule rises and the words type with the scroll */
+.nav { display: none; }
+.hero { padding-top: calc(72px + clamp(40px, 6vw, 88px)); }
+.phone .capsule { will-change: transform, opacity; }
 @media (max-width: 900px) {
   .hero .wrap, .close .wrap { grid-template-columns: 1fr; }
   .facts ul { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -207,24 +213,25 @@ table.models { width: 100%; border-collapse: collapse; background: var(--paper);
   .models td[data-l]::before { content: attr(data-l) ": "; color: var(--muted); }
 }
 </style>
-<script>document.documentElement.classList.add('js');</script>
+<script>document.documentElement.classList.add('js'); if (!matchMedia('(prefers-reduced-motion: reduce)').matches) document.documentElement.classList.add('motion');</script>
 </head>
 <body>
 
-<nav class="nav" aria-label="Main">
-  <div class="wrap">
-    <a class="mark" href="index.html"><img src="img/android-icon.png" alt="" width="28" height="28">OpenFlow</a>
-    <ul>
-      <li><a href="index.html">Home</a></li>
-      <li><a href="app.html">Windows</a></li>
-      <li><a href="android.html" aria-current="page">Android</a></li>
-      <li><a href="mira.html">MIRA</a></li>
-      <li><a class="btn" href="https://github.com/Sachin1724/OpenFlow/releases/download/android-v0.1.2-beta/OpenFlow-android-beta-0.1.2.apk">Get the APK</a></li>
-    </ul>
-  </div>
-</nav>
+<a class="skip" href="#main">Skip to content</a>
+<nav class="sn" aria-label="Main"><div class="sn-in">
+  <a class="sn-brand" href="index.html"><span class="sn-mark" aria-hidden="true"><i style="--h:40"></i><i style="--h:80"></i><i style="--h:100"></i><i style="--h:60"></i><i style="--h:85"></i></span>OpenFlow</a>
+  <ul>
+    <li><a href="app.html">Windows</a></li>
+    <li><a href="android.html" aria-current="page">Android</a></li>
+    <li><a href="research.html">Research</a></li>
+    <li><a href="mira.html">MIRA</a></li>
+    <li><a href="changelog.html">Changelog</a></li>
+    <li><a class="sn-cta" href="https://github.com/Sachin1724/OpenFlow/releases/latest/download/OpenFlow-Setup.exe">Download</a></li>
+  </ul>
+</div></nav>
 
-<header class="hero">
+
+<header class="hero" id="top">
   <div class="wrap">
     <div>
       <span class="tag yellow rv">Beta 0.1.2</span>
@@ -267,7 +274,7 @@ table.models { width: 100%; border-collapse: collapse; background: var(--paper);
   </div>
 </section>
 
-<main>
+<main id="main">
 
 <section class="sec" id="features" aria-labelledby="f-h">
   <div class="wrap">
@@ -396,18 +403,32 @@ table.models { width: 100%; border-collapse: collapse; background: var(--paper);
   </div>
 </footer>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
 <script>
 (function () {
-  // The drawing types a sentence into the field, as the app does while you speak
   var el = document.getElementById('typed');
   var words = ['ମୁଁ', 'ବାହାରିଲିଣି,', 'ଦଶ', 'ମିନିଟରେ', 'ପହଞ୍ଚିବି', '।'];
-  if (el && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+  var show = function (n) { el.innerHTML = words.slice(0, n).join(' ') + '<span class="caret"></span>'; };
+  var reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var wide = matchMedia('(min-width: 901px)').matches;
+  var scrolled = !reduce && wide && window.gsap && window.ScrollTrigger;
+
+  if (scrolled) {
+    // Wide screens: the hero holds for a short stretch; the capsule rises above the keyboard,
+    // then each word lands as you scroll. Scrolling back takes them out again.
+    gsap.registerPlugin(ScrollTrigger);
+    var state = { n: 0 };
+    show(0);
+    gsap.timeline({ scrollTrigger: { trigger: '.hero', start: 'top top', end: '+=70%', pin: true, scrub: true } })
+      .fromTo('.phone .capsule', { y: 36, opacity: 0 }, { y: 0, opacity: 1, ease: 'none', duration: .25 }, 0)
+      .fromTo(state, { n: 0 }, { n: words.length, ease: 'none', duration: .75, onUpdate: function () { show(Math.round(state.n)); } }, .25);
+  } else if (!reduce) {
+    // Phones and no-script fallbacks keep the gentle loop
     var n = 2;
-    setInterval(function () {
-      n = n >= words.length ? 1 : n + 1;
-      el.innerHTML = words.slice(0, n).join(' ') + '<span class="caret"></span>';
-    }, 900);
+    setInterval(function () { n = n >= words.length ? 1 : n + 1; show(n); }, 900);
   }
+
   var parts = [].slice.call(document.querySelectorAll('.rv'));
   if ('IntersectionObserver' in window) {
     var io = new IntersectionObserver(function (es) { es.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('show'); io.unobserve(e.target); } }); }, { rootMargin: '0px 0px -8% 0px' });
