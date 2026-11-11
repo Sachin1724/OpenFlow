@@ -3,154 +3,327 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>OpenFlow app: features, models and tests</title>
+<title>OpenFlow for Windows: features, models and tests</title>
 <meta name="description" content="What the OpenFlow app does, which speech models it runs, how fast and accurate each one is on public data, and the automated checks every release passes.">
-<meta name="theme-color" content="#000000">
-<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#F5EFE6">
+<meta name="color-scheme" content="light">
 <link rel="canonical" href="https://sachin1724.github.io/OpenFlow/app.html">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://sachin1724.github.io/OpenFlow/app.html">
-<meta property="og:title" content="OpenFlow app: features, models and tests">
+<meta property="og:title" content="OpenFlow for Windows: features, models and tests">
 <meta property="og:description" content="Private voice dictation for Windows. Features, models, measured speed and accuracy, and the tests behind every release.">
 <meta property="og:image" content="https://sachin1724.github.io/OpenFlow/img/icon.png">
 <link rel="icon" href="img/icon.png">
 <link rel="preconnect" href="https://api.fontshare.com">
-<link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=general-sans@400,500&display=swap">
-<link rel="stylesheet" href="site.css">
+<link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600&display=swap">
 <style>
-/* features: open rows on the section ground, the title carries each row */
-.feats { list-style: none; padding: 0; display: grid; gap: clamp(32px, 3.4vw, 48px); }
-.feats li { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); column-gap: clamp(16px, 2vw, 32px); align-items: baseline; }
-.feats h3 { font-size: var(--step-lead); }
-.feats p { color: var(--body-soft); max-width: 60ch; }
-.feats p strong { color: var(--ink); font-weight: 500; }
-.feats kbd { font-family: var(--font); font-size: .9em; background: var(--surface-3); border-radius: 8px; padding: 2px 8px; color: var(--ink); }
-
-/* model table: a real table, rows separated by a tone step */
-.tbl { overflow-x: auto; }
-table.spec { width: 100%; border-collapse: separate; border-spacing: 0 6px; font-size: 16px; min-width: 640px; }
-.spec th { text-align: left; color: var(--soft); font-weight: 400; font-size: 14px; padding: 0 16px 6px; white-space: nowrap; }
-.spec td { background: var(--surface-3); padding: 14px 16px; vertical-align: top; }
-.spec td:first-child { border-radius: 14px 0 0 14px; }
-.spec td:last-child { border-radius: 0 14px 14px 0; }
-.spec td small { display: block; color: var(--soft); font-size: 14px; margin-top: 2px; }
-.spec .n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.spec th.n { text-align: right; }
-.spec tr.hot td { background: #0b2a4a; }
-.spec .dash { color: var(--soft); }
-
-.runline { margin-top: 24px; background: var(--surface-2); border-radius: 18px; padding: 18px 20px; display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: baseline; }
-.runline code { font-family: ui-monospace, 'Cascadia Code', Consolas, monospace; font-size: 15px; }
-.runline span { color: var(--soft); font-size: 15px; }
-
-/* get */
-.get { background: var(--accent); color: var(--accent-ink); padding-block: clamp(80px, 9vw, 160px); }
-.get .in { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: 24px; row-gap: 40px; align-items: end; }
-.get h2 { grid-column: 1 / 8; font-size: clamp(4rem, 2rem + 8.4vw, 9.5rem); letter-spacing: -0.06em; line-height: .86; }
-.get .side { grid-column: 8 / 13; }
-.get .side p { font-size: var(--step-lead); line-height: 1.3; max-width: 22ch; }
-.get .actions { margin-top: 28px; display: flex; gap: 12px; flex-wrap: wrap; }
-
-@media (max-width: 1100px) {
-  .feats li { grid-template-columns: 1fr; row-gap: 8px; }
-  .get h2, .get .side { grid-column: 1 / 13; }
+/* Palette from the brief: cream, sand, mist, steel. Ink and action are the steel darkened for contrast. */
+:root {
+  --canvas: #F5EFE6;
+  --sand: #E8DFCA;
+  --mist: #AEBDCA;
+  --steel: #7895B2;
+  --ink: #1E2A36;      /* 12.8:1 on canvas */
+  --action: #3E5A78;   /* white text 7.2:1 */
+  --muted: #526273;    /* 5.5:1 on canvas */
+  --muted-sand: #44525F;
+  --font: 'General Sans', 'Segoe UI Variable Text', 'Segoe UI', -apple-system, 'Helvetica Neue', sans-serif;
+  --font-or: 'General Sans', 'Noto Sans Oriya', 'Nirmala UI', 'Kalinga', sans-serif;
+  --ease: cubic-bezier(.16, 1, .3, 1);
+  --pad: clamp(20px, 4vw, 56px);
+  --max: 1280px;
 }
-.spec.tests td:nth-child(2) { color: var(--body-soft); }
-@media (max-width: 760px) {
-  table.spec { min-width: 0; border-spacing: 0; }
-  .spec thead { display: none; }
-  .spec, .spec tbody, .spec tr, .spec td { display: block; }
-  .spec tr { background: var(--surface-3); border-radius: 14px; padding: 14px 16px; margin-bottom: 8px; }
-  .spec tr.hot { background: #0b2a4a; }
-  .spec td, .spec tr.hot td { background: none; padding: 2px 0; border-radius: 0 !important; }
-  .spec td.n { text-align: left; }
-  .spec td[data-l]::before { content: attr(data-l) ": "; color: var(--soft); }
-  .spec td.n small { display: inline; margin-left: 6px; }
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--canvas); color: var(--ink); font: 400 18px/1.6 var(--font); -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+h1, h2, h3, p, ul, ol, figure, table { margin: 0; }
+ul, ol { list-style: none; padding: 0; }
+a { color: inherit; }
+img { display: block; max-width: 100%; height: auto; }
+:focus-visible { outline: 3px solid var(--action); outline-offset: 3px; border-radius: 999px; }
+::selection { background: var(--mist); }
+.wrap { width: 100%; max-width: calc(var(--max) + 2 * var(--pad)); margin-inline: auto; padding-inline: var(--pad); }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* controls: one pill grammar */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: .55em; min-height: 52px; padding: 0 28px; border-radius: 999px; border: 0; background: var(--action); color: #fff; font: 500 17px/1 var(--font); text-decoration: none; cursor: pointer; transition: transform .1s ease-out, background-color .2s; }
+.btn:hover { background: var(--ink); }
+.btn:active { transform: scale(.97); }
+.btn small { font-weight: 400; opacity: .8; font-size: 14px; }
+.link { color: var(--action); font-weight: 500; text-decoration: underline; text-decoration-thickness: 1.5px; text-underline-offset: 4px; }
+.link:hover { color: var(--ink); }
+.chip { display: inline-flex; align-items: center; min-height: 44px; padding: 0 20px; border-radius: 999px; border: 0; background: var(--sand); color: var(--ink); font: 500 15px/1 var(--font); cursor: pointer; transition: background-color .2s, color .2s, transform .1s ease-out; }
+.chip:hover { background: var(--mist); }
+.chip:active { transform: scale(.97); }
+.chip[aria-pressed="true"] { background: var(--ink); color: var(--canvas); }
+kbd { font: 500 .8em/1 var(--font); background: var(--canvas); border-radius: 8px; padding: 4px 9px; vertical-align: .1em; }
+
+/* navigation: the capsule mark is where the hero capsule lands */
+.nav { position: fixed; inset: 0 0 auto; z-index: 20; background: rgba(245, 239, 230, .9); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+.nav .wrap { display: flex; align-items: center; justify-content: space-between; gap: 20px; height: 72px; }
+.brand { display: flex; align-items: center; gap: 12px; text-decoration: none; font-weight: 600; font-size: 18px; letter-spacing: -0.01em; }
+.mark-cap { width: 54px; height: 24px; border-radius: 999px; background: var(--steel); display: flex; align-items: center; justify-content: center; gap: 2px; }
+.mark-cap i { width: 2.5px; border-radius: 2px; background: var(--ink); height: calc(var(--h) * .16px); }
+.js.motion .mark-cap { opacity: 0; }
+.nav ul { display: flex; align-items: center; gap: 28px; font-size: 15px; }
+.nav ul a:not(.btn) { text-decoration: none; color: var(--muted); transition: color .2s; }
+.nav ul a:not(.btn):hover, .nav ul a[aria-current] { color: var(--ink); }
+.nav .btn { min-height: 42px; padding: 0 20px; font-size: 15px; }
+
+/* hero: the capsule is the first screen */
+.hero { min-height: 100svh; padding: 96px var(--pad) 40px; display: grid; align-content: center; justify-items: center; text-align: center; gap: clamp(28px, 4vh, 48px); }
+.hero h1 { font-weight: 500; font-size: clamp(3rem, 1.6rem + 5.4vw, 6.6rem); line-height: 1; letter-spacing: -0.045em; }
+.hero h1 .ln { display: inline-block; }
+.capsule { width: min(78vw, 1040px); height: clamp(84px, 9vw, 132px); border-radius: 999px; background: var(--steel); display: flex; align-items: center; gap: clamp(14px, 1.6vw, 26px); padding: 0 clamp(14px, 1.4vw, 22px) 0 clamp(28px, 3vw, 48px); transform-origin: 50% 50%; will-change: transform; }
+.capsule .wave { display: flex; align-items: center; gap: clamp(3px, .4vw, 6px); height: 46%; flex: none; }
+.capsule .wave i { width: clamp(4px, .45vw, 7px); height: calc(var(--h) * 1%); border-radius: 99px; background: var(--ink); animation: wave 1.2s var(--ease) infinite alternate; animation-delay: calc(var(--i) * -.17s); }
+.capsule .said { flex: 1; min-width: 0; text-align: left; font: 500 clamp(1.1rem, .7rem + 1.5vw, 2.1rem)/1.25 var(--font-or); letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; color: var(--ink); }
+.capsule .said .cur { display: inline-block; width: 2px; height: .95em; margin-left: 3px; vertical-align: -.1em; background: var(--ink); animation: blink 1s steps(1) infinite; }
+.capsule .lang { flex: none; background: var(--canvas); color: var(--ink); border-radius: 999px; padding: .55em 1em; font: 600 clamp(13px, .9vw, 15px)/1 var(--font); letter-spacing: .04em; }
+.capsule .end { flex: none; width: clamp(50px, 5.4vw, 88px); aspect-ratio: 1; border-radius: 50%; background: var(--ink); display: grid; place-items: center; }
+.capsule .end i { width: 30%; aspect-ratio: 1; border-radius: 22%; background: var(--steel); }
+.hero .go { display: grid; justify-items: center; gap: 14px; }
+.hero .fine { color: var(--muted); font-size: 15px; }
+@keyframes wave { from { transform: scaleY(1); } to { transform: scaleY(.4); } }
+@keyframes blink { 50% { opacity: 0; } }
+
+/* numbers strip */
+.nums { padding-block: clamp(56px, 7vw, 96px); }
+.nums ul { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: clamp(20px, 3vw, 48px); }
+.nums b { display: block; font-weight: 500; font-size: clamp(2.6rem, 1.6rem + 2.6vw, 4.4rem); line-height: 1; letter-spacing: -0.05em; font-variant-numeric: tabular-nums; }
+.nums p { margin-top: 14px; color: var(--muted); font-size: 16px; max-width: 26ch; }
+.nums p strong { color: var(--ink); font-weight: 500; }
+
+/* sections */
+.sec { padding-block: clamp(80px, 10vw, 150px); }
+.sec.sand { background: var(--sand); }
+.head { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: clamp(20px, 3vw, 48px); align-items: end; margin-bottom: clamp(40px, 5vw, 72px); }
+.head h2 { font-weight: 500; font-size: clamp(2.4rem, 1.4rem + 3vw, 4.4rem); line-height: 1.02; letter-spacing: -0.04em; }
+.head p { color: var(--muted); max-width: 46ch; }
+.head p strong { color: var(--ink); font-weight: 500; }
+.sand .head p, .sand .note, .sand .trip p { color: var(--muted-sand); }
+
+/* one sentence's trip: four steps on one line */
+.trip { position: relative; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: clamp(20px, 3vw, 40px); }
+.trip .line { position: absolute; left: 28px; right: 0; top: 27px; height: 3px; background: var(--mist); border-radius: 3px; transform-origin: 0 50%; }
+.trip li { position: relative; }
+.trip .node { position: relative; width: 56px; height: 56px; border-radius: 50%; background: var(--steel); display: grid; place-items: center; font-weight: 600; font-size: 18px; color: var(--ink); }
+.trip li:last-child .node { background: var(--ink); color: var(--canvas); }
+.trip h3 { margin-top: 24px; font-weight: 500; font-size: clamp(1.5rem, 1.1rem + 1vw, 2.1rem); letter-spacing: -0.03em; line-height: 1.15; }
+.trip p { margin-top: 10px; font-size: 17px; max-width: 30ch; }
+
+/* features: editorial rows, a picture where one exists */
+.rows { display: grid; gap: clamp(56px, 7vw, 104px); }
+.row { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: clamp(24px, 4vw, 64px); align-items: center; }
+.row:nth-child(even) { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); }
+.row:nth-child(even) .txt { order: 2; }
+.row h3 { font-weight: 500; font-size: clamp(1.9rem, 1.2rem + 1.8vw, 3rem); line-height: 1.05; letter-spacing: -0.035em; }
+.row p { margin-top: 16px; max-width: 46ch; }
+.row p + p { margin-top: 12px; color: var(--muted); }
+.row p strong { font-weight: 500; }
+.shot { background: var(--sand); border-radius: 28px; padding: clamp(16px, 2.4vw, 36px); overflow: hidden; }
+.shot img { border-radius: 14px; width: 100%; }
+.shot.tight { display: grid; place-items: center; min-height: clamp(180px, 20vw, 280px); }
+.shot.tight img { width: auto; }
+.plain { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(24px, 3vw, 48px); margin-top: clamp(56px, 7vw, 104px); }
+.plain h3 { font-weight: 500; font-size: 1.5rem; letter-spacing: -0.02em; line-height: 1.15; }
+.plain p { margin-top: 10px; color: var(--muted); font-size: 17px; }
+
+/* tables: a ledger on sand */
+.tblw { overflow-x: auto; }
+table.led { width: 100%; border-collapse: collapse; font-size: 16px; }
+.led th { text-align: left; font-weight: 500; font-size: 14px; color: var(--muted-sand); padding: 0 16px 14px; white-space: nowrap; }
+.led td { padding: 18px 16px; border-top: 1.5px solid var(--mist); vertical-align: top; }
+.led td small { display: block; color: var(--muted-sand); font-size: 14px; margin-top: 2px; }
+.led .n, .led th.n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.led .dash { color: var(--muted-sand); }
+.led tr.hot td { background: var(--canvas); border-top-color: transparent; }
+.led tr.hot td:first-child { border-radius: 16px 0 0 16px; }
+.led tr.hot td:last-child { border-radius: 0 16px 16px 0; }
+.led tr.hot + tr td { border-top-color: transparent; }
+.note { margin-top: 24px; color: var(--muted); font-size: 16px; max-width: 70ch; }
+.note strong { color: var(--ink); font-weight: 500; }
+
+/* bars */
+.tools { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 32px; }
+.tools .lbl { color: var(--muted); font-size: 15px; margin-right: 6px; }
+.bars { display: grid; gap: 16px; }
+.brow { display: grid; grid-template-columns: minmax(130px, 220px) minmax(0, 1fr) 96px; gap: 20px; align-items: center; }
+.brow .name { font-size: 17px; line-height: 1.2; }
+.brow .track { height: 30px; border-radius: 999px; background: var(--sand); overflow: hidden; }
+.brow .fill { height: 100%; border-radius: 999px; background: var(--mist); width: calc(var(--v) * 1%); }
+.brow.hot .fill { background: var(--steel); }
+.brow .val { text-align: right; font-weight: 500; font-variant-numeric: tabular-nums; }
+.pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: clamp(40px, 5vw, 80px); margin-top: clamp(64px, 7vw, 104px); }
+.pair h3 { font-weight: 500; font-size: 1.6rem; letter-spacing: -0.025em; }
+.pair .sub { color: var(--muted); font-size: 16px; margin: 6px 0 24px; }
+.pair .brow { grid-template-columns: minmax(110px, 160px) minmax(0, 1fr) 84px; }
+
+/* run line */
+.run { margin-top: 32px; display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; }
+.run code { font: 500 15px/1.4 ui-monospace, 'Cascadia Code', Consolas, monospace; background: var(--canvas); border-radius: 999px; padding: 8px 16px; }
+.run span { color: var(--muted-sand); font-size: 15px; }
+
+/* close band */
+.close { background: var(--steel); padding-block: clamp(96px, 11vw, 168px); }
+.close .wrap { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 40px; align-items: end; }
+.close h2 { font-weight: 500; font-size: clamp(4rem, 2rem + 7vw, 9rem); line-height: .9; letter-spacing: -0.06em; }
+.close p { font-size: clamp(1.2rem, 1rem + .5vw, 1.5rem); line-height: 1.35; }
+.close .acts { margin-top: 28px; display: flex; flex-wrap: wrap; gap: 12px; }
+.close .btn { background: var(--ink); }
+.close .btn:hover { background: #000; }
+.close .btn.alt { background: var(--canvas); color: var(--ink); }
+.close .btn.alt:hover { background: #fff; }
+.foot { padding-block: 48px 64px; font-size: 15px; color: var(--muted); }
+.foot .links { display: flex; flex-wrap: wrap; gap: 26px; margin-bottom: 18px; }
+.foot .links a { text-decoration: none; color: var(--ink); }
+.foot .links a:hover { text-decoration: underline; }
+
+@media (max-width: 1000px) {
+  .nav ul li:not(:last-child) { display: none; }
+  .nums ul { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 40px; }
+  .head, .row, .row:nth-child(even), .pair, .close .wrap { grid-template-columns: 1fr; }
+  .row:nth-child(even) .txt { order: 0; }
+  .trip { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 48px; }
+  .trip .line { display: none; }
+  .plain { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+  body { font-size: 17px; }
+  .capsule { width: 100%; height: 72px; padding-left: 20px; gap: 10px; }
+  .capsule .lang { display: none; }
+  .capsule .said { font-size: 1rem; }
+  .trip { grid-template-columns: 1fr; }
+  .brow { grid-template-columns: minmax(0, 1fr) auto; row-gap: 8px; column-gap: 12px; }
+  .brow .track { grid-column: 1 / 3; grid-row: 2; }
+  .brow .val { grid-column: 2; grid-row: 1; }
+  .led thead { display: none; }
+  .led, .led tbody, .led tr, .led td { display: block; }
+  .led tr { padding: 14px 0; border-top: 1.5px solid var(--mist); }
+  .led td { border: 0; padding: 2px 0; }
+  .led .n { text-align: left; }
+  .led td[data-l]::before { content: attr(data-l) ": "; color: var(--muted-sand); }
+  .led tr.hot { background: var(--canvas); border-radius: 16px; padding: 14px; border-top-color: transparent; }
+  .led tr.hot td { background: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .capsule .wave i, .capsule .said .cur { animation: none; }
+  .btn, .chip { transition: none; }
 }
 </style>
-<script>document.documentElement.classList.add('js');</script>
+<script>document.documentElement.classList.add('js'); if (!matchMedia('(prefers-reduced-motion: reduce)').matches) document.documentElement.classList.add('motion');</script>
 </head>
 <body>
 
-<header class="top" id="top">
+<nav class="nav" aria-label="Main">
   <div class="wrap">
-  <nav class="nav" aria-label="Main">
-    <a class="mark" href="index.html"><img src="img/icon.png" alt="" width="34" height="34">OpenFlow</a>
+    <a class="brand" href="index.html"><span class="mark-cap" id="mark" aria-hidden="true"><i style="--h:40"></i><i style="--h:80"></i><i style="--h:100"></i><i style="--h:60"></i><i style="--h:85"></i></span>OpenFlow</a>
     <ul>
       <li><a href="index.html">Home</a></li>
       <li><a href="app.html" aria-current="page">Windows</a></li>
       <li><a href="android.html">Android</a></li>
-      <li><a href="changelog.html">Changelog</a></li>
-      <li><a href="research.html">Research</a></li>
+      <li><a href="mira.html">MIRA</a></li>
       <li><a class="btn" href="https://github.com/Sachin1724/OpenFlow/releases/latest/download/OpenFlow-Setup.exe">Download</a></li>
     </ul>
-  </nav>
-  <div class="copy">
-    <h1 class="rv">The app, in full.</h1>
-    <p class="lead rv" style="--d:1">Hold a key, speak, and your words appear wherever you type. All of it on your own PC.</p>
-    <div class="actions rv" style="--d:2">
-      <a class="btn" href="https://github.com/Sachin1724/OpenFlow/releases/latest/download/OpenFlow-Setup.exe">Download for Windows</a>
-      <a class="btn quiet" href="#models">Compare the models</a>
-    </div>
   </div>
+</nav>
+
+<header class="hero" id="top">
+  <h1 id="hl"><span class="ln">Say it.</span> <span class="ln">It's typed.</span></h1>
+  <div class="capsule" id="cap" role="img" aria-label="The OpenFlow capsule while listening: a waveform, the words being typed, the language badge and a stop button">
+    <span class="wave" aria-hidden="true"><i style="--i:0;--h:45"></i><i style="--i:1;--h:80"></i><i style="--i:2;--h:100"></i><i style="--i:3;--h:65"></i><i style="--i:4;--h:90"></i><i style="--i:5;--h:55"></i><i style="--i:6;--h:75"></i></span>
+    <span class="said" id="said" aria-hidden="true">Send the report by Friday, please.<span class="cur"></span></span>
+    <span class="lang" id="lang" aria-hidden="true">EN-IN</span>
+    <span class="end" aria-hidden="true"><i></i></span>
   </div>
-  <div class="stagepad" aria-hidden="true">
-    <div class="shape">
-      <i style="--i:0;--h:34"></i><i style="--i:1;--h:58"></i><i style="--i:2;--h:82"></i><i style="--i:3;--h:100"></i><i style="--i:4;--h:76"></i><i style="--i:5;--h:48"></i><i style="--i:6;--h:66"></i>
-    </div>
+  <div class="go">
+    <a class="btn" href="https://github.com/Sachin1724/OpenFlow/releases/latest/download/OpenFlow-Setup.exe">Download for Windows <small>v1.4.0</small></a>
+    <p class="fine">Free, open source. Windows 10 or 11, 64-bit. <a class="link" href="#models">Compare the models</a></p>
   </div>
 </header>
 
-<section class="stats wrap" aria-label="Key numbers">
+<main>
+
+<section class="nums wrap" aria-label="Key numbers">
   <ul>
-    <li class="stat hot rv"><b>0.13 s</b><p>wait after letting go of the key, for 30 seconds of continuous Odia. <strong>Version 1.3 took 1.5 s.</strong></p></li>
-    <li class="stat rv" style="--d:1"><b>21.7%</b><p>of words wrong on 100 Odia clips from Google FLEURS. <strong>Whisper base gets 125.7%.</strong></p></li>
-    <li class="stat rv" style="--d:2"><b>43</b><p>automated checks run before a release, on dictation, the capsule, models and Odia.</p></li>
-    <li class="stat rv" style="--d:3"><b>0</b><p>seconds of audio sent anywhere. <strong>Speech is turned into text on your PC.</strong></p></li>
+    <li><b class="nm" data-to="0.13" data-dp="2" data-suf=" s">0.13 s</b><p>wait after you let go, for 30 seconds of continuous Odia. <strong>Version 1.3 took 1.5 s.</strong></p></li>
+    <li><b class="nm" data-to="21.7" data-dp="1" data-suf="%">21.7%</b><p>of words wrong on 100 Odia clips from Google FLEURS. <strong>Whisper base: 125.7%.</strong></p></li>
+    <li><b class="nm" data-to="43" data-dp="0" data-suf="">43</b><p>automated checks run before every release.</p></li>
+    <li><b>0</b><p>seconds of audio sent anywhere. <strong>Speech becomes text on your PC.</strong></p></li>
   </ul>
 </section>
 
-<main>
-
-<section class="sec" id="features" aria-labelledby="f-h">
+<section class="sec sand" id="trip" aria-labelledby="t-h">
   <div class="wrap">
-    <div class="sec-head">
-      <h2 id="f-h" class="rv">What it does</h2>
-      <p class="rv" style="--d:1">One hotkey for every app you write in, and a small capsule that shows what it heard. Everything below ships in version 1.4.0.</p>
+    <div class="head">
+      <h2 id="t-h" class="up">One sentence, start to finish</h2>
+      <p class="up">The same four steps in every app you write in: chat, email, documents, code.</p>
     </div>
-    <ul class="feats">
-      <li class="rv"><h3>Dictate into any app</h3><p>Hold <kbd>Ctrl</kbd> + <kbd>Shift</kbd>, speak, let go. The text is typed into whatever has focus: a chat, a document, an email, a code editor. <strong>A quick tap is ignored</strong>, so a missed shortcut never starts a recording.</p></li>
-      <li class="rv"><h3>Speech becomes writing</h3><p>Hesitations go, “scratch that” undoes the last phrase, and spoken punctuation such as “question mark” or “new paragraph” is written as punctuation. In a code editor, “camel case user name” becomes <strong>userName</strong>.</p></li>
-      <li class="rv"><h3>Odia, written properly</h3><p>MIRA writes Odia in Odia script, turns regional dialects into standard Odia, writes amounts as ₹500, and keeps English words such as YouTube and WhatsApp in English. <strong>Auto: Odia + English</strong> picks the language for each sentence. <a href="mira.html" style="text-decoration:underline">How MIRA works</a></p></li>
-      <li class="rv"><h3>See it as you speak</h3><p>The capsule shows your words while you talk, in four styles: Standard, Compact, Micro, or an Island at the top of the screen. While you speak Odia it shows MIRA, a small face that follows your cursor.</p></li>
-      <li class="rv"><h3>Transcribe what is playing</h3><p>From the Transcribe page in the dashboard: turn an audio or video file into text, or get live captions for a YouTube video, podcast or lecture from your speakers, with the microphone off. Calls in Google Meet, Teams and Zoom are offered as meeting notes.</p></li>
-      <li class="rv"><h3>Yours to tune</h3><p>Add your own spellings, look back through your history, and see how much typing you saved. All of it is stored in one file on your PC.</p></li>
-      <li class="rv"><h3>Runs on what you have</h3><p>Ordinary CPUs, NVIDIA graphics cards and Intel NPUs. The speech engine runs in its own process and unloads when idle, so a stuck model cannot freeze the app.</p></li>
-    </ul>
-
-    <figure class="fig rv" style="margin-top:clamp(48px,5vw,72px)">
-      <img src="img/ui-tools.png" width="1000" height="640" loading="lazy" alt="The Transcribe page in the OpenFlow 1.4 dashboard: Transcribe a file with a Choose file button, and Live transcribe what's playing with a Stop button while captions run">
-      <figcaption><strong>The new Transcribe page.</strong>Choose a file, or start live captions for whatever is playing. The same two actions are still in the tray menu.</figcaption>
-    </figure>
-    <figure class="fig rv">
-      <img src="img/meeting-captions.png" loading="lazy" alt="The real OpenFlow bar captioning a call with Person 1, You and Person 2">
-      <figcaption><strong>Live captions, by speaker.</strong>During a call the bar writes who said what, and saves it as meeting notes when the call ends.</figcaption>
-    </figure>
-    <figure class="fig tile rv">
-      <img src="img/island-listen-hd.png" loading="lazy" alt="The island listening, with a red dot, a live waveform and the language badge">
-      <figcaption><strong>The Island capsule.</strong>Rests at the top of the screen and opens while you speak, with your words, the language and a live waveform.</figcaption>
-    </figure>
+    <div class="trip">
+      <span class="line" aria-hidden="true"></span>
+      <div class="step"><span class="node" aria-hidden="true">1</span><h3>Hold <kbd>Ctrl</kbd> + <kbd>Shift</kbd></h3><p>The capsule opens. A quick tap is ignored, so a missed shortcut never starts a recording.</p></div>
+      <div class="step"><span class="node" aria-hidden="true">2</span><h3>Speak</h3><p>Your words appear in the capsule as you talk, in Odia, English, Hindi and a dozen more languages.</p></div>
+      <div class="step"><span class="node" aria-hidden="true">3</span><h3>Let go</h3><p>Most of it is already written while you talk, so 30 seconds of speech finishes in about a tenth of a second.</p></div>
+      <div class="step"><span class="node" aria-hidden="true">4</span><h3>It's typed</h3><p>Cleaned up and pasted into whatever has focus. Hesitations gone, punctuation in place.</p></div>
+    </div>
   </div>
 </section>
 
-<section class="sec alt" id="models" aria-labelledby="m-h">
+<section class="sec" id="features" aria-labelledby="f-h">
   <div class="wrap">
-    <div class="sec-head">
-      <h2 id="m-h" class="rv">The models</h2>
-      <p class="rv" style="--d:1">Pick one in the Model Library; nothing downloads until you do. <strong>Measured columns:</strong> Google FLEURS, int8 on an 8-core laptop CPU, no GPU.</p>
+    <div class="head">
+      <h2 id="f-h" class="up">What else it does</h2>
+      <p class="up">Everything below ships in version 1.4.0.</p>
     </div>
-    <div class="panel rv tbl">
-      <table class="spec">
+    <div class="rows">
+      <article class="row">
+        <div class="txt up">
+          <h3>Speech becomes writing</h3>
+          <p>“Scratch that” undoes the last phrase, and spoken punctuation like “question mark” or “new paragraph” is written as punctuation.</p>
+          <p>In a code editor, “camel case user name” becomes <strong>userName</strong>.</p>
+        </div>
+        <figure class="shot tight pic"><img src="img/island-listen-hd.png" loading="lazy" alt="The island capsule listening, with a red dot, a live waveform and the language badge"></figure>
+      </article>
+      <article class="row">
+        <div class="txt up">
+          <h3>Odia, written properly</h3>
+          <p>MIRA writes Odia in Odia script, turns regional dialects into standard Odia, writes amounts as ₹500, and keeps English words such as YouTube and WhatsApp in English.</p>
+          <p><strong>Auto: Odia + English</strong> picks the language for each sentence. <a class="link" href="mira.html">How MIRA works</a></p>
+        </div>
+        <figure class="shot tight pic"><img src="img/mira-capsule-sambalpuri.png" width="720" height="88" loading="lazy" alt="The capsule with MIRA's face, the Odia words କେନ୍ତା ଅଛ and a SAMBALPURI badge"></figure>
+      </article>
+      <article class="row">
+        <div class="txt up">
+          <h3>Transcribe what's playing</h3>
+          <p>From the Transcribe page: turn an audio or video file into text, or get live captions for a YouTube video, podcast or lecture from your speakers, with the microphone off.</p>
+          <p>The same two actions are still in the tray menu.</p>
+        </div>
+        <figure class="shot pic"><img src="img/ui-tools.png" width="1000" height="640" loading="lazy" alt="The Transcribe page in the OpenFlow 1.4 dashboard: Transcribe a file with a Choose file button, and Live transcribe what's playing with a Stop button while captions run"></figure>
+      </article>
+      <article class="row">
+        <div class="txt up">
+          <h3>Calls become notes</h3>
+          <p>In Google Meet, Teams and Zoom the bar offers to take notes, writes who said what as it happens, and saves it all when the call ends.</p>
+        </div>
+        <figure class="shot pic"><img src="img/meeting-captions.png" loading="lazy" alt="The OpenFlow bar captioning a call with Person 1, You and Person 2"></figure>
+      </article>
+    </div>
+    <div class="plain">
+      <div class="up"><h3>Four capsule styles</h3><p>Standard, Compact, Micro, or an Island that rests at the top of the screen.</p></div>
+      <div class="up"><h3>Yours to tune</h3><p>Your own spellings, your history, and how much typing you saved, kept in one file on your PC.</p></div>
+      <div class="up"><h3>Runs on what you have</h3><p>Ordinary CPUs, NVIDIA graphics cards and Intel NPUs. The engine runs in its own process, so a stuck model can't freeze the app.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="sec sand" id="models" aria-labelledby="m-h">
+  <div class="wrap">
+    <div class="head">
+      <h2 id="m-h" class="up">The models</h2>
+      <p class="up">Pick one in the Model Library; nothing downloads until you do. <strong>Measured columns:</strong> Google FLEURS, int8 on an 8-core laptop CPU, no GPU.</p>
+    </div>
+    <div class="tblw up">
+      <table class="led">
         <caption class="sr">Speech models in OpenFlow with size and measured results</caption>
         <thead><tr><th scope="col">Model</th><th scope="col">Used for</th><th scope="col" class="n">Download</th><th scope="col" class="n">Words wrong</th><th scope="col" class="n">Work per minute of speech</th><th scope="col" class="n">Memory</th></tr></thead>
         <tbody>
@@ -164,50 +337,46 @@ table.spec { width: 100%; border-collapse: separate; border-spacing: 0 6px; font
           <tr><td>Qwen2.5 1.5B<small>Alibaba</small></td><td>Voice edits and meeting notes</td><td class="n" data-l="Download">1.49 GB</td><td class="n dash" data-l="Words wrong">text model</td><td class="n dash" data-l="Work per minute">text model</td><td class="n dash" data-l="Memory">not measured</td></tr>
         </tbody>
       </table>
-      <p class="note"><strong>Words wrong</strong> is word error rate on 60 English clips (100 Odia clips for the Odia model); lower is better. <strong>Work per minute</strong> is the processor time to transcribe one minute of speech. Odia memory is what loading the model adds to the app. Full method on the <a href="research.html#method" style="text-decoration:underline">research page</a>.</p>
     </div>
-    <figure class="fig rv">
-      <img src="img/ui-models.png" loading="lazy" alt="The Model Library page: each speech model with its size, speed, accuracy and a button to use or delete it">
-      <figcaption><strong>The Model Library.</strong>Every model above, with its size and a plain speed and accuracy note. Use one, or delete it to free space.</figcaption>
-    </figure>
+    <p class="note up"><strong>Words wrong</strong> is word error rate on 60 English clips (100 Odia clips for the Odia model); lower is better. <strong>Work per minute</strong> is the processor time to transcribe one minute of speech. Odia memory is what loading the model adds to the app. Full method on the <a class="link" href="research.html#method">research page</a>.</p>
   </div>
 </section>
 
 <section class="sec" id="efficiency" aria-labelledby="e-h">
   <div class="wrap">
-    <div class="sec-head">
-      <h2 id="e-h" class="rv">How efficient it is</h2>
-      <p class="rv" style="--d:1">The same English clips through every engine, on the same laptop. Switch between accuracy, speed and memory to see the trade.</p>
+    <div class="head">
+      <h2 id="e-h" class="up">How efficient it is</h2>
+      <p class="up">The same English clips through every engine, on the same laptop. Switch between accuracy, speed and memory to see the trade.</p>
     </div>
-    <div class="panel rv" id="eff">
-      <div class="tools" role="group" aria-label="Measure">
+    <div id="eff">
+      <div class="tools up" role="group" aria-label="Measure">
         <span class="lbl">Show</span>
         <button class="chip" type="button" data-e="wer" aria-pressed="true">Words wrong</button>
         <button class="chip" type="button" data-e="work" aria-pressed="false">Work per minute</button>
         <button class="chip" type="button" data-e="mem" aria-pressed="false">Memory</button>
       </div>
-      <div class="bars" id="eff-bars">
-        <div class="brow" style="--d:0"><div class="name">Whisper tiny</div><div class="track"><div class="fill" style="--v:88"></div></div><div class="val">13.2%</div></div>
-        <div class="brow" style="--d:1"><div class="name">Whisper base</div><div class="track"><div class="fill" style="--v:83.3"></div></div><div class="val">12.5%</div></div>
-        <div class="brow" style="--d:2"><div class="name">Whisper small</div><div class="track"><div class="fill" style="--v:62.7"></div></div><div class="val">9.4%</div></div>
-        <div class="brow hot" style="--d:3"><div class="name">Parakeet V3</div><div class="track"><div class="fill" style="--v:60"></div></div><div class="val">9.0%</div></div>
+      <div class="bars draw">
+        <div class="brow"><div class="name">Whisper tiny</div><div class="track"><div class="fill" style="--v:88"></div></div><div class="val">13.2%</div></div>
+        <div class="brow"><div class="name">Whisper base</div><div class="track"><div class="fill" style="--v:83.3"></div></div><div class="val">12.5%</div></div>
+        <div class="brow"><div class="name">Whisper small</div><div class="track"><div class="fill" style="--v:62.7"></div></div><div class="val">9.4%</div></div>
+        <div class="brow hot"><div class="name">Parakeet V3</div><div class="track"><div class="fill" style="--v:60"></div></div><div class="val">9.0%</div></div>
       </div>
       <p class="note" id="eff-note" aria-live="polite"><strong>Word error rate, lower is better.</strong> Parakeet and Whisper small make the fewest mistakes; Parakeet does it in under a third of the time.</p>
     </div>
-    <div class="cols" style="margin-top:16px">
-      <div class="panel rv">
+    <div class="pair">
+      <div class="up">
         <h3>Long dictation, before and after</h3>
-        <p class="note" style="margin-top:8px">Wait after letting go of the key, for 30 seconds of continuous Odia.</p>
-        <div class="bars" style="margin-top:24px">
+        <p class="sub">Wait after letting go of the key, for 30 seconds of continuous Odia.</p>
+        <div class="bars draw">
           <div class="brow"><div class="name">Version 1.3</div><div class="track"><div class="fill" style="--v:100"></div></div><div class="val">1.50 s</div></div>
           <div class="brow hot"><div class="name">Version 1.4</div><div class="track"><div class="fill" style="--v:8.7"></div></div><div class="val">0.13 s</div></div>
         </div>
         <p class="note">1.4 writes your words in pieces while you talk, so little is left to do when you let go.</p>
       </div>
-      <div class="panel rv" style="--d:1">
+      <div class="up">
         <h3>MIRA's writing steps</h3>
-        <p class="note" style="margin-top:8px">Time to clean up one Odia sentence, after the speech is recognized.</p>
-        <div class="bars" style="margin-top:24px">
+        <p class="sub">Time to clean up one Odia sentence, after the speech is recognized.</p>
+        <div class="bars draw">
           <div class="brow"><div class="name">Find the dialect</div><div class="track"><div class="fill" style="--v:35.8"></div></div><div class="val">0.019 ms</div></div>
           <div class="brow"><div class="name">Standard Odia</div><div class="track"><div class="fill" style="--v:50.9"></div></div><div class="val">0.027 ms</div></div>
           <div class="brow hot"><div class="name">Clean up</div><div class="track"><div class="fill" style="--v:100"></div></div><div class="val">0.053 ms</div></div>
@@ -218,14 +387,14 @@ table.spec { width: 100%; border-collapse: separate; border-spacing: 0 6px; font
   </div>
 </section>
 
-<section class="sec alt" id="tests" aria-labelledby="t-h">
+<section class="sec sand" id="tests" aria-labelledby="ts-h">
   <div class="wrap">
-    <div class="sec-head">
-      <h2 id="t-h" class="rv">Tested before it ships</h2>
-      <p class="rv" style="--d:1">43 automated checks in 12 files. On the 1.4.0 build, 42 pass and 1 is skipped where Windows doesn't log microphone use.</p>
+    <div class="head">
+      <h2 id="ts-h" class="up">Tested before it ships</h2>
+      <p class="up">43 automated checks in 12 files. On the 1.4.0 build, 42 pass and 1 is skipped where Windows doesn't log microphone use.</p>
     </div>
-    <div class="panel rv tbl">
-      <table class="spec tests">
+    <div class="tblw up">
+      <table class="led">
         <caption class="sr">Automated checks by area</caption>
         <thead><tr><th scope="col">Area</th><th scope="col">What is checked</th><th scope="col" class="n">Checks</th></tr></thead>
         <tbody>
@@ -244,29 +413,26 @@ table.spec { width: 100%; border-collapse: separate; border-spacing: 0 6px; font
         </tbody>
       </table>
     </div>
-    <div class="runline rv"><code>python -m pytest openflow</code><span>Run them yourself from the folder above the source code.</span></div>
+    <div class="run up"><code>python -m pytest openflow</code><span>Run them yourself from the folder above the source code.</span></div>
   </div>
 </section>
 
 </main>
 
-<section class="get" id="get" aria-labelledby="g-h">
-  <div class="wrap in">
-    <h2 id="g-h" class="rv">Try it.</h2>
-    <div class="side rv" style="--d:1">
+<section class="close" aria-labelledby="c-h">
+  <div class="wrap">
+    <h2 id="c-h" class="up">Try it.</h2>
+    <div class="up">
       <p>Free, private, open source.</p>
-      <div class="actions">
-        <a class="btn dark" href="https://github.com/Sachin1724/OpenFlow/releases/latest/download/OpenFlow-Setup.exe">Download for Windows</a>
-        <a class="btn" href="changelog.html">What's new</a>
+      <div class="acts">
+        <a class="btn" href="https://github.com/Sachin1724/OpenFlow/releases/latest/download/OpenFlow-Setup.exe">Download for Windows</a>
+        <a class="btn alt" href="changelog.html">What's new</a>
       </div>
     </div>
   </div>
 </section>
 
 <footer class="foot wrap">
-  <div class="mark-bars" aria-hidden="true">
-    <i style="--i:0;--h:30"></i><i style="--i:1;--h:46"></i><i style="--i:2;--h:62"></i><i style="--i:3;--h:84"></i><i style="--i:4;--h:100"></i><i style="--i:5;--h:78"></i><i style="--i:6;--h:54"></i><i style="--i:7;--h:70"></i><i style="--i:8;--h:44"></i><i style="--i:9;--h:32"></i>
-  </div>
   <div class="links">
     <a href="index.html">Home</a>
     <a href="app.html">Windows app</a>
@@ -276,16 +442,30 @@ table.spec { width: 100%; border-collapse: separate; border-spacing: 0 6px; font
     <a href="mira.html">MIRA</a>
     <a href="https://github.com/Sachin1724/OpenFlow">Source</a>
   </div>
-  <p class="small">OpenFlow is free and open source under the MIT license. Made by Sachidananda. Speech data: Google FLEURS (CC-BY-4.0).</p>
+  <p>OpenFlow is free and open source under the MIT license. Made by Sachidananda. Speech data: Google FLEURS (CC-BY-4.0).</p>
 </footer>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
 <script>
 (function () {
   var $ = function (s, r) { return (r || document).querySelector(s); };
   var $$ = function (s, r) { return [].slice.call((r || document).querySelectorAll(s)); };
-  function drawIn(host) { $$('.fill', host).forEach(function (f) { f.classList.remove('in'); void f.offsetWidth; f.classList.add('in'); }); }
+  var reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  // efficiency: one panel, three measures of the same four engines (Google FLEURS English, 60 clips)
+  // The capsule types real sentences, as the app does while you speak
+  var lines = [['Send the report by Friday, please.', 'EN-IN'], ['ମୁଁ ଆଜି ସନ୍ଧ୍ୟାରେ ଆସିବି ।', 'ODIA'], ['camel case user name → userName', 'CODE']];
+  var said = $('#said'), lang = $('#lang');
+  if (!reduce) {
+    var li = 0, w = 0, words = lines[0][0].split(' ');
+    setInterval(function () {
+      w++;
+      if (w > words.length + 3) { li = (li + 1) % lines.length; words = lines[li][0].split(' '); w = 1; lang.textContent = lines[li][1]; }
+      said.innerHTML = words.slice(0, Math.min(w, words.length)).join(' ') + '<span class="cur"></span>';
+    }, 420);
+  }
+
+  // Efficiency: bars move from where they are to the new value
   var E = {
     wer: { max: 15, fmt: function (v) { return v.toFixed(1) + '%'; }, vals: [13.2, 12.5, 9.4, 9.0],
       note: '<strong>Word error rate, lower is better.</strong> Parakeet and Whisper small make the fewest mistakes; Parakeet does it in under a third of the time.' },
@@ -300,19 +480,78 @@ table.spec { width: 100%; border-collapse: separate; border-spacing: 0 6px; font
       var d = E[btn.getAttribute('data-e')];
       $$('[data-e]', host).forEach(function (b) { b.setAttribute('aria-pressed', String(b === btn)); });
       $$('.brow', host).forEach(function (row, i) {
-        $('.fill', row).style.setProperty('--v', (d.vals[i] / d.max * 100).toFixed(1));
+        var f = $('.fill', row), v = (d.vals[i] / d.max * 100).toFixed(1);
+        if (window.gsap && !reduce) gsap.to(f, { width: v + '%', duration: .55, ease: 'power3.out', delay: i * .05 });
+        else f.style.width = v + '%';
         $('.val', row).textContent = d.fmt(d.vals[i]);
       });
       $('#eff-note').innerHTML = d.note;
-      drawIn(host);
     });
   });
 
-  var parts = $$('.rv');
-  if ('IntersectionObserver' in window) {
-    var io = new IntersectionObserver(function (es) { es.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('show'); drawIn(e.target); io.unobserve(e.target); } }); }, { rootMargin: '0px 0px -8% 0px' });
-    parts.forEach(function (p) { io.observe(p); });
-  } else { parts.forEach(function (p) { p.classList.add('show'); drawIn(p); }); }
+  if (!window.gsap || !window.ScrollTrigger) { document.documentElement.classList.remove('motion'); return; }
+  gsap.registerPlugin(ScrollTrigger);
+  var mm = gsap.matchMedia();
+
+  mm.add('(prefers-reduced-motion: no-preference)', function () {
+    var cap = $('#cap'), mark = $('#mark');
+    // first entrance: headline lines rise, capsule then the button follow
+    gsap.from('#hl .ln', { yPercent: 60, opacity: 0, duration: .9, ease: 'power3.out', stagger: .08 });
+    gsap.from(cap, { scale: .92, opacity: 0, duration: .9, ease: 'power3.out', delay: .15 });
+    gsap.from('.hero .go', { y: 16, opacity: 0, duration: .7, ease: 'power3.out', delay: .3 });
+
+    // scroll: the hero capsule shrinks and seats into the nav as its mark (scrubbed, reversible).
+    // Not pinned: the page keeps moving so the next section rises in while the capsule flies,
+    // and the capsule's y adds back the distance scrolled so it lands exactly on the fixed nav.
+    var f = { x: 0, y: 0, s: 1 }, D = 0;
+    function measure() {
+      var a = cap.getBoundingClientRect(), b = mark.getBoundingClientRect(), top = a.top + window.scrollY;
+      D = Math.round(window.innerHeight * .6);
+      f = { x: (b.left + b.width / 2) - (a.left + a.width / 2), y: (b.top + b.height / 2) - (top + a.height / 2) + D, s: b.width / a.width };
+    }
+    var tl = gsap.timeline({ scrollTrigger: { trigger: '.hero', start: 'top top', end: function () { return '+=' + D; }, scrub: .5, invalidateOnRefresh: true,
+      onRefreshInit: function () { gsap.set(cap, { x: 0, y: 0, scale: 1, opacity: 1 }); measure(); } } });
+    // Explicit from-values: the entrance above is still fading these in when this timeline is built,
+    // and a plain .to() would record that half-faded state as "the top of the page".
+    tl.fromTo('#hl', { yPercent: 0, opacity: 1 }, { yPercent: -40, opacity: 0, ease: 'none', duration: .5, immediateRender: false }, 0)
+      .fromTo('.hero .go', { y: 0, opacity: 1 }, { y: -30, opacity: 0, ease: 'none', duration: .35, immediateRender: false }, 0)
+      .fromTo('#said, #lang', { opacity: 1 }, { opacity: 0, ease: 'none', duration: .25, immediateRender: false }, 0)
+      .fromTo(cap, { x: 0, y: 0, scale: 1 }, { x: function () { return f.x; }, y: function () { return f.y; }, scale: function () { return f.s; }, ease: 'none', duration: 1, immediateRender: false }, 0)
+      .fromTo(mark, { opacity: 0 }, { opacity: 1, duration: .06, immediateRender: false }, .94)
+      .fromTo(cap, { opacity: 1 }, { opacity: 0, duration: .06, immediateRender: false }, .94);
+
+    // numbers roll to their value
+    $$('.nm').forEach(function (b) {
+      var to = parseFloat(b.dataset.to), dp = +b.dataset.dp, suf = b.dataset.suf, o = { v: to * 3 };
+      ScrollTrigger.create({ trigger: b, start: 'top 88%', once: true, onEnter: function () {
+        gsap.to(o, { v: to, duration: .9, ease: 'power3.out', onUpdate: function () { b.textContent = o.v.toFixed(dp) + suf; } });
+      } });
+    });
+
+    // the trip: the line draws, then the nodes drop into place
+    gsap.from('.trip .line', { scaleX: 0, duration: .9, ease: 'power2.inOut', scrollTrigger: { trigger: '.trip', start: 'top 80%', once: true } });
+    gsap.from('.trip .step', { y: 28, opacity: 0, duration: .6, ease: 'back.out(1.6)', stagger: .08, delay: .35, scrollTrigger: { trigger: '.trip', start: 'top 80%', once: true } });
+
+    // text blocks rise; pictures unmask while easing back from 1.08
+    $$('.up').forEach(function (el) {
+      gsap.from(el, { y: 24, opacity: 0, duration: .7, ease: 'power3.out', scrollTrigger: { trigger: el, start: 'top 88%', once: true } });
+    });
+    $$('.pic').forEach(function (el) {
+      gsap.from(el, { clipPath: 'inset(0 0 100% 0 round 28px)', duration: .9, ease: 'power3.out', scrollTrigger: { trigger: el, start: 'top 85%', once: true } });
+      gsap.from($('img', el), { scale: 1.08, duration: 1.1, ease: 'power3.out', scrollTrigger: { trigger: el, start: 'top 85%', once: true } });
+    });
+
+    // bars draw left to right
+    $$('.bars.draw').forEach(function (bs) {
+      gsap.from($$('.fill', bs), { width: 0, duration: .9, ease: 'power3.out', stagger: .06, scrollTrigger: { trigger: bs, start: 'top 85%', once: true } });
+    });
+
+    // table rows settle in, one after another
+    $$('.led tbody').forEach(function (tb) {
+      gsap.from($$('tr', tb), { y: 10, opacity: 0, duration: .45, ease: 'power2.out', stagger: .04, scrollTrigger: { trigger: tb, start: 'top 85%', once: true } });
+    });
+  });
+  mm.add('(prefers-reduced-motion: reduce)', function () { document.documentElement.classList.remove('motion'); });
 })();
 </script>
 </body>
