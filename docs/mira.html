@@ -16,6 +16,7 @@
 <link rel="icon" href="img/icon.png">
 <link rel="preconnect" href="https://api.fontshare.com">
 <link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=general-sans@400,500&display=swap">
+<link rel="stylesheet" href="oil.css">
 <link rel="stylesheet" href="site.css">
 <style>
 /* what MIRA looks like */
@@ -71,59 +72,41 @@ table.lat { width: 100%; border-collapse: separate; border-spacing: 0 6px; }
   .sheet .r { grid-template-columns: 1fr; gap: 2px; }
 }
 @media (prefers-reduced-motion: reduce) { #blob-head, #blob-eyes { transition: none !important; } }
+/* redesign: MIRA's face is the first screen, and on scroll it lands on the face in the real capsule */
+.mhero { padding: 120px 0 clamp(56px, 7vw, 96px); text-align: center; }
+.mhero .wrap { display: grid; justify-items: center; gap: clamp(20px, 3vh, 32px); }
+.mhero h1 { font-size: clamp(3.2rem, 1.6rem + 5.4vw, 6.6rem); }
+.mhero .lead { max-width: 40ch; font-size: var(--step-lead); line-height: 1.3; color: var(--body-soft); }
+.mhero .actions { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+.mhero .face { background: none; padding: 0; gap: 12px; }
+.mhero .face .disc { position: relative; z-index: 40; width: clamp(200px, 26vw, 300px); background: var(--surface-2); will-change: transform; }
+.mhero .face { position: relative; z-index: 40; }
+.look { grid-template-columns: 1fr; }
+.cap video { width: 100%; max-width: 560px; height: auto; border-radius: 999px; }
+.vidbtn { justify-self: start; height: 44px; font-size: 15px; }
+
 </style>
-<script>document.documentElement.classList.add('js');</script>
+<script>document.documentElement.classList.add('js'); if (!matchMedia('(prefers-reduced-motion: reduce)').matches) document.documentElement.classList.add('motion');</script>
 </head>
 <body>
 
-<header class="top" id="top">
-  <div class="wrap">
-  <nav class="nav" aria-label="Main">
-    <a class="mark" href="index.html"><img src="img/icon.png" alt="" width="34" height="34">OpenFlow</a>
-    <ul>
-      <li><a href="index.html">Home</a></li>
-      <li><a href="app.html">Windows</a></li>
-      <li><a href="android.html">Android</a></li>
-      <li><a href="changelog.html">Changelog</a></li>
-      <li><a href="research.html" aria-current="page">Research</a></li>
-      <li><a class="btn" href="https://github.com/Sachin1724/OpenFlow/releases/latest/download/OpenFlow-Setup.exe">Download</a></li>
-    </ul>
-  </nav>
-  <div class="copy">
-    <h1 class="rv">MIRA, inside out.</h1>
-    <p class="lead rv" style="--d:1">The model card for MIRA: the speech model in the app today, and the conversation model being trained for what comes next.</p>
-    <div class="actions rv" style="--d:2">
-      <a class="btn" href="#bench">See the benchmarks</a>
-      <a class="btn quiet" href="#talk">The conversation model</a>
-    </div>
-  </div>
-  </div>
-  <div class="stagepad" aria-hidden="true">
-    <div class="shape">
-      <i style="--i:0;--h:34"></i><i style="--i:1;--h:58"></i><i style="--i:2;--h:82"></i><i style="--i:3;--h:100"></i><i style="--i:4;--h:76"></i><i style="--i:5;--h:48"></i><i style="--i:6;--h:66"></i>
-    </div>
-  </div>
-</header>
-
-<section class="stats wrap" aria-label="Key numbers">
+<a class="skip" href="#main">Skip to content</a>
+<nav class="sn" aria-label="Main"><div class="sn-in">
+  <a class="sn-brand" href="index.html"><span class="sn-mark" aria-hidden="true"><i style="--h:40"></i><i style="--h:80"></i><i style="--h:100"></i><i style="--h:60"></i><i style="--h:85"></i></span>OpenFlow</a>
   <ul>
-    <li class="stat hot rv"><b>21.7%</b><p>of words wrong on Google FLEURS Odia. <strong>OpenAI Whisper base: 125.7%, small: 136.5%.</strong></p></li>
-    <li class="stat rv" style="--d:1"><b>118M</b><p>parameters, 98.8 million of them stored as 8-bit integers.</p></li>
-    <li class="stat rv" style="--d:2"><b>200 MB</b><p>on disk: the speech model plus a 12 MB Odia word model.</p></li>
-    <li class="stat rv" style="--d:3"><b>17×</b><p>faster than real time on a laptop CPU, with the word model on.</p></li>
+    <li><a href="app.html">Windows</a></li>
+    <li><a href="android.html">Android</a></li>
+    <li><a href="research.html">Research</a></li>
+    <li><a href="mira.html" aria-current="page">MIRA</a></li>
+    <li><a href="changelog.html">Changelog</a></li>
+    <li><a class="sn-cta" href="https://github.com/Sachin1724/OpenFlow/releases/latest/download/OpenFlow-Setup.exe">Download</a></li>
   </ul>
-</section>
+</div></nav>
 
-<main>
-
-<section class="sec" id="look" aria-labelledby="l-h">
+<header class="mhero" id="top">
   <div class="wrap">
-    <div class="sec-head">
-      <h2 id="l-h" class="rv">What MIRA looks like</h2>
-      <p class="rv" style="--d:1">MIRA appears in the capsule while you dictate Odia: a flat face that watches your cursor, blinks, and breathes with your voice.</p>
-    </div>
-    <div class="look">
-      <div class="face rv" id="mira-face">
+    <h1 class="rv">MIRA, inside out.</h1>
+    <div class="face rv" id="mira-face" style="--d:1">
         <div class="disc">
           <svg id="blob-svg" viewBox="0 0 100 100" role="img" aria-label="MIRA, a round blue character with two dark eyes">
             <g id="blob-head" transform-origin="48.85 51.21" style="transition:transform 0.08s ease-out" fill="#a5ddff">
@@ -139,9 +122,36 @@ table.lat { width: 100%; border-collapse: separate; border-spacing: 0 6px; }
         </div>
         <p>Move your pointer: MIRA follows it.</p>
       </div>
+    <p class="lead rv" style="--d:2">The model card for MIRA: the speech model in the app today, and the conversation model being trained for what comes next.</p>
+    <div class="actions rv" style="--d:3">
+      <a class="btn" href="#bench">See the benchmarks</a>
+      <a class="btn quiet" href="#talk">The conversation model</a>
+    </div>
+  </div>
+</header>
+
+<section class="stats wrap" aria-label="Key numbers">
+  <ul>
+    <li class="stat hot rv"><b>21.7%</b><p>of words wrong on Google FLEURS Odia. <strong>OpenAI Whisper base: 125.7%, small: 136.5%.</strong></p></li>
+    <li class="stat rv" style="--d:1"><b>118M</b><p>parameters, 98.8 million of them stored as 8-bit integers.</p></li>
+    <li class="stat rv" style="--d:2"><b>200 MB</b><p>on disk: the speech model plus a 12 MB Odia word model.</p></li>
+    <li class="stat rv" style="--d:3"><b>17×</b><p>faster than real time on a laptop CPU, with the word model on.</p></li>
+  </ul>
+</section>
+
+<main id="main">
+
+<section class="sec" id="look" aria-labelledby="l-h">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2 id="l-h" class="rv">What MIRA looks like</h2>
+      <p class="rv" style="--d:1">MIRA appears in the capsule while you dictate Odia: a flat face that watches your cursor, blinks, and breathes with your voice.</p>
+    </div>
+    <div class="look">
       <div class="cap rv" style="--d:1">
-        <img src="img/mira-capsule.gif" width="360" height="44" alt="The OpenFlow capsule: English with the plain indicator, then Odia with MIRA showing, the badge changing to SAMBALPURI mid-sentence, Refining, and the pasted result">
-        <img src="img/mira-capsule-sambalpuri.png" width="720" height="88" alt="The capsule with MIRA's face, the Odia words କେନ୍ତା ଅଛ and a SAMBALPURI badge">
+        <video id="capvid" src="img/mira-capsule.mp4" width="720" height="88" autoplay muted loop playsinline poster="img/mira-capsule-poster.png" aria-label="The OpenFlow capsule: English with the plain indicator, then Odia with MIRA showing, the badge changing to SAMBALPURI mid-sentence, Refining, and the pasted result"></video>
+        <img id="capstill" src="img/mira-capsule-sambalpuri.png" width="720" height="88" alt="The capsule with MIRA's face, the Odia words କେନ୍ତା ଅଛ and a SAMBALPURI badge">
+        <button class="btn quiet vidbtn" type="button" id="vidbtn" aria-controls="capvid">Pause the recording</button>
         <p><strong>Recorded from the app.</strong> English keeps the plain indicator. Switch to Odia and MIRA appears; speak Sambalpuri and the badge changes mid-sentence; let go and it refines, then pastes.</p>
       </div>
     </div>
@@ -387,6 +397,39 @@ table.lat { width: 100%; border-collapse: separate; border-spacing: 0 6px; }
     var io = new IntersectionObserver(function (es) { es.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('show'); drawIn(e.target); io.unobserve(e.target); } }); }, { rootMargin: '0px 0px -8% 0px' });
     parts.forEach(function (p) { io.observe(p); });
   } else { parts.forEach(function (p) { p.classList.add('show'); drawIn(p); }); }
+})();
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+<script>
+(() => {
+  // The recording: a pause control, and still under reduced motion
+  const v = document.getElementById('capvid'), vb = document.getElementById('vidbtn');
+  const set = play => { play ? v.play() : v.pause(); vb.textContent = play ? 'Pause the recording' : 'Play the recording'; };
+  vb.addEventListener('click', () => set(v.paused));
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) { v.removeAttribute('autoplay'); set(false); }
+
+  // Scroll: the hero face shrinks and travels onto MIRA's face in the real capsule, then hands over to it
+  if (!window.gsap || !window.ScrollTrigger) return;
+  gsap.registerPlugin(ScrollTrigger);
+  gsap.matchMedia().add('(prefers-reduced-motion: no-preference)', () => {
+    const disc = document.querySelector('.mhero .disc'), still = document.getElementById('capstill');
+    let m = { x: 0, y: 0, s: 1, end: 600 };
+    const measure = () => {
+      gsap.set(disc, { x: 0, y: 0, scale: 1, opacity: 1 });
+      // layout positions, not on-screen boxes: the entrance fades still have their 28px offsets at this point
+      const pos = el => { let x = 0, y = 0; for (let e = el; e; e = e.offsetParent) { x += e.offsetLeft; y += e.offsetTop; } return { x, y, w: el.offsetWidth, h: el.offsetHeight }; };
+      const a = pos(disc), b = pos(still);
+      // MIRA's face sits at 6% across the capsule, centred vertically, about 36% of its height wide
+      m = { x: (b.x + b.w * .0625) - (a.x + a.w / 2), y: (b.y + b.h / 2) - (a.y + a.h / 2), s: (b.h * .36) / (a.w * .62 * .7),
+            end: Math.max(200, b.y - innerHeight * .55) };
+    };
+    gsap.timeline({ scrollTrigger: { trigger: '.mhero', start: 'top top', end: () => '+=' + m.end, scrub: true, invalidateOnRefresh: true, onRefreshInit: measure } })
+      .fromTo(disc, { x: 0, y: 0, scale: 1 }, { x: () => m.x, y: () => m.y, scale: () => m.s, ease: 'none', duration: 1, immediateRender: false }, 0)
+      .fromTo(disc, { backgroundColor: 'rgba(232,223,202,1)' }, { backgroundColor: 'rgba(232,223,202,0)', ease: 'none', duration: .4, immediateRender: false }, 0)
+      .fromTo('.mhero .face p', { opacity: 1 }, { opacity: 0, ease: 'none', duration: .2, immediateRender: false }, 0)
+      .fromTo(disc, { opacity: 1 }, { opacity: 0, duration: .03, immediateRender: false }, .97);
+  });
 })();
 </script>
 </body>
