@@ -2,7 +2,7 @@
 import os
 import numpy as np
 import psutil
-from engine.remote_transcriber import RemoteTranscriber
+from openflow.engine.remote_transcriber import RemoteTranscriber
 
 
 def test_engine_process_lifecycle():

@@ -19,12 +19,31 @@ def test_mic_watch_fires():
     """Opening our own mic stream rewrites the consent key, which must wake the watcher fast."""
     import threading
     import sounddevice as sd
+    import sys
+    import winreg
+    import pytest
+
+    def last_use():
+        # Windows logs each desktop app's mic use under NonPackaged\<exe path with \ as #>
+        try:
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER,
+                                m._MIC_KEY + "\\NonPackaged\\" + sys.executable.replace("\\", "#")) as k:
+                return winreg.QueryValueEx(k, "LastUsedTimeStart")[0]
+        except OSError:
+            return None
+
     fired = threading.Event()
     m.watch_mic(fired.set)
     time.sleep(0.3)
+    before = last_use()
     t0 = time.monotonic()
     with sd.InputStream(samplerate=m.SR, channels=1):
-        assert fired.wait(3), "mic watcher never fired"
+        if not fired.wait(3):
+            # The watcher can only wake on a key Windows writes. Some sessions (sandboxed shells,
+            # mic-history privacy off) never write it, and then there is nothing to test.
+            if last_use() == before:
+                pytest.skip("Windows did not record this process's microphone use")
+            raise AssertionError("Windows recorded the mic use but the watcher never fired")
     print(f"mic watch latency: {(time.monotonic() - t0) * 1000:.0f} ms")
 
 

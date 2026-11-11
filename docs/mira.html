@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MIRA model card: OpenFlow's Odia engine</title>
+<meta name="description" content="MIRA, OpenFlow's Odia speech engine: architecture, parameters, weights on disk, decoding settings, and benchmarks on Google FLEURS against OpenAI Whisper, measured on one laptop CPU.">
+<meta name="theme-color" content="#000000">
+<meta name="color-scheme" content="dark">
+<link rel="canonical" href="https://sachin1724.github.io/OpenFlow/mira.html">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://sachin1724.github.io/OpenFlow/mira.html">
+<meta property="og:title" content="MIRA model card: OpenFlow's Odia engine">
+<meta property="og:description" content="118M parameters, 200 MB on disk, 21.7% word error rate on Google FLEURS Odia. The full specification and benchmarks.">
+<meta property="og:image" content="https://sachin1724.github.io/OpenFlow/img/icon.png">
+<link rel="icon" href="img/icon.png">
+<link rel="preconnect" href="https://api.fontshare.com">
+<link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=general-sans@400,500&display=swap">
+<link rel="stylesheet" href="site.css">
+<style>
+/* what MIRA looks like */
+.look { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 16px; }
+.face { background: var(--surface-2); border-radius: var(--r); padding: clamp(28px, 4vw, 56px); display: grid; place-items: center; gap: 18px; text-align: center; }
+.face .disc { width: clamp(180px, 22vw, 240px); aspect-ratio: 1; border-radius: 999px; background: var(--surface); display: grid; place-items: center; }
+.face svg { width: 62%; height: 62%; overflow: visible; cursor: crosshair; }
+.face p { color: var(--soft); font-size: 15px; }
+.cap { background: var(--surface-2); border-radius: var(--r); padding: clamp(28px, 4vw, 56px); display: grid; align-content: center; gap: 24px; }
+.cap img { width: 100%; max-width: 560px; height: auto; border-radius: 999px; }
+.cap p { color: var(--body-soft); max-width: 52ch; }
+.cap p strong { color: var(--ink); font-weight: 500; }
+
+/* pipeline: open rows, the measured time carries each step */
+.pipe { list-style: none; padding: 0; display: grid; gap: clamp(28px, 3vw, 44px); }
+.pipe li { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 3fr) minmax(0, 6fr); column-gap: clamp(16px, 2vw, 32px); align-items: baseline; }
+.pipe b { font-size: clamp(2rem, 1.4rem + 1.8vw, 3.25rem); font-weight: 500; letter-spacing: -0.04em; line-height: 1; font-variant-numeric: tabular-nums; }
+.pipe b small { font-size: .45em; letter-spacing: 0; color: var(--soft); font-weight: 400; margin-left: .2em; }
+.pipe h3 { font-size: var(--step-lead); }
+.pipe p { color: var(--body-soft); max-width: 60ch; }
+.pipe p strong { color: var(--ink); font-weight: 500; }
+
+/* specification sheet */
+.sheet { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.sheet h3 { margin-bottom: 18px; }
+.sheet dl { display: grid; gap: 6px; margin: 0; }
+.sheet .r { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: 16px; background: var(--surface-3); border-radius: 14px; padding: 12px 16px; }
+.sheet dt { color: var(--soft); font-size: 15px; }
+.sheet dd { margin: 0; font-variant-numeric: tabular-nums; }
+.sheet dd small { display: block; color: var(--soft); font-size: 14px; }
+
+/* latency table */
+.tbl { overflow-x: auto; }
+table.lat { width: 100%; border-collapse: separate; border-spacing: 0 6px; }
+.lat th { text-align: left; color: var(--soft); font-weight: 400; font-size: 14px; padding: 0 16px 6px; }
+.lat td { background: var(--surface-3); padding: 14px 16px; }
+.lat td:first-child { border-radius: 14px 0 0 14px; }
+.lat td:last-child { border-radius: 0 14px 14px 0; }
+.lat .n, .lat th.n { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* limits */
+.limits { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 40px; }
+.limits li { color: var(--body-soft); padding-left: 28px; position: relative; }
+.limits li::before { content: ""; position: absolute; left: 0; top: .62em; width: 16px; height: 7px; border-radius: 999px; background: var(--accent); }
+.limits strong { color: var(--ink); font-weight: 500; }
+
+@media (max-width: 1100px) {
+  .look, .sheet { grid-template-columns: 1fr; }
+  .pipe li { grid-template-columns: 1fr; row-gap: 8px; }
+}
+@media (max-width: 760px) {
+  .limits { grid-template-columns: 1fr; }
+  .sheet .r { grid-template-columns: 1fr; gap: 2px; }
+}
+@media (prefers-reduced-motion: reduce) { #blob-head, #blob-eyes { transition: none !important; } }
+</style>
+<script>document.documentElement.classList.add('js');</script>
+</head>
+<body>
+
+<header class="top" id="top">
+  <div class="wrap">
+  <nav class="nav" aria-label="Main">
+    <a class="mark" href="index.html"><img src="img/icon.png" alt="" width="34" height="34">OpenFlow</a>
+    <ul>
+      <li><a href="index.html">Home</a></li>
+      <li><a href="app.html">App</a></li>
+      <li><a href="changelog.html">Changelog</a></li>
+      <li><a href="research.html" aria-current="page">Research</a></li>
+      <li><a class="btn" href="https://github.com/Sachin1724/OpenFlow/releases/latest/download/OpenFlow-Setup.exe">Download</a></li>
+    </ul>
+  </nav>
+  <div class="copy">
+    <h1 class="rv">MIRA, inside out.</h1>
+    <p class="lead rv" style="--d:1">The model card for OpenFlow's Odia engine: what is in it, how big it is, and how it scores on a public benchmark.</p>
+    <div class="actions rv" style="--d:2">
+      <a class="btn" href="#bench">See the benchmarks</a>
+      <a class="btn quiet" href="research.html#mira">Back to research</a>
+    </div>
+  </div>
+  </div>
+  <div class="stagepad" aria-hidden="true">
+    <div class="shape">
+      <i style="--i:0;--h:34"></i><i style="--i:1;--h:58"></i><i style="--i:2;--h:82"></i><i style="--i:3;--h:100"></i><i style="--i:4;--h:76"></i><i style="--i:5;--h:48"></i><i style="--i:6;--h:66"></i>
+    </div>
+  </div>
+</header>
+
+<section class="stats wrap" aria-label="Key numbers">
+  <ul>
+    <li class="stat hot rv"><b>21.7%</b><p>of words wrong on Google FLEURS Odia. <strong>OpenAI Whisper base: 125.7%, small: 136.5%.</strong></p></li>
+    <li class="stat rv" style="--d:1"><b>118M</b><p>parameters, 98.8 million of them stored as 8-bit integers.</p></li>
+    <li class="stat rv" style="--d:2"><b>200 MB</b><p>on disk: the speech model plus a 12 MB Odia word model.</p></li>
+    <li class="stat rv" style="--d:3"><b>17×</b><p>faster than real time on a laptop CPU, with the word model on.</p></li>
+  </ul>
+</section>
+
+<main>
+
+<section class="sec" id="look" aria-labelledby="l-h">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2 id="l-h" class="rv">What MIRA looks like</h2>
+      <p class="rv" style="--d:1">MIRA appears in the capsule while you dictate Odia: a flat face that watches your cursor, blinks, and breathes with your voice.</p>
+    </div>
+    <div class="look">
+      <div class="face rv" id="mira-face">
+        <div class="disc">
+          <svg id="blob-svg" viewBox="0 0 100 100" role="img" aria-label="MIRA, a round blue character with two dark eyes">
+            <g id="blob-head" transform-origin="48.85 51.21" style="transition:transform 0.08s ease-out" fill="#a5ddff">
+              <circle cx="33.69" cy="51.21" r="19.09"/>
+              <circle cx="64" cy="51.21" r="19.09"/>
+              <path d="M33.69 32.12H64V70.3H33.69Z"/>
+              <g id="blob-eyes" style="transition:transform 0.05s ease-out;transform-origin:50px 49.5px" fill="#071117">
+                <path d="M43.34 48.83C45.07 57.03 45.07 57.05 42.18 57.66C39.29 58.27 39.28 58.26 37.54 50.06C35.8 41.86 35.81 41.84 38.7 41.23C41.59 40.62 41.6 40.63 43.34 48.83Z"/>
+                <path d="M64.23 49.01C65.85 56.61 65.84 56.63 62.71 57.29C59.58 57.96 59.57 57.95 57.96 50.34C56.34 42.74 56.34 42.72 59.47 42.06C62.6 41.39 62.61 41.4 64.23 49.01Z"/>
+              </g>
+            </g>
+          </svg>
+        </div>
+        <p>Move your pointer: MIRA follows it.</p>
+      </div>
+      <div class="cap rv" style="--d:1">
+        <img src="img/mira-capsule.gif" width="360" height="44" alt="The OpenFlow capsule: English with the plain indicator, then Odia with MIRA showing, the badge changing to SAMBALPURI mid-sentence, Refining, and the pasted result">
+        <img src="img/mira-capsule-sambalpuri.png" width="720" height="88" alt="The capsule with MIRA's face, the Odia words କେନ୍ତା ଅଛ and a SAMBALPURI badge">
+        <p><strong>Recorded from the app.</strong> English keeps the plain indicator. Switch to Odia and MIRA appears; speak Sambalpuri and the badge changes mid-sentence; let go and it refines, then pastes.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec alt" id="inside" aria-labelledby="i-h">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2 id="i-h" class="rv">How MIRA works</h2>
+      <p class="rv" style="--d:1">One neural model hears the speech. Everything after it is fixed rules, so MIRA cannot invent words. Times measured on 40 real recordings and 1,800 sentence runs.</p>
+    </div>
+    <ol class="pipe">
+      <li class="rv"><b>110<small>ms</small></b><h3>Hear</h3><p>AI4Bharat's <strong>IndicConformer</strong> turns 16 kHz audio into Odia letters. Median time per recording across 40 recordings averaging 7.6 seconds, word-model search included.</p></li>
+      <li class="rv"><b>16<small>paths</small></b><h3>Pick the words</h3><p>Real words win over near misses (<span lang="or">କାମ</span>, work, over <span lang="or">କମ</span>): a beam search keeps the 16 likeliest readings and scores them with a word model of <strong>400,000 Odia words and 3.3 million word pairs</strong>.</p></li>
+      <li class="rv"><b>0.019<small>ms</small></b><h3>Find the dialect</h3><p>Marker words name the dialect: Sambalpuri, Ganjami, Kalahandia, Anugulia, Baleswari, or standard Odia.</p></li>
+      <li class="rv"><b>0.027<small>ms</small></b><h3>Write standard Odia</h3><p>Regional verbs and pronouns become standard written Odia; slurred word joins are repaired, and the sentence ends with <span lang="or">।</span>, ? or ! from its tone.</p></li>
+      <li class="rv"><b>0.053<small>ms</small></b><h3>Clean up</h3><p>Hesitations go, spoken corrections keep only the correction, and amounts become numbers, so <span lang="or">ପାଞ୍ଚ ଶହ ଟଙ୍କା</span> (five hundred rupees) is written ₹500 in the final text.</p></li>
+      <li class="rv"><b>225,270</b><h3>Keep English in English</h3><p>English said inside Odia is matched against a table of 225,270 Odia spellings of English words, and written back in English letters.</p></li>
+    </ol>
+  </div>
+</section>
+
+<section class="sec" id="spec" aria-labelledby="s-h">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2 id="s-h" class="rv">Specification</h2>
+      <p class="rv" style="--d:1">Read from the model files and measured on an AMD Ryzen 7 7735HS (8 cores) with 31 GB of RAM, CPU only.</p>
+    </div>
+    <div class="sheet">
+      <div class="panel rv">
+        <h3>Speech model</h3>
+        <dl>
+          <div class="r"><dt>Model</dt><dd>AI4Bharat IndicConformer, Odia<small>Conformer encoder, CTC output</small></dd></div>
+          <div class="r"><dt>Parameters</dt><dd>118.0 million<small>98.8 M int8, 19.2 M float32</small></dd></div>
+          <div class="r"><dt>Weights</dt><dd>187.9 MB<small>ONNX, opset 16, int8 matrix multiplies</small></dd></div>
+          <div class="r"><dt>Input</dt><dd>16 kHz mono audio<small>80 log-mel bands, 25 ms window, 10 ms hop</small></dd></div>
+          <div class="r"><dt>Output</dt><dd>5,632 tokens<small>Odia script</small></dd></div>
+          <div class="r"><dt>Licence</dt><dd>CC-BY-4.0<small>int8 export: sachinmallick/openflow-odia-asr-int8</small></dd></div>
+        </dl>
+      </div>
+      <div class="panel rv" style="--d:1">
+        <h3>Decoding and runtime</h3>
+        <dl>
+          <div class="r"><dt>Search</dt><dd>CTC beam search, beam 16<small>word-model weight 0.15, word bonus 1.0</small></dd></div>
+          <div class="r"><dt>Word model</dt><dd>12.1 MB<small>400,000 words, 3,314,115 word pairs</small></dd></div>
+          <div class="r"><dt>Download</dt><dd>200 MB in total</dd></div>
+          <div class="r"><dt>Runtime</dt><dd>ONNX Runtime, CPU<small>one thread per physical core, up to 8</small></dd></div>
+          <div class="r"><dt>Load time</dt><dd>1.42 s</dd></div>
+          <div class="r"><dt>Memory added</dt><dd>351 MB</dd></div>
+        </dl>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec alt" id="bench" aria-labelledby="b-h">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2 id="b-h" class="rv">Benchmarks</h2>
+      <p class="rv" style="--d:1">Google FLEURS, the public multilingual speech benchmark: 100 Odia clips, 19.6 minutes. Compared with OpenAI Whisper, the most widely used open speech model, on the same laptop.</p>
+    </div>
+    <div class="panel rv" id="fl">
+      <div class="tools" role="group" aria-label="Measure">
+        <span class="lbl">Show</span>
+        <button class="chip" type="button" data-b="wer" aria-pressed="true">Word errors</button>
+        <button class="chip" type="button" data-b="cer" aria-pressed="false">Character errors</button>
+        <button class="chip" type="button" data-b="script" aria-pressed="false">Written in Odia</button>
+        <button class="chip" type="button" data-b="ms" aria-pressed="false">Time per clip</button>
+      </div>
+      <div class="bars">
+        <div class="brow" style="--d:0"><div class="name">Whisper base<small>OpenAI, 74 M</small></div><div class="track"><div class="fill" style="--v:83.8"></div></div><div class="val">125.7%</div></div>
+        <div class="brow" style="--d:1"><div class="name">Whisper small<small>OpenAI, 244 M</small></div><div class="track"><div class="fill" style="--v:91"></div></div><div class="val">136.5%</div></div>
+        <div class="brow hot" style="--d:2"><div class="name">MIRA<small>IndicConformer, 118 M</small></div><div class="track"><div class="fill" style="--v:14.5"></div></div><div class="val">21.7%</div></div>
+      </div>
+      <p class="note" id="fl-note" aria-live="polite"><strong>Word error rate, lower is better; bars end at 150%.</strong> Above 100% means the engine wrote more wrong words than the sentence had. Whisper writes Odia in Latin or Bengali letters, so almost nothing matches.</p>
+    </div>
+    <div class="cols" style="margin-top:16px">
+      <div class="panel rv">
+        <h3>Odia to English</h3>
+        <p class="note" style="margin-top:8px">chrF translation score, higher is better. The last row translates the true transcript: the best the translator can do.</p>
+        <div class="bars" style="margin-top:24px">
+          <div class="brow"><div class="name">Whisper base</div><div class="track"><div class="fill" style="--v:17.4"></div></div><div class="val">10.9</div></div>
+          <div class="brow"><div class="name">Whisper small</div><div class="track"><div class="fill" style="--v:33.2"></div></div><div class="val">20.8</div></div>
+          <div class="brow hot"><div class="name">MIRA + IndicTrans2</div><div class="track"><div class="fill" style="--v:96"></div></div><div class="val">60.1</div></div>
+          <div class="brow ref"><div class="name">True transcript</div><div class="track"><div class="fill" style="--v:100"></div></div><div class="val">62.6</div></div>
+        </div>
+        <p class="note">MIRA's text loses 2.5 points against a perfect transcript. BLEU: 29.3 against 31.7.</p>
+      </div>
+      <div class="panel rv tbl" style="--d:1">
+        <h3>Writing steps, per sentence</h3>
+        <p class="note" style="margin-top:8px">Six real sentences, 300 times each.</p>
+        <table class="lat" style="margin-top:20px">
+          <caption class="sr">Latency of MIRA's text steps</caption>
+          <thead><tr><th scope="col">Step</th><th scope="col" class="n">Median</th><th scope="col" class="n">99th percentile</th></tr></thead>
+          <tbody>
+            <tr><td>Find the dialect</td><td class="n">0.019 ms</td><td class="n">0.046 ms</td></tr>
+            <tr><td>Write standard Odia</td><td class="n">0.027 ms</td><td class="n">0.044 ms</td></tr>
+            <tr><td>Clean up</td><td class="n">0.053 ms</td><td class="n">0.102 ms</td></tr>
+          </tbody>
+        </table>
+        <p class="note">Slowest 1% of sentences still finish in about a tenth of a millisecond.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="limits" aria-labelledby="x-h">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2 id="x-h" class="rv">Conditions and limits</h2>
+      <p class="rv" style="--d:1">What these numbers do and do not show.</p>
+    </div>
+    <ul class="limits">
+      <li class="rv"><strong>One machine.</strong> Every number comes from one laptop CPU with int8 weights. A graphics card or a slower CPU will give different times.</li>
+      <li class="rv"><strong>Read speech.</strong> FLEURS is people reading sentences aloud. Fast conversation and noisy rooms score worse.</li>
+      <li class="rv"><strong>Two dates.</strong> FLEURS was measured on 31 October 2026. Size, memory, the 17× speed and the step times were measured on 11 November 2026 on 40 OdiaTTS recordings.</li>
+      <li class="rv"><strong>Rules have edges.</strong> Dialect rules cover the forms in the tables; a regional word they don't list stays as spoken. Numbers cover 1 to 20 and the round tens.</li>
+      <li class="rv"><strong>Odia or English.</strong> Auto mode calls a sentence English when at least 40% of its words come back in English. An Odia sentence full of English nouns can be misread.</li>
+      <li class="rv"><strong>Repeatable.</strong> The benchmark code and data sources are on the <a href="research.html#method" style="text-decoration:underline">research page</a>.</li>
+    </ul>
+  </div>
+</section>
+
+</main>
+
+<footer class="foot wrap">
+  <div class="mark-bars" aria-hidden="true">
+    <i style="--i:0;--h:30"></i><i style="--i:1;--h:46"></i><i style="--i:2;--h:62"></i><i style="--i:3;--h:84"></i><i style="--i:4;--h:100"></i><i style="--i:5;--h:78"></i><i style="--i:6;--h:54"></i><i style="--i:7;--h:70"></i><i style="--i:8;--h:44"></i><i style="--i:9;--h:32"></i>
+  </div>
+  <div class="links">
+    <a href="index.html">Home</a>
+    <a href="app.html">App</a>
+    <a href="changelog.html">Changelog</a>
+    <a href="research.html">Research</a>
+    <a href="mira.html">MIRA</a>
+    <a href="https://github.com/Sachin1724/OpenFlow">Source</a>
+  </div>
+  <p class="small">OpenFlow is free and open source under the MIT license. Made by Sachidananda. IndicConformer and IndicTrans2 by AI4Bharat. Speech data: Google FLEURS (CC-BY-4.0).</p>
+</footer>
+
+<script>
+(function () {
+  var $ = function (s, r) { return (r || document).querySelector(s); };
+  var $$ = function (s, r) { return [].slice.call((r || document).querySelectorAll(s)); };
+  function drawIn(host) { $$('.fill', host).forEach(function (f) { f.classList.remove('in'); void f.offsetWidth; f.classList.add('in'); }); }
+
+  // FLEURS Odia, 100 clips (research.html data): Whisper base, Whisper small, MIRA
+  var B = {
+    wer: { max: 150, fmt: function (v) { return v.toFixed(1) + '%'; }, vals: [125.7, 136.5, 21.7],
+      note: '<strong>Word error rate, lower is better; bars end at 150%.</strong> Above 100% means the engine wrote more wrong words than the sentence had. Whisper writes Odia in Latin or Bengali letters, so almost nothing matches.' },
+    cer: { max: 130, fmt: function (v) { return v.toFixed(1) + '%'; }, vals: [119.7, 116.2, 5.6],
+      note: '<strong>Character error rate, lower is better.</strong> Roughly 94 of every 100 letters come out right.' },
+    script: { max: 100, fmt: function (v) { return v.toFixed(0) + '%'; }, vals: [0, 0, 100],
+      note: '<strong>Share of the output written in Odia script.</strong> Neither Whisper model wrote a single clip in Odia.' },
+    ms: { max: 5000, fmt: function (v) { return v.toLocaleString('en') + ' ms'; }, vals: [1318, 4916, 283],
+      note: '<strong>Time per clip, lower is better.</strong> Clips average 11.8 seconds. MIRA is 4.7× faster than Whisper base and 17× faster than Whisper small.' }
+  };
+  var host = $('#fl');
+  $$('[data-b]', host).forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var d = B[btn.getAttribute('data-b')];
+      $$('[data-b]', host).forEach(function (b) { b.setAttribute('aria-pressed', String(b === btn)); });
+      $$('.brow', host).forEach(function (row, i) {
+        $('.fill', row).style.setProperty('--v', Math.min(100, d.vals[i] / d.max * 100).toFixed(1));
+        $('.val', row).textContent = d.fmt(d.vals[i]);
+      });
+      $('#fl-note').innerHTML = d.note;
+      drawIn(host);
+    });
+  });
+
+  // MIRA's gaze and blink, same motion as the capsule
+  var head = $('#blob-head'), eyes = $('#blob-eyes'), svg = $('#blob-svg');
+  var gx = 0, gy = 0, lid = 1;
+  var setEyes = function () { eyes.style.transform = 'translate(' + gx.toFixed(2) + 'px, ' + gy.toFixed(2) + 'px) scaleY(' + lid + ')'; };
+  if (!matchMedia('(prefers-reduced-motion: reduce)').matches) setInterval(function () {
+    lid = 0.1; setEyes();
+    setTimeout(function () { lid = 1; setEyes(); }, 140);
+  }, 3500);
+  window.addEventListener('pointermove', function (ev) {
+    var r = svg.getBoundingClientRect();
+    var dx = ev.clientX - (r.left + r.width / 2), dy = ev.clientY - (r.top + r.height / 2);
+    var dist = Math.hypot(dx, dy) || 1, f = Math.min(1, dist / 400);
+    gx = dx / dist * 3.6 * f; gy = dy / dist * 2.8 * f;
+    head.style.transform = 'rotate(' + (dx / dist * 5 * f).toFixed(2) + 'deg)';
+    setEyes();
+  });
+
+  var parts = $$('.rv');
+  if ('IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function (es) { es.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('show'); drawIn(e.target); io.unobserve(e.target); } }); }, { rootMargin: '0px 0px -8% 0px' });
+    parts.forEach(function (p) { io.observe(p); });
+  } else { parts.forEach(function (p) { p.classList.add('show'); drawIn(p); }); }
+})();
+</script>
+</body>
+</html>

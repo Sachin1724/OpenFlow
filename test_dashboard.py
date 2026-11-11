@@ -7,10 +7,10 @@ from PyQt6.QtGui import QWheelEvent
 from PyQt6.QtTest import QTest
 from PyQt6.QtWidgets import QApplication
 
-from database import Database
-from config import load_config
-import ui.main_window as mw
-from ui.main_window import MainWindow
+from openflow.database import Database
+from openflow.config import load_config
+import openflow.ui.main_window as mw
+from openflow.ui.main_window import MainWindow
 
 mw.save_config = lambda *_: None  # these tests drive real controls: never write the user's config
 
