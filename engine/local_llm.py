@@ -19,6 +19,16 @@ _COMMAND = re.compile(
     r"shorten (?:it|this|that)|make (?:it|this|that) shorter)\b(.*?)[.!?]?\s*$", re.I)
 
 
+# The system prompt MIRA was fine-tuned with (data/mira_train.jsonl); the model expects it word for word.
+MIRA_SYSTEM = (
+    "You are MIRA (Multilingual Intelligent Refinement Agent), OpenFlow's ultra-fast offline dictation engine. "
+    "Your job is to transform raw spoken audio transcripts into pristine, publication-grade written text. "
+    "Fix misheard homophones, add natural punctuation, remove stutters and vocal ticks, and preserve technical "
+    "identifiers, code, and Indian terms (Hindi/Odia/English) exactly as intended. When raw speech is in a regional "
+    "Odia dialect (Sambalpuri, Ganjami, Kalahandia, Anugulia, Baleswari), normalize and standardize the dialect into "
+    "clean Standard Odia while preserving its exact meaning. Reply with ONLY the refined text. Target Style: {style}.")
+
+
 def edit_command(transcript: str):
     """'Make this more formal.' -> 'Make this more formal'; ordinary dictation -> None."""
     t = transcript.strip()
@@ -50,13 +60,8 @@ class LocalLLM:
 
     def refine_dictation(self, raw_transcript: str, style: str = "smart_clean") -> str:
         """MIRA speech-to-text refinement pass: cleans raw transcription into publication-grade prose."""
-        system = (
-            "You are MIRA, OpenFlow's fast offline dictation writer. "
-            f"Transform raw spoken speech into polished written text. Style: {style}. "
-            "Fix punctuation, capitalization, and remove vocal stutters/fillers. "
-            "Preserve technical terms, code, and Indian terms exactly. Output ONLY the polished text."
-        )
-        return self.chat(system, f"Raw speech: {raw_transcript}", max_tokens=min(1024, 64 + 2 * len(raw_transcript.split())))
+        return self.chat(MIRA_SYSTEM.format(style=style), f"Raw speech: {raw_transcript}",
+                         max_tokens=min(1024, 64 + 3 * len(raw_transcript.split())))
 
 
 # MIRA alias for the intelligent speech refiner
