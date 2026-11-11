@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Page not found · OpenFlow</title>
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#F5EFE6">
+<link rel="icon" href="/OpenFlow/img/icon.png">
+<link rel="preconnect" href="https://api.fontshare.com">
+<link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600&display=swap">
+<link rel="stylesheet" href="/OpenFlow/oil.css">
+<style>
+body { margin: 0; background: #F5EFE6; color: #1E2A36; font: 400 18px/1.6 'General Sans', 'Segoe UI', sans-serif; }
+main { min-height: 100svh; box-sizing: border-box; display: grid; place-items: center; text-align: center; padding: 112px 20px 48px; }
+/* the capsule listens for a moment, hears nothing, and says so */
+.cap { width: min(440px, 86vw); height: 76px; box-sizing: border-box; border-radius: 999px; background: #7895B2; display: flex; align-items: center; gap: 16px; padding: 0 26px; margin: 0 auto 36px; }
+.bars { display: flex; align-items: center; gap: 4px; height: 28px; flex: none; }
+.bars i { width: 5px; height: 100%; border-radius: 99px; background: #1E2A36; transform: scaleY(.22); }
+.cap span { font-weight: 500; font-size: 17px; }
+h1 { font-weight: 500; font-size: clamp(2.6rem, 1.6rem + 4vw, 4.6rem); line-height: 1; letter-spacing: -0.045em; margin: 0; }
+p { color: #4A5868; margin: 18px auto 30px; max-width: 36ch; }
+.go { display: inline-flex; align-items: center; min-height: 52px; padding: 0 28px; border-radius: 999px; background: #3E5A78; color: #fff; text-decoration: none; font-weight: 500; transition: background-color .2s, transform .1s ease-out; }
+.go:hover { background: #1E2A36; }
+.go:active { transform: scale(.97); }
+.alt { margin-top: 44px; }
+.alt h2 { font-size: 15px; font-weight: 500; color: #4A5868; margin: 0 0 14px; }
+.alt ul { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.alt a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 18px; border-radius: 999px; background: #E8DFCA; color: #1E2A36; text-decoration: none; font-weight: 500; font-size: 15px; transition: background-color .2s, transform .1s ease-out; }
+.alt a:hover { background: #DCD1B6; }
+.alt a:active { transform: scale(.97); }
+.report { display: inline-block; margin-top: 28px; font-size: 15px; color: #3E5A78; text-underline-offset: 3px; }
+@media (prefers-reduced-motion: no-preference) {
+  .bars i { animation: hear 1s cubic-bezier(0.77, 0, 0.175, 1) 3 alternate; animation-delay: calc(var(--i) * 90ms); }
+  .cap span { animation: say .4s cubic-bezier(0.23, 1, 0.32, 1) 3.1s both; }
+}
+@keyframes hear { to { transform: scaleY(.9); } }
+@keyframes say { from { opacity: 0; transform: translateY(6px); } }
+@media (prefers-reduced-motion: reduce) { .go, .alt a { transition: none; } }
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<nav class="sn" aria-label="Main"><div class="sn-in">
+  <a class="sn-brand" href="/OpenFlow/"><span class="sn-mark" aria-hidden="true"><i style="--h:40"></i><i style="--h:80"></i><i style="--h:100"></i><i style="--h:60"></i><i style="--h:90"></i></span>OpenFlow</a>
+  <ul>
+    <li><a href="/OpenFlow/app.html">Windows</a></li>
+    <li><a href="/OpenFlow/android.html">Android</a></li>
+    <li><a href="/OpenFlow/research.html">Research</a></li>
+    <li><a href="/OpenFlow/mira.html">MIRA</a></li>
+    <li><a href="/OpenFlow/changelog.html">Changelog</a></li>
+    <li><a class="sn-cta" href="https://github.com/Sachin1724/OpenFlow/releases/latest">Download</a></li>
+  </ul>
+</div></nav>
+<main id="main">
+  <div>
+    <div class="cap" aria-hidden="true"><span class="bars"><i style="--i:0"></i><i style="--i:1"></i><i style="--i:2"></i><i style="--i:3"></i><i style="--i:4"></i></span><span>Didn't catch that</span></div>
+    <h1>This page isn't here.</h1>
+    <p>The link may be old, or the address has a typo. Everything OpenFlow has is one step away.</p>
+    <a class="go" href="/OpenFlow/">Go to the home page</a>
+    <div class="alt">
+      <h2>Or go straight to</h2>
+      <ul>
+        <li><a href="/OpenFlow/app.html">Windows app</a></li>
+        <li><a href="/OpenFlow/android.html">Android</a></li>
+        <li><a href="/OpenFlow/research.html">Research</a></li>
+        <li><a href="/OpenFlow/mira.html">MIRA</a></li>
+        <li><a href="/OpenFlow/changelog.html">Changelog</a></li>
+      </ul>
+    </div>
+    <a class="report" href="https://github.com/Sachin1724/OpenFlow/issues/new?title=Broken%20link">Followed a broken link here? Tell us</a>
+  </div>
+</main>
+</body>
+</html>
