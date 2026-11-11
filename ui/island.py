@@ -37,6 +37,33 @@ REC, OK, WARN, INFO = QColor("#ff453a"), QColor("#30d158"), QColor("#ff9f0a"), Q
 DIMS = {"idle": (92, 26, 14), "listen": (236, 40, 20), "write": (188, 40, 20), "done": (160, 40, 20),
         "note": (344, 62, 26), "msg": (260, 44, 22), "panel": (356, 284, 30)}
 LANG_SHORT = {"auto": "AUTO", "en-in": "EN-IN", "or-mix": "OR+EN", "or-auto": "OR/EN", "or-en": "OR→EN", "translate": "→EN"}
+# Motion. The shape rides a spring, so a state that arrives mid-move (listen -> write -> done in a second)
+# bends the path instead of restarting from rest. Damping 1 = no overshoot for dictation, which happens
+# all day; the rare panel and notices get a little give. (response in seconds, damping ratio)
+SPRING = {"listen": (0.28, 1.0), "write": (0.26, 1.0), "done": (0.24, 1.0), "idle": (0.32, 1.0),
+          "msg": (0.34, 0.86), "note": (0.34, 0.86), "panel": (0.36, 0.86)}
+FACE_MS, FACE_OUT_MS, FACE_IN_AT_MS = 260, 120, 80   # contents swap: old face out fast, new face in after it
+
+
+def _bezier(x1, y1, x2, y2):
+    c = QEasingCurve(QEasingCurve.Type.BezierSpline)
+    c.addCubicBezierSegment(QPointF(x1, y1), QPointF(x2, y2), QPointF(1, 1))
+    return c
+
+
+EASE_OUT = _bezier(0.23, 1, 0.32, 1)          # things arriving
+EASE_IN_OUT = _bezier(0.77, 0, 0.175, 1)      # things moving on screen (tucking up and back)
+
+
+def animations_enabled():
+    """Windows 'Animation effects' (Settings > Accessibility > Visual effects). Off: the shape snaps, fades stay short."""
+    try:
+        import ctypes
+        on = ctypes.c_int(1)
+        ctypes.windll.user32.SystemParametersInfoW(0x1042, 0, ctypes.byref(on), 0)  # SPI_GETCLIENTAREAANIMATION
+        return bool(on.value)
+    except (AttributeError, OSError):
+        return True
 
 
 class IslandPill(QWidget):
@@ -72,7 +99,6 @@ class IslandPill(QWidget):
         self._face = self._prev_face = "idle"
         self._face_t = 1.0
         self._dims = (92.0, 26.0, 14.0)
-        self._from = self._dims
         self._snooze = 0.0
         self._note = None           # (title, sub, icon, ms, click, key)
         self._queue = []
@@ -81,25 +107,22 @@ class IslandPill(QWidget):
         self._screen = None
         self._enabled = False         # only an activated island ever shows; Settings can switch it off for good
 
-        self._shape_anim = QVariantAnimation(self)
-        self._shape_anim.setDuration(550)
-        curve = QEasingCurve(QEasingCurve.Type.OutBack)
-        curve.setOvershoot(1.25)
-        self._shape_anim.setEasingCurve(curve)
-        self._shape_anim.setStartValue(0.0)
-        self._shape_anim.setEndValue(1.0)
-        self._shape_anim.valueChanged.connect(self._on_shape)
-        self._shape_anim.finished.connect(self._on_shape_done)
+        self._motion = animations_enabled()
+        self._to = self._dims
+        self._vel = (0.0, 0.0, 0.0)   # the spring's speed per dimension, carried into the next target
+        self._spring = SPRING["idle"]
+        self._moving = False
+        self._last = 0.0
 
-        self._face_anim = QVariantAnimation(self)
-        self._face_anim.setDuration(300)
+        self._face_anim = QVariantAnimation(self)   # linear clock; paintEvent shapes it with EASE_OUT
+        self._face_anim.setDuration(FACE_MS)
         self._face_anim.setStartValue(0.0)
         self._face_anim.setEndValue(1.0)
         self._face_anim.valueChanged.connect(lambda v: (setattr(self, "_face_t", float(v)), self.update()))
 
         self._snooze_anim = QVariantAnimation(self)
-        self._snooze_anim.setDuration(420)
-        self._snooze_anim.setEasingCurve(QEasingCurve.Type.InOutCubic)
+        self._snooze_anim.setDuration(360)
+        self._snooze_anim.setEasingCurve(EASE_IN_OUT)
         self._snooze_anim.valueChanged.connect(self._on_snooze)
         self._snooze_anim.finished.connect(self._on_snooze_done)
 
@@ -307,19 +330,28 @@ class IslandPill(QWidget):
         w, h, r = dims or DIMS[state]
         if state != "panel":  # the settings panel keeps its size; everything else follows the size settings
             w, h, r = w * self._wk, h * self._hk, r * self._hk
-        self._from = self._dims
         self._to = (float(w), float(h), float(r))
+        self._spring = SPRING.get(state, SPRING["idle"])
         self._prev_face, self._face = self._face, ("msg" if state == "msg" else state)
         self._face_anim.stop()
+        self._face_anim.setDuration(FACE_MS if self._motion else 120)
         self._face_t = 0.0
         self._face_anim.start()
-        self._shape_anim.stop()
-        self._shape_anim.start()
-        self._apply_mask(self._shape_rect(self._to, 0.0))
+        target = self._shape_rect(self._to, 0.0)
+        if self._spring[1] < 1.0:  # room for the overshoot, so the mask never clips the shape
+            target.adjust(-0.06 * w, -0.06 * h, 0.06 * w, 0.06 * h)
+        self._apply_mask(target)
         self._ensure_visible(state == "idle")
         self._frame.start()
         for r in self._rows:
             r.hide()
+        if self._motion:
+            if not self._moving:
+                self._last = time.monotonic()
+            self._moving = True
+        else:
+            self._dims = self._to
+            self._on_shape_done()
 
     def _ensure_visible(self, may_change_screen):
         if not self._enabled:
@@ -330,12 +362,25 @@ class IslandPill(QWidget):
         self.setWindowOpacity(self.opacity)
         _force_topmost(self)
 
-    def _on_shape(self, t):
-        t = float(t)
-        self._dims = tuple(a + (b - a) * t for a, b in zip(self._from, self._to))
-        self.update()
+    def _step_spring(self):
+        """Advance the shape's spring by the real time since the last frame."""
+        now = time.monotonic()
+        dt, self._last = min(0.05, now - self._last), now   # a stalled frame never flings the shape
+        response, zeta = self._spring
+        k, c = (2 * math.pi / response) ** 2, 4 * math.pi * zeta / response
+        dims, vel = [], []
+        for x, v, to in zip(self._dims, self._vel, self._to):
+            for _ in range(4):  # substeps keep a stiff spring stable at 60 fps
+                v += (-k * (x - to) - c * v) * dt / 4
+                x += v * dt / 4
+            dims.append(x)
+            vel.append(v)
+        self._dims, self._vel = tuple(dims), tuple(vel)
+        if all(abs(x - to) < 0.25 and abs(v) < 4 for x, v, to in zip(dims, vel, self._to)):
+            self._on_shape_done()
 
     def _on_shape_done(self):
+        self._moving, self._vel = False, (0.0, 0.0, 0.0)
         self._dims = self._to
         self._apply_mask()
         if self._state == "panel":
@@ -382,9 +427,12 @@ class IslandPill(QWidget):
         self._apply_mask()
         if self._snooze >= 0.99 and self.hide_when_idle:
             self.hide()  # fully out of sight until the next event
-        self._frame.stop()
+        if not self._moving:
+            self._frame.stop()
 
     def _tick(self):
+        if self._moving:
+            self._step_spring()
         self.update()
         if self.caption_bubble.isVisible():
             self.caption_bubble._reposition()  # follows the shape as it springs
@@ -537,7 +585,9 @@ class IslandPill(QWidget):
     def activate(self):
         """Show the island at rest (used when the app switches to this style)."""
         self._enabled = True
-        self._dims = DIMS["idle"]
+        self._motion = animations_enabled()  # the Windows setting may have changed since start
+        self._snooze_anim.setDuration(360 if self._motion else 0)
+        self._dims, self._vel, self._moving = DIMS["idle"], (0.0, 0.0, 0.0), False
         self._go("idle")
         self._to_idle()
 
@@ -546,8 +596,9 @@ class IslandPill(QWidget):
         self._enabled = False
         for t in (self._rest_timer, self._note_timer, self._done_timer, self._frame):
             t.stop()
-        for a in (self._shape_anim, self._face_anim, self._snooze_anim):
+        for a in (self._face_anim, self._snooze_anim):
             a.stop()
+        self._moving, self._vel = False, (0.0, 0.0, 0.0)
         self._queue.clear()
         self._note = None
         self._state, self._snooze = "idle", 0.0
@@ -596,12 +647,17 @@ class IslandPill(QWidget):
             path.addRoundedRect(QRectF(r.x(), r.y(), r.width(), r.height() + rad), rad, rad)
         p.fillPath(path, QColor("#000000"))
         p.setClipPath(path)
-        t = self._face_t
-        fade_out = max(0.0, 1.0 - t / 0.3)
-        fade_in = max(0.0, (t - 0.35) / 0.65)
-        if fade_out > 0 and self._prev_face != self._face:
+        # contents swap: the old face fades out fast; the new one eases in a beat later, rising 4 px from 96%
+        dur = self._face_anim.duration()
+        ms = self._face_t * dur
+        out_ms, in_at = (FACE_OUT_MS, FACE_IN_AT_MS) if self._motion else (dur / 2, 0)
+        fade_out = max(0.0, 1.0 - ms / out_ms)
+        fade_in = EASE_OUT.valueForProgress(min(1.0, max(0.0, (ms - in_at) / (dur - in_at))))
+        if self._prev_face == self._face:
+            fade_in = 1.0
+        elif fade_out > 0:
             self._draw_face(p, self._prev_face, r, fade_out)
-        self._draw_face(p, self._face, r, fade_in if self._prev_face != self._face else 1.0)
+        self._draw_face(p, self._face, r, fade_in, (1.0 - fade_in) if self._motion else 0.0)
         is_odia = self.is_odia_active()
         self.blobatar.setVisible(self._state == "listen" and is_odia and fade_in > 0.4)
         if self.blobatar.isVisible():
@@ -616,11 +672,17 @@ class IslandPill(QWidget):
         f.setWeight(weight)
         return f
 
-    def _draw_face(self, p, face, r, a):
+    def _draw_face(self, p, face, r, a, rise=0.0):
         if a <= 0:
             return
         p.save()
         p.setOpacity(a)
+        if rise > 0:  # still arriving: a little low and a little small, settling into place
+            c = r.center()
+            s = 1.0 - 0.04 * rise
+            p.translate(c.x(), c.y() + 4 * rise)
+            p.scale(s, s)
+            p.translate(-c.x(), -c.y())
         s = 1.0 if face == "panel" else self._sk
         if s != 1.0:
             c = r.center()

@@ -89,3 +89,51 @@ def test_tap_cancel_leaves_listen_and_refining_exists():
     isl.show_message("Didn't catch that", duration_ms=1800)
     assert isl._state == "msg", isl._state
     isl.deactivate()
+
+
+def _run_spring(isl, frames):
+    for _ in range(frames):
+        if not isl._moving:
+            break
+        isl._last -= 0.016  # one 60 fps frame has passed
+        isl._step_spring()
+
+
+def test_shape_spring_keeps_its_speed_when_the_state_changes_mid_move():
+    isl = IslandPill(**ARGS)
+    isl.activate()
+    isl._motion = True
+    isl.show_listening()
+    _run_spring(isl, 6)
+    assert isl._moving and any(abs(v) > 1 for v in isl._vel)
+    moving = isl._vel
+    isl.show_processing()  # arrives mid-move: the path bends, it does not restart from rest
+    assert isl._vel == moving
+    _run_spring(isl, 300)
+    assert not isl._moving and isl._dims == isl._to
+    w, h, _ = isl._to
+    assert abs(w - DIMS["write"][0] * isl._wk) < 0.01 and abs(h - DIMS["write"][1] * isl._hk) < 0.01
+    isl.deactivate()
+
+
+def test_dictation_shape_never_overshoots():
+    isl = IslandPill(**ARGS)
+    isl.activate()
+    isl._motion = True
+    isl.show_listening()
+    peak = 0.0
+    while isl._moving:
+        isl._last -= 0.016
+        isl._step_spring()
+        peak = max(peak, isl._dims[0])
+    assert peak <= isl._to[0] + 0.3  # damping 1: grows straight to size, no bounce on something used all day
+    isl.deactivate()
+
+
+def test_animations_off_snaps_the_shape():
+    isl = IslandPill(**ARGS)
+    isl.activate()
+    isl._motion = False
+    isl.show_listening()
+    assert not isl._moving and isl._dims == isl._to
+    isl.deactivate()
