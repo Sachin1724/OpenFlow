@@ -1207,7 +1207,7 @@ draw(still.matches ? 6 : 0);
   <div class="android-actions rv" style="--i:3">
     <a class="btn big" href="https://github.com/Sachin1724/OpenFlow/releases/download/android-v0.1.2-beta/OpenFlow-android-beta-0.1.2.apk">Download Android Beta (.apk)</a>
     <a class="btn big quiet-light" href="android.html">See the Android app</a>
-    <a class="btn big quiet-light" href="changelog.html#v0-1-0-android">Read release notes</a>
+    <a class="btn big quiet-light" href="changelog.html#v0-1-2-android">Read release notes</a>
   </div>
 </section>
 
@@ -1241,6 +1241,21 @@ draw(still.matches ? 6 : 0);
 </section>
 
 </main>
+
+<section class="dev" aria-labelledby="dev-h">
+  <div class="dev-in">
+    <span class="dev-mark" aria-hidden="true">S</span>
+    <div>
+      <h2 id="dev-h">Made by Sachidananda</h2>
+      <p>OpenFlow is designed, built and maintained by Sachidananda: free, private dictation for Windows and Android, with Odia written properly. Questions, ideas and bug reports are welcome.</p>
+      <ul class="dev-links">
+        <li><a href="https://github.com/Sachin1724">GitHub · @Sachin1724</a></li>
+        <li><a href="https://github.com/Sachin1724/OpenFlow/issues">Report an issue</a></li>
+        <li><a href="mailto:fakesachin.19@gmail.com?subject=OpenFlow">Email the developer</a></li>
+      </ul>
+    </div>
+  </div>
+</section>
 
 <footer class="foot">
   <div class="name" aria-hidden="true"><b>OpenFlow</b></div>
@@ -1680,13 +1695,18 @@ draw(still.matches ? 6 : 0);
       const a = stage.getBoundingClientRect(), b = band.getBoundingClientRect();
       m = { y: (b.top + b.height / 2) - (a.top + a.height / 2), inset: Math.max(0, (a.height - b.height) / 2), r: b.height / 2 };
     };
-    const tl = gsap.timeline({ scrollTrigger: { trigger: '.hero', start: 'top top', end: () => '+=' + Math.round(innerHeight * .75), scrub: true, invalidateOnRefresh: true, onRefreshInit: measure } });
-    tl.fromTo('#heroDemo', { opacity: 1 }, { opacity: 0, duration: .3, ease: 'none', immediateRender: false }, 0)
+    // the scroll distance equals the stage's travel, so it holds still on screen while it tightens and never drifts out of view
+    const tl = gsap.timeline({ scrollTrigger: { trigger: '.hero', start: 'top top', end: () => '+=' + Math.max(1, Math.round(m.y)), scrub: true, invalidateOnRefresh: true, onRefreshInit: measure } });
+    tl.fromTo('#heroDemo', { opacity: 1 }, { opacity: 0, duration: .3, ease: 'none', immediateRender: false }, .6)
       .fromTo('.hero-copy, .hero .actions', { opacity: 1, y: 0 }, { opacity: 0, y: -30, duration: .4, ease: 'none', immediateRender: false }, 0)
       .fromTo(stage, { y: 0, clipPath: 'inset(0px 0px 0px 0px round 80px)' },
         { y: () => m.y, clipPath: () => `inset(${m.inset}px 0px ${m.inset}px 0px round ${m.r}px)`, duration: 1, ease: 'none', immediateRender: false }, 0)
       .fromTo(band, { opacity: 0 }, { opacity: 1, duration: .03, immediateRender: false }, .97)
       .fromTo(stage, { opacity: 1 }, { opacity: 0, duration: .03, immediateRender: false }, .97);
+    // a fast flick can leave the scrubbed state behind the real scroll; when scrolling stops, line them up again
+    const sync = () => tl.progress(tl.scrollTrigger.progress);
+    ScrollTrigger.addEventListener('scrollEnd', sync);
+    return () => ScrollTrigger.removeEventListener('scrollEnd', sync);
   });
 })();
 </script>
