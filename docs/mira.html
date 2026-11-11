@@ -82,7 +82,8 @@ table.lat { width: 100%; border-collapse: separate; border-spacing: 0 6px; }
     <a class="mark" href="index.html"><img src="img/icon.png" alt="" width="34" height="34">OpenFlow</a>
     <ul>
       <li><a href="index.html">Home</a></li>
-      <li><a href="app.html">App</a></li>
+      <li><a href="app.html">Windows</a></li>
+      <li><a href="android.html">Android</a></li>
       <li><a href="changelog.html">Changelog</a></li>
       <li><a href="research.html" aria-current="page">Research</a></li>
       <li><a class="btn" href="https://github.com/Sachin1724/OpenFlow/releases/latest/download/OpenFlow-Setup.exe">Download</a></li>
@@ -90,10 +91,10 @@ table.lat { width: 100%; border-collapse: separate; border-spacing: 0 6px; }
   </nav>
   <div class="copy">
     <h1 class="rv">MIRA, inside out.</h1>
-    <p class="lead rv" style="--d:1">The model card for OpenFlow's Odia engine: what is in it, how big it is, and how it scores on a public benchmark.</p>
+    <p class="lead rv" style="--d:1">The model card for MIRA: the speech model in the app today, and the conversation model being trained for what comes next.</p>
     <div class="actions rv" style="--d:2">
       <a class="btn" href="#bench">See the benchmarks</a>
-      <a class="btn quiet" href="research.html#mira">Back to research</a>
+      <a class="btn quiet" href="#talk">The conversation model</a>
     </div>
   </div>
   </div>
@@ -248,7 +249,57 @@ table.lat { width: 100%; border-collapse: separate; border-spacing: 0 6px; }
   </div>
 </section>
 
-<section class="sec" id="limits" aria-labelledby="x-h">
+<section class="sec" id="talk" aria-labelledby="c-h">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2 id="c-h" class="rv">MIRA's conversation model</h2>
+      <p class="rv" style="--d:1">In development, not in the app yet. A small language model fine-tuned to answer in colloquial Odia, for the voice-to-voice MIRA. Measured on 11 November 2026 on the same laptop and its RTX 4050.</p>
+    </div>
+    <div class="sheet">
+      <div class="panel rv">
+        <h3>Model and fine-tune</h3>
+        <dl>
+          <div class="r"><dt>Base model</dt><dd>SmolLM2-135M-Instruct<small>Hugging Face, Apache-2.0</small></dd></div>
+          <div class="r"><dt>Parameters</dt><dd>134.5 million<small>30 layers, width 576, 8,192-token context</small></dd></div>
+          <div class="r"><dt>Fine-tune</dt><dd>LoRA, rank 8, alpha 16<small>on the attention projections q, k, v, o; dropout 0.05</small></dd></div>
+          <div class="r"><dt>Added weights</dt><dd>921,600 parameters<small>0.7% of the model; a 3.7 MB adapter file</small></dd></div>
+          <div class="r"><dt>Training</dt><dd>3 epochs, 243 steps, 56 s<small>batch 8, learning rate 4e-4, replies only (questions masked)</small></dd></div>
+          <div class="r"><dt>Training loss</dt><dd>0.81, 0.28, 0.19<small>average per epoch, from the training log</small></dd></div>
+        </dl>
+      </div>
+      <div class="panel rv" style="--d:1">
+        <h3>Measured</h3>
+        <dl>
+          <div class="r"><dt>Reply time</dt><dd>2.71 s on the GPU<small>3.26 s on the CPU; median of 6 Odia questions</small></dd></div>
+          <div class="r"><dt>Speed</dt><dd>18.1 tokens a second<small>15.1 on the CPU</small></dd></div>
+          <div class="r"><dt>Memory</dt><dd>271 MB of graphics memory<small>554 MB of RAM on the CPU</small></dd></div>
+          <div class="r"><dt>Load time</dt><dd>4.47 s on the GPU<small>0.68 s on the CPU</small></dd></div>
+          <div class="r"><dt>Odia cost</dt><dd>13.1 tokens a word<small>English: 1.2. Its tokenizer was built for English.</small></dd></div>
+          <div class="r"><dt>Reply length</dt><dd>50 tokens, every time<small>the limit: about four Odia words</small></dd></div>
+        </dl>
+      </div>
+    </div>
+    <div class="panel rv" style="margin-top:16px">
+      <h3>What it answered</h3>
+      <p class="note" style="margin-top:8px">Greedy decoding, the same settings the voice script uses. Replies end where the 50-token limit cut them; “…” marks a cut word.</p>
+      <div class="sheet" style="margin-top:20px">
+        <dl>
+          <div class="r"><dt lang="or">ନମସ୍କାର, ଆପଣ କେମିତି ଅଛନ୍ତି ?</dt><dd lang="or">ନମସ୍କାର ଆଜ୍ଞା !</dd></div>
+          <div class="r"><dt lang="or">ଆଜ୍ଞା ମୁଁ ଗୋଟେ କଥା ପଚାରିବାକୁ ଚାହୁଁଥିଲି</dt><dd lang="or">ହଁ ଆଜ୍ଞା ନିଶ୍ଚୟ ପଚ…</dd></div>
+          <div class="r"><dt lang="or">କାଲି କାମଟା କେମିତି ହବ କିଛି ବୁଝିପାରୁନି ଭାଇନା</dt><dd lang="or">ଜମା ବି ଚିନ୍ତା କରନ୍…</dd></div>
+        </dl>
+        <dl>
+          <div class="r"><dt lang="or">କାଲି ମ୍ୟାଚ୍ କିଏ ଜିତିଲା କହିଲ ?</dt><dd lang="or">କାଲି ଇଣ୍ଡିଆ ପରା ଜି…</dd></div>
+          <div class="r"><dt lang="or">ଆଜି ପାଗ କେମିତି ଅଛି ?</dt><dd lang="or">ପୁରା ଆଜି କେମିତି ଅଛ…<small>off topic</small></dd></div>
+          <div class="r"><dt lang="or">ମୋତେ ଗୋଟେ ଭଲ ଖାଇବା ଜାଗା କୁହ</dt><dd lang="or">ଖାଖିଆ ବିଜକ ଜାଗଣେ ଖ…<small>not real Odia</small></dd></div>
+        </dl>
+      </div>
+      <p class="note"><strong>Where it stands:</strong> four of six replies start well; all six are cut short, because each Odia word costs about 13 tokens. In the voice script, fixed replies and a bank of real answers are tried first and the model only writes when neither fits. A tokenizer that knows Odia, or a larger reply budget, is the next step. An earlier fine-tune for dialect rewriting (2,500 pairs, loss 1.39 to 0.077) is also on disk as a 134 MB int8 model; nothing loads it today.</p>
+    </div>
+  </div>
+</section>
+
+<section class="sec alt" id="limits" aria-labelledby="x-h">
   <div class="wrap">
     <div class="sec-head">
       <h2 id="x-h" class="rv">Conditions and limits</h2>
@@ -273,7 +324,8 @@ table.lat { width: 100%; border-collapse: separate; border-spacing: 0 6px; }
   </div>
   <div class="links">
     <a href="index.html">Home</a>
-    <a href="app.html">App</a>
+    <a href="app.html">Windows app</a>
+    <a href="android.html">Android</a>
     <a href="changelog.html">Changelog</a>
     <a href="research.html">Research</a>
     <a href="mira.html">MIRA</a>
