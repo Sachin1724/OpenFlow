@@ -239,7 +239,7 @@ section { position: relative; }
 .slot { margin-left: .3em; display: inline-block; height: 1em; width: 1.9em; border-radius: .18em; overflow: hidden; vertical-align: -0.14em; background: var(--surface-2); }
 .slot img { width: 100%; height: 100%; object-fit: cover; object-position: left center; }
 .slot img.r { object-position: right center; }
-.slot.chip { display: inline-grid; place-items: center; width: 1.2em; font-size: .6em; height: 1.65em; vertical-align: -0.3em; color: #fff; font-weight: 500; border-radius: 999px; padding: 0 .9em; width: auto; }
+
 .features .after { grid-column: 7 / 13; margin-top: 72px; display: grid; gap: 22px; justify-items: start; }
 .features .after p { font-size: 18px; color: var(--soft); max-width: 36ch; }
 
@@ -510,7 +510,6 @@ section { position: relative; }
 .dash .shot img { width: 100%; height: auto; }
 .dash .says { margin-top: 24px; font-size: clamp(1.125rem, .9rem + .8vw, 1.5rem); line-height: 1.3; letter-spacing: -0.01em; max-width: 44ch; min-height: 3.2em; }
 .dash .says small { display: block; margin-top: 10px; font-size: 14px; color: var(--light-soft); letter-spacing: 0; }
-.dash .panes.shots-stack .pane { display: block; }
 
 /* coming in 1.3.0: big statements, one per change */
 .new h2 { font-size: var(--step-head); max-width: 14ch; }
@@ -640,11 +639,7 @@ section[id] { scroll-margin-top: 24px; }
   .isl-cap { min-height: 0; padding: 0 20px 24px; }
   .isl-cap h3 { font-size: 22px; }
 }
-@media (max-width: 860px) {
-  .js .isle { position: absolute; }
-  .isle-body { flex-direction: column; align-items: flex-start; gap: 8px; height: auto; padding: 16px 22px 20px; white-space: normal; }
-  .isle ul { flex-direction: column; align-items: flex-start; gap: 0; }
-}
+
 @media (prefers-reduced-motion: reduce) {
   .btn, .hold, .bar-btn, .faq .q, .who, .slot img, .pipe li, .meter .fill, .hb .t i, .isle .mark img, .foot .get-pill, .foot .get-pill svg, .tabs button, .stage { translate: none !important; scale: none !important; transform: none !important; }
   .btn::before { transition: none; }
@@ -653,7 +648,6 @@ section[id] { scroll-margin-top: 24px; }
   .js .isle, .js .isle-body, .pane { transition-duration: .01s; }
   .pill[data-state="listening"] .ind::after, .caret, .bar-top .rec::before, .caps p { animation: none; }
 }
-
 
 /* statement chips: small steel capsules drawn in the palette (were cropped dark screenshots) */
 .slot.mini { width: 2.3em; height: .92em; border-radius: 999px; background: var(--accent); display: inline-flex; align-items: center; justify-content: center; gap: .09em; vertical-align: -0.1em; overflow: visible; }

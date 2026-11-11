@@ -51,13 +51,6 @@ img { display: block; max-width: 100%; height: auto; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 /* navigation */
-.nav { position: sticky; top: 0; z-index: 10; background: rgba(245, 239, 230, .9); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid var(--line); }
-.nav .wrap { display: flex; align-items: center; justify-content: space-between; gap: 20px; height: 64px; }
-.mark { display: flex; align-items: center; gap: 10px; font-weight: 600; color: var(--ink); text-decoration: none; letter-spacing: -0.01em; }
-.mark img { width: 28px; height: 28px; border-radius: 7px; }
-.nav ul { display: flex; align-items: center; gap: 28px; font-size: 15px; }
-.nav ul a:not(.btn) { text-decoration: none; color: var(--muted); transition: color .2s; }
-.nav ul a:not(.btn):hover, .nav ul a[aria-current] { color: var(--ink); }
 
 /* buttons, tags, keys */
 .btn { display: inline-flex; align-items: center; gap: 10px; min-height: 48px; padding: 0 22px; border-radius: 999px; background: #3E5A78; color: #fff; text-decoration: none; font-weight: 500; font-size: 16px; border: 0; cursor: pointer; transition: background-color .2s, transform .15s; }
@@ -66,7 +59,7 @@ img { display: block; max-width: 100%; height: auto; }
 .btn.ghost { background: transparent; color: var(--ink); border: 1px solid var(--line); }
 .btn.ghost:hover { background: var(--paper); }
 .btn small { font-weight: 400; opacity: .7; font-size: 14px; }
-.nav .btn { min-height: 40px; padding: 0 16px; font-size: 14px; }
+
 .tag { display: inline-flex; align-items: center; gap: 6px; border-radius: 9999px; padding: 3px 10px; font-size: 13px; font-weight: 500; letter-spacing: .05em; text-transform: uppercase; }
 .tag.blue { background: var(--blue-bg); color: var(--blue); }
 .tag.green { background: var(--green-bg); color: var(--green); }
@@ -189,9 +182,8 @@ table.models { width: 100%; border-collapse: collapse; background: var(--paper);
   .capsule .wave i, .field .in .caret { animation: none; }
 }
 
-
 /* redesign: shared nav; on wide screens the hero holds while the capsule rises and the words type with the scroll */
-.nav { display: none; }
+
 .hero { padding-top: calc(72px + clamp(40px, 6vw, 88px)); }
 .phone .capsule { will-change: transform, opacity; }
 @media (max-width: 900px) {
@@ -201,7 +193,7 @@ table.models { width: 100%; border-collapse: collapse; background: var(--paper);
   .facts li:nth-child(n+3) { border-top: 1px solid var(--line); }
   .cell.w4, .cell.w3, .cell.w2 { grid-column: span 6; }
   .steps { grid-template-columns: 1fr; }
-  .nav ul li:not(:last-child) { display: none; }
+  
 }
 @media (max-width: 560px) {
   .cell .big { font-size: 22px; }
