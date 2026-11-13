@@ -1,0 +1,1913 @@
+<!DOCTYPE html>
+<html lang="or">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MIRA Voice Studio (Beta 1) — High-Definition 24kHz Speech Generator</title>
+  <title>MIRA Voice Studio — Zero-Shot Voice Cloning & Neural Speech Generator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans+Oriya:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #0a0c10;
+      --card-bg: rgba(18, 22, 31, 0.75);
+      --card-bg: rgba(18, 22, 31, 0.78);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --card-hover: rgba(30, 36, 50, 0.9);
+      --card-hover: rgba(30, 36, 50, 0.95);
+      --primary: #7c3aed;
+      --primary-glow: rgba(124, 58, 237, 0.35);
+      --primary-glow: rgba(124, 58, 237, 0.4);
+      --accent: #f59e0b;
+      --accent-glow: rgba(245, 158, 11, 0.3);
+      --accent-glow: rgba(245, 158, 11, 0.35);
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --success: #10b981;
+      --danger: #ef4444;
+      --radius: 16px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background-image: 
+        radial-gradient(circle at 15% 15%, rgba(124, 58, 237, 0.15) 0%, transparent 40%),
+        radial-gradient(circle at 85% 85%, rgba(245, 158, 11, 0.1) 0%, transparent 45%);
+        radial-gradient(circle at 15% 15%, rgba(124, 58, 237, 0.16) 0%, transparent 40%),
+        radial-gradient(circle at 85% 85%, rgba(245, 158, 11, 0.12) 0%, transparent 45%);
+    }
+
+    .odia-text {
+      font-family: 'Noto Sans Oriya', 'Plus Jakarta Sans', sans-serif;
+    }
+
+    header {
+      padding: 24px 40px;
+      padding: 20px 40px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--card-border);
+      backdrop-filter: blur(12px);
+      backdrop-filter: blur(14px);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: rgba(10, 12, 16, 0.85);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .logo-orb {
+      width: 42px;
+      height: 42px;
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #7c3aed, #f59e0b);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 20px var(--primary-glow);
+      font-size: 20px;
+      font-size: 22px;
+    }
+
+    .brand-title {
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      background: linear-gradient(to right, #fff, #cbd5e1);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .badge-beta {
+      background: rgba(124, 58, 237, 0.2);
+      border: 1px solid rgba(124, 58, 237, 0.5);
+    .badge-pro {
+      background: rgba(124, 58, 237, 0.25);
+      border: 1px solid rgba(124, 58, 237, 0.6);
+      color: #c4b5fd;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .header-pills {
+      display: flex;
+      gap: 12px;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .pill {
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 14px;
+      border-radius: 9999px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--card-border);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--text-muted);
+    }
+
+    .pill-live {
+      border-color: rgba(16, 185, 129, 0.4);
+      color: #34d399;
+    }
+
+    .dot-pulse {
+      width: 7px;
+      height: 7px;
+      width: 8px;
+      height: 8px;
+      background: #10b981;
+      border-radius: 50%;
+      box-shadow: 0 0 8px #10b981;
+      box-shadow: 0 0 10px #10b981;
+      animation: pulse 1.8s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.85); }
+    }
+
+    main {
+      flex: 1;
+      max-width: 1360px;
+      max-width: 1440px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 36px 30px;
+      padding: 28px 24px;
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 30px;
+      grid-template-columns: 1.18fr 0.82fr;
+      gap: 24px;
+    }
+
+    @media (max-width: 1024px) {
+    @media (max-width: 1100px) {
+      main {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .panel {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius);
+      padding: 28px;
+      padding: 24px;
+      backdrop-filter: blur(16px);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+      display: flex;
+      flex-direction: column;
+      gap: 22px;
+      gap: 20px;
+    }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .panel-title {
+      font-size: 18px;
+      font-size: 17px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      gap: 8px;
+    }
+
+    /* Preset bar */
+    .preset-bar {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .preset-btn {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--card-border);
+      color: var(--text-muted);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .preset-btn:hover {
+      background: rgba(124, 58, 237, 0.15);
+      border-color: rgba(124, 58, 237, 0.4);
+      color: #fff;
+      transform: translateY(-1px);
+    }
+
+    /* Script Editor */
+    .editor-wrapper {
+      position: relative;
+    }
+
+    textarea.script-input {
+      width: 100%;
+      height: 230px;
+      background: rgba(10, 12, 16, 0.65);
+      height: 200px;
+      background: rgba(10, 12, 16, 0.7);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 18px;
+      padding: 16px;
+      color: #fff;
+      font-size: 16px;
+      font-size: 15px;
+      line-height: 1.7;
+      resize: vertical;
+      font-family: 'Noto Sans Oriya', 'Plus Jakarta Sans', sans-serif;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    textarea.script-input:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--primary-glow);
+    }
+
+    .editor-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 8px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .upload-btn-label {
+    .action-sub-btn {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--card-border);
+      color: #cbd5e1;
+      padding: 6px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 12px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+
+    .upload-btn-label:hover {
+    .action-sub-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: #94a3b8;
+      color: #fff;
+    }
+
+    input[type="file"] {
+      display: none;
+    /* Voice Persona Grid */
+    .section-header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    /* Voice Persona Grid */
+    .section-label {
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--text-muted);
+    }
+
+    .btn-clone-trigger {
+      background: linear-gradient(135deg, rgba(124,58,237,0.3), rgba(245,158,11,0.3));
+      border: 1px solid rgba(245, 158, 11, 0.5);
+      color: #fde68a;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 6px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+
+    .btn-clone-trigger:hover {
+      background: linear-gradient(135deg, rgba(124,58,237,0.5), rgba(245,158,11,0.5));
+      transform: translateY(-1px);
+      box-shadow: 0 0 14px var(--accent-glow);
+    }
+
+    .persona-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+      gap: 12px;
+      max-height: 290px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+
+    @media (max-width: 640px) {
+      .persona-grid {
+        grid-template-columns: 1fr;
+      }
+    .persona-grid::-webkit-scrollbar {
+      width: 6px;
+    }
+    .persona-grid::-webkit-scrollbar-thumb {
+      background: rgba(255,255,255,0.15);
+      border-radius: 4px;
+    }
+
+    .persona-card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 2px solid var(--card-border);
+      border-radius: 12px;
+      padding: 14px 12px;
+      padding: 12px 14px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      position: relative;
+    }
+
+    .persona-card:hover {
+      background: var(--card-hover);
+      border-color: rgba(124, 58, 237, 0.4);
+      transform: translateY(-2px);
+    }
+
+    .persona-card.active {
+      border-color: var(--primary);
+      background: rgba(124, 58, 237, 0.12);
+      background: rgba(124, 58, 237, 0.14);
+      box-shadow: 0 0 16px var(--primary-glow);
+    }
+
+    .persona-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .persona-avatar {
+      font-size: 22px;
+      font-size: 20px;
+    }
+
+    .persona-badges {
+      display: flex;
+      gap: 4px;
+    }
+
+    .persona-gender-tag {
+      font-size: 10px;
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      background: rgba(255, 255, 255, 0.08);
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: #cbd5e1;
+    }
+
+    .persona-card.active .persona-gender-tag {
+      background: rgba(124, 58, 237, 0.3);
+      color: #e9d5ff;
+    .tag-cloned {
+      background: rgba(245, 158, 11, 0.2);
+      border: 1px solid rgba(245, 158, 11, 0.4);
+      color: #fbbf24;
+    }
+
+    .tag-builtin {
+      background: rgba(124, 58, 237, 0.2);
+      color: #c4b5fd;
+    }
+
+    .persona-name {
+      font-size: 14px;
+      font-size: 13px;
+      font-weight: 700;
+      color: #fff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .persona-desc {
+      font-size: 11px;
+      color: var(--text-muted);
+      line-height: 1.4;
+      line-height: 1.35;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    /* Settings row */
+    .controls-row {
+    .persona-meta-row {
+      display: flex;
+      gap: 20px;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 4px;
+      padding-top: 6px;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      font-size: 10px;
+      color: #94a3b8;
+    }
+
+    .btn-card-action {
+      background: none;
+      border: none;
+      color: #cbd5e1;
+      cursor: pointer;
+      font-size: 11px;
+      padding: 2px 4px;
+      border-radius: 4px;
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+    }
+
+    .btn-card-action:hover {
+      color: #38bdf8;
+      background: rgba(56, 189, 248, 0.1);
+    }
+
+    .btn-card-action.danger:hover {
+      color: #f87171;
+      background: rgba(239, 68, 68, 0.1);
+    }
+
+    /* Sliders & Parameters */
+    .controls-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      background: rgba(10, 12, 16, 0.5);
+      padding: 16px;
+      border-radius: 12px;
+      border: 1px solid var(--card-border);
+    }
+
+    .slider-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .slider-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+    }
+
+    .slider-label {
+      font-weight: 700;
+      color: #cbd5e1;
+    }
+
+    .slider-val-badge {
+      font-size: 11px;
+      font-weight: 700;
+      color: #fbbf24;
+      background: rgba(245, 158, 11, 0.15);
+      padding: 1px 6px;
+      border-radius: 4px;
+    }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 6px;
+      border-radius: 3px;
+      background: rgba(255, 255, 255, 0.1);
+      outline: none;
+      cursor: pointer;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--primary);
+      box-shadow: 0 0 8px var(--primary-glow);
+      cursor: pointer;
+      transition: transform 0.15s;
+    }
+
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+    }
+
+    .slider-hint {
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    /* Toggles row */
+    .toggles-row {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .toggle-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #cbd5e1;
+      cursor: pointer;
+    }
+
+    .toggle-label input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      width: 15px;
+      height: 15px;
+      accent-color: var(--primary);
+      cursor: pointer;
+    }
+
+    /* Generate Button */
+    /* Action Buttons Row */
+    .button-group-row {
+      display: grid;
+      grid-template-columns: 1.3fr 1fr;
+      gap: 12px;
+    }
+
+    .btn-generate {
+      background: linear-gradient(135deg, #7c3aed, #9333ea);
+      border: none;
+      color: #fff;
+      font-size: 16px;
+      font-size: 15px;
+      font-weight: 700;
+      padding: 16px 28px;
+      padding: 14px 22px;
+      border-radius: 12px;
+      cursor: pointer;
+      box-shadow: 0 4px 20px var(--primary-glow);
+      box-shadow: 0 4px 18px var(--primary-glow);
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      letter-spacing: -0.2px;
+      gap: 8px;
+    }
+
+    .btn-generate:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 26px rgba(124, 58, 237, 0.5);
+      box-shadow: 0 6px 24px rgba(124, 58, 237, 0.55);
+    }
+
+    .btn-generate:disabled {
+      opacity: 0.6;
+    .btn-audition {
+      background: rgba(245, 158, 11, 0.15);
+      border: 1px solid rgba(245, 158, 11, 0.4);
+      color: #fde68a;
+      font-size: 14px;
+      font-weight: 700;
+      padding: 14px 18px;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn-audition:hover:not(:disabled) {
+      background: rgba(245, 158, 11, 0.25);
+      border-color: #fbbf24;
+      transform: translateY(-2px);
+    }
+
+    .btn-generate:disabled, .btn-audition:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* Right Panel — Player & Telemetry */
+    /* RIGHT PANEL */
+    .waveform-box {
+      background: rgba(10, 12, 16, 0.7);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 24px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 180px;
+      gap: 16px;
+      min-height: 160px;
+      gap: 14px;
+      position: relative;
+    }
+
+    canvas#waveformCanvas {
+      width: 100%;
+      height: 70px;
+      height: 64px;
+    }
+
+    audio#audioPlayer {
+      width: 100%;
+      border-radius: 8px;
+      outline: none;
+    }
+
+    .telemetry-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+
+    .stat-card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 14px 16px;
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .stat-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .stat-val {
+      font-size: 18px;
+      font-size: 17px;
+      font-weight: 800;
+      color: #fff;
+    }
+
+    .stat-val.accent {
+      color: #34d399;
+    }
+
+    .btn-download {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--card-border);
+      color: #fff;
+      font-weight: 700;
+      font-size: 14px;
+      padding: 12px 20px;
+      border-radius: 10px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.2s;
+    }
+
+    .btn-download:hover:not(:disabled) {
+      background: rgba(255, 255, 255, 0.12);
+      border-color: #cbd5e1;
+    }
+
+    .btn-download:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    /* API snippet box */
+    /* MODAL STYLES */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(8px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      padding: 20px;
+    }
+
+    .modal-backdrop.open {
+      display: flex;
+    }
+
+    .modal-window {
+      background: #11141d;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 20px;
+      max-width: 560px;
+      width: 100%;
+      padding: 28px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      position: relative;
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-title {
+      font-size: 18px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      color: #94a3b8;
+      font-size: 22px;
+      cursor: pointer;
+      line-height: 1;
+    }
+
+    .modal-tabs {
+      display: flex;
+      gap: 8px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      padding-bottom: 8px;
+    }
+
+    .modal-tab-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-weight: 700;
+      font-size: 13px;
+      padding: 6px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .modal-tab-btn.active {
+      color: #fff;
+      background: rgba(124, 58, 237, 0.25);
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-label {
+      font-size: 12px;
+      font-weight: 700;
+      color: #cbd5e1;
+    }
+
+    .form-input, .form-select {
+      background: rgba(10, 12, 16, 0.8);
+      border: 1px solid var(--card-border);
+      color: #fff;
+      font-size: 14px;
+      padding: 10px 14px;
+      border-radius: 8px;
+      outline: none;
+    }
+
+    .form-input:focus, .form-select:focus {
+      border-color: var(--primary);
+    }
+
+    /* Mic recorder widget */
+    .mic-recorder-box {
+      background: rgba(10, 12, 16, 0.8);
+      border: 1px dashed rgba(255, 255, 255, 0.15);
+      border-radius: 12px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      text-align: center;
+    }
+
+    .btn-record-mic {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background: #ef4444;
+      border: none;
+      color: #fff;
+      font-size: 24px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 16px rgba(239, 68, 68, 0.4);
+      transition: transform 0.2s;
+    }
+
+    .btn-record-mic.recording {
+      animation: recordPulse 1s infinite alternate;
+    }
+
+    @keyframes recordPulse {
+      0% { transform: scale(1); box-shadow: 0 0 12px #ef4444; }
+      100% { transform: scale(1.12); box-shadow: 0 0 24px #ef4444; }
+    }
+
+    .progress-bar-container {
+      width: 100%;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 3px;
+      overflow: hidden;
+      margin-top: 6px;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #7c3aed, #f59e0b);
+      transition: width 0.1s linear;
+    }
+
+    .calibration-quote {
+      background: rgba(255, 255, 255, 0.03);
+      border-left: 3px solid var(--accent);
+      padding: 10px 14px;
+      border-radius: 0 8px 8px 0;
+      font-size: 13px;
+      line-height: 1.5;
+      color: #cbd5e1;
+      text-align: left;
+    }
+
+    /* API drawer */
+    .api-drawer {
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 16px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      gap: 8px;
+    }
+
+    .api-drawer-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      letter-spacing: 0.5px;
+    }
+
+    pre.code-block {
+      background: #08090c;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      padding: 12px;
+    .code-block {
+      background: #06080c;
+      padding: 10px 12px;
+      border-radius: 8px;
+      font-family: 'Consolas', 'Courier New', monospace;
+      font-size: 11px;
+      color: #a5b4fc;
+      color: #38bdf8;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      white-space: pre;
+    }
+
+    .copy-btn {
+      background: transparent;
+      border: none;
+      color: #93c5fd;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .copy-btn:hover {
+      text-decoration: underline;
+    }
+
+    footer {
+      padding: 18px 40px;
+      border-top: 1px solid var(--card-border);
+      font-size: 12px;
+      color: var(--text-muted);
+      text-align: center;
+      padding: 24px;
+      font-size: 13px;
+      color: #64748b;
+      border-top: 1px solid var(--card-border);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Header Navigation -->
+  <!-- Header -->
+  <header>
+    <div class="brand">
+      <div class="logo-orb">🎙️</div>
+      <div>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span class="brand-title">MIRA Voice Studio</span>
+          <span class="badge-beta">Beta 1</span>
+          <span class="badge-pro">PRO 24kHz</span>
+        </div>
+        <div style="font-size:12px; color:var(--text-muted); margin-top:2px;">
+          High-Definition 24,000 Hz Neural Speech Generator for Odisha
+        <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">
+          Zero-Shot Voice Cloning &amp; High-Definition Speech Generator for Odisha
+        </div>
+      </div>
+    </div>
+
+    <div class="header-pills">
+      <div class="pill pill-live">
+        <span class="dot-pulse"></span>
+        <span>Local GPU: RTX 4050</span>
+        <span id="gpuStatus">Local GPU: RTX 4050</span>
+      </div>
+      <div class="pill">
+        <span>24kHz Studio Quality</span>
+        <span>10-Step Euler ODE</span>
+      </div>
+      <div class="pill">
+        <span style="color:#f59e0b;">ElevenLabs Compatible API</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Studio Workspace -->
+  <!-- Main Workspace -->
+  <main>
+    <!-- LEFT PANEL: Script & Voice Generator -->
+    <!-- LEFT PANEL: Script & Voice Controls -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <span>📜 Script to Voice</span>
+          <span>📜 Script &amp; Voice Synthesis</span>
+        </div>
+        <div style="font-size:12px; color:var(--text-muted);">
+          Odia, Sambalpuri &amp; English Script Ingestion
+          Continuous Flow-Matching (Zero Comma Gaps)
+        </div>
+      </div>
+
+      <!-- Quick Preset Buttons -->
+      <div>
+        <div class="section-label" style="margin-bottom:8px;">💡 Sample Preset Scripts</div>
+        <div class="preset-bar">
+          <button type="button" class="preset-btn" style="border-color:rgba(245,158,11,0.5); color:#fbbf24;" onclick="loadPreset('sachin_bput')">
+            🎓 Sachin (BPUT Profile)
+          </button>
+          <button type="button" class="preset-btn" onclick="loadPreset('festival_ad')">
+            🛍️ Festive E-Commerce
+          </button>
+          <button type="button" class="preset-btn" onclick="loadPreset('kyc_notice')">
+            🏦 Bank KYC Alert
+          </button>
+          <button type="button" class="preset-btn" onclick="loadPreset('food_menu')">
+            🍲 Dosa &amp; Biryani Menu
+            🍲 Restaurant Dialogue
+          </button>
+          <button type="button" class="preset-btn" onclick="loadPreset('sambalpuri_juhar')">
+            🎭 Sambalpuri Greeting
+          <button type="button" class="preset-btn" onclick="loadPreset('cultural_heritage')">
+            🏛️ Odisha Culture
+          </button>
+          <button type="button" class="preset-btn" onclick="loadPreset('subhadra_scheme')">
+            🏛️ Subhadra Yojana
+          </button>
+          <button type="button" class="preset-btn" style="border-color:rgba(16, 185, 129, 0.6); color:#34d399;" onclick="loadPreset('podcast_interview')">
+            🎙️ Odia Podcast Turn
+          </button>
+        </div>
+      </div>
+
+      <!-- Text Editor Area -->
+      <div class="editor-wrapper">
+        <textarea 
+          id="scriptText" 
+          class="script-input odia-text" 
+          placeholder="ଏଠାରେ ଆପଣଙ୍କ ଓଡ଼ିଆ କିମ୍ବା ସମ୍ବଲପୁରୀ ସ୍କ୍ରିପ୍ଟ ଲେଖନ୍ତୁ କିମ୍ବା ପେଷ୍ଟ କରନ୍ତୁ... (Type or paste your script here, or click Upload below)"
+        >ନମସ୍କାର ଆଜ୍ଞା ! ଆମର ନୂତନ ପାର୍ବଣ ଧମାକା ଅଫର ଆରମ୍ଭ ହୋଇଯାଇଛି । ସମସ୍ତ ସମ୍ବଲପୁରୀ ଶାଢ଼ୀ ଏବଂ ହସ୍ତତନ୍ତ ସାମଗ୍ରୀ ଉପରେ ଏବେ ଫ୍ଲାଟ୍ ତିରିଶ ପ୍ରତିଶତ ରିହାତି ମିଳୁଛି । ଆଜି ହିଁ ଅର୍ଡର କରନ୍ତୁ ଏବଂ ମାଗଣା ଡେଲିଭରୀ ପାଆନ୍ତୁ ।</textarea>
+          placeholder="ଏଠାରେ ଆପଣଙ୍କ ଓଡ଼ିଆ କିମ୍ବା ଇଂରାଜୀ ସ୍କ୍ରିପ୍ଟ ଲେଖନ୍ତୁ କିମ୍ବା ପେଷ୍ଟ କରନ୍ତୁ... (Type or paste any paragraph here)"
+        >ନମସ୍କାର ! ମୁଁ ମୀରା । ଆପଣ କେମିତି ଅଛନ୍ତି ? ଆଜି ଆପଣଙ୍କ ଦିନ କିପରି କଟିଲା ? ମୁଁ ଆପଣଙ୍କୁ କିପରି ସାହାଯ୍ୟ କରିପାରିବି ?</textarea>
+        
+        <div class="editor-footer">
+          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+            <label class="upload-btn-label">
+            <label class="action-sub-btn">
+              📁 Upload Script (.txt, .md)
+              <input type="file" id="fileInput" accept=".txt,.md,.srt" onchange="handleFileUpload(event)">
+              <input type="file" id="fileInput" accept=".txt,.md,.srt" style="display:none;" onchange="handleFileUpload(event)">
+            </label>
+            <span id="fileNameDisplay" style="color:#cbd5e1;"></span>
+            <button type="button" class="preset-btn" style="border-color:rgba(59, 130, 246, 0.6); color:#60a5fa; background:rgba(59, 130, 246, 0.1);" onclick="humanizeScript()">
+              ✨ Humanize to Spoken Odia (Podcast Normalizer)
+            <button type="button" class="action-sub-btn" style="border-color:rgba(59, 130, 246, 0.6); color:#60a5fa;" onclick="humanizeScript()">
+              ✨ Humanize to Spoken Odia
+            </button>
+          </div>
+          <div id="charCount">0 characters | ~0.0s audio</div>
+        </div>
+      </div>
+
+      <!-- Voice Gender & Persona Picker -->
+      <!-- Voice Personas Catalog -->
+      <div>
+        <div class="section-label" style="margin-bottom:10px;">Select Voice Gender &amp; Persona</div>
+        <div class="persona-grid">
+          <!-- Persona 1: Female -->
+          <div class="persona-card active" id="card-female" onclick="selectPersona('mira_female')">
+            <div class="persona-top">
+              <span class="persona-avatar">👩</span>
+              <span class="persona-gender-tag">Female</span>
+            </div>
+            <div class="persona-name">MIRA Sweet Studio</div>
+            <div class="persona-desc">Warm, pleasant broadcast voice with natural cadence and crystal clarity.</div>
+          </div>
+        <div class="section-header-row">
+          <div class="section-label">Select Voice Persona</div>
+          <button type="button" class="btn-clone-trigger" onclick="openEnrollModal()">
+            <span>🎙️ Clone Your Voice</span>
+          </button>
+        </div>
+        <div class="persona-grid" id="personaGrid">
+          <!-- Populated dynamically via /api/voices -->
+        </div>
+      </div>
+
+          <!-- Persona 2: Male -->
+          <div class="persona-card" id="card-male" onclick="selectPersona('mira_male')">
+            <div class="persona-top">
+              <span class="persona-avatar">👨</span>
+              <span class="persona-gender-tag">Male</span>
+            </div>
+            <div class="persona-name">MIRA Corporate</div>
+            <div class="persona-desc">Authoritative, grounded professional tone for enterprise, news &amp; announcements.</div>
+      <!-- Parameter Sliders (VoiceStudio Compatible) -->
+      <div class="controls-grid">
+        <!-- Temperature -->
+        <div class="slider-group">
+          <div class="slider-header">
+            <span class="slider-label">Temperature (ODE Stochasticity)</span>
+            <span class="slider-val-badge" id="tempVal">0.67</span>
+          </div>
+          <input type="range" id="tempSlider" min="0.10" max="1.20" step="0.05" value="0.67" oninput="updateSliders()">
+          <span class="slider-hint" id="tempHint">Natural Conversational Realism (Recommended)</span>
+        </div>
+
+          <!-- Persona 3: Sambalpuri -->
+          <div class="persona-card" id="card-sambalpuri" onclick="selectPersona('mira_sambalpuri')">
+            <div class="persona-top">
+              <span class="persona-avatar">🎭</span>
+              <span class="persona-gender-tag">Sambalpuri</span>
+            </div>
+            <div class="persona-name">MIRA Kosali Voice</div>
+            <div class="persona-desc">Authentic Western Odisha regional flavor and cultural cadence (*ଜୁହାର୍*).</div>
+        <!-- Speed -->
+        <div class="slider-group">
+          <div class="slider-header">
+            <span class="slider-label">Speaking Speed</span>
+            <span class="slider-val-badge" id="speedVal">1.00x</span>
+          </div>
+          <input type="range" id="speedSlider" min="0.80" max="1.30" step="0.05" value="1.00" oninput="updateSliders()">
+          <span class="slider-hint" id="speedHint">Normal conversational pace (~16.2 chars/s)</span>
+        </div>
+      </div>
+
+      <!-- Settings & Breathing Toggles -->
+      <div class="controls-row">
+      <!-- Toggles row -->
+      <div class="toggles-row">
+        <label class="toggle-label">
+          <input type="checkbox" id="addBreath" checked>
+          <span>Soft Pre-Speech Breath</span>
+        </label>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:12px; color:var(--text-muted); font-weight:600;">Style:</span>
+          <select id="speakingStyle" style="background:#1e293b; color:#38bdf8; border:1px solid rgba(56, 189, 248, 0.4); padding:5px 10px; border-radius:6px; font-size:12px; font-weight:600; cursor:pointer;">
+            <option value="conv" selected>🎙️ Conversational Podcast (Normal Spoken Odia)</option>
+            <option value="read">📻 Formal Studio Narration</option>
+          </select>
+        </div>
+        <label class="toggle-label">
+          <input type="checkbox" id="continuousParagraph" checked disabled>
+          <span>Continuous Blending</span>
+          <input type="checkbox" id="seamlessBridge" checked disabled>
+          <span>Acoustic Word Bridge (32ms)</span>
+        </label>
+        <div style="margin-left:auto; font-size:12px; color:#94a3b8;">
+          Active Engine: <strong style="color:#c4b5fd;">MultiCondMatcha 24kHz</strong>
+        </div>
+      </div>
+
+      <!-- Primary Action -->
+      <button type="button" class="btn-generate" id="generateBtn" onclick="synthesizeSpeech()">
+        <span id="btnIcon">✨</span>
+        <span id="btnLabel">Generate Studio Voice (24,000 Hz)</span>
+      </button>
+      <!-- Action Buttons Row -->
+      <div class="button-group-row">
+        <button type="button" class="btn-generate" id="generateBtn" onclick="synthesizeSpeech(false)">
+          <span id="btnIcon">✨</span>
+          <span id="btnLabel">Synthesize &amp; Play (Browser)</span>
+        </button>
+        <button type="button" class="btn-audition" id="auditionBtn" onclick="synthesizeSpeech(true)">
+          <span>🔊 Play on PC Hardware</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- RIGHT PANEL: Audio Player & Live Telemetry -->
+    <!-- RIGHT PANEL: Player & Telemetry -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <span>🎧 Broadcast Audio Player</span>
+          <span>🎧 Broadcast Monitor</span>
+        </div>
+        <div class="badge-beta" style="background:rgba(16,185,129,0.15); border-color:rgba(16,185,129,0.4); color:#34d399;">
+          Matcha-TTS + Vocos
+        <div class="badge-pro" style="background:rgba(16,185,129,0.15); border-color:rgba(16,185,129,0.4); color:#34d399;">
+          24,000 Hz Broadcast Spec
+        </div>
+      </div>
+
+      <!-- Waveform and Player -->
+      <div class="waveform-box">
+        <canvas id="waveformCanvas"></canvas>
+        <audio id="audioPlayer" controls></audio>
+        <div id="playerPlaceholder" style="font-size:13px; color:var(--text-muted); text-align:center;">
+          Generated 24kHz audio will play here automatically with real-time waveform animation.
+        </div>
+      </div>
+
+      <!-- Telemetry Stats -->
+      <div class="telemetry-grid">
+        <div class="stat-card">
+          <span class="stat-label">Speech Duration</span>
+          <span class="stat-val" id="statDuration">0.00s</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Generation Time</span>
+          <span class="stat-val" id="statGenTime">0.0ms</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Speedup Factor</span>
+          <span class="stat-val accent" id="statRtf">0.0x RT</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Audio Sample Rate</span>
+          <span class="stat-val" id="statSampleRate">24,000 Hz</span>
+          <span class="stat-label">Active Voice</span>
+          <span class="stat-val" id="statActiveVoice" style="font-size:14px; color:#fde68a;">MIRA Sweet Studio</span>
+        </div>
+      </div>
+
+      <!-- Download Button -->
+      <button type="button" class="btn-download" id="downloadBtn" onclick="downloadAudio()" disabled>
+        <span>⬇️</span>
+        <span>Download Broadcast Audio (.wav)</span>
+        <span>⬇️ Download Broadcast Audio (.wav)</span>
+      </button>
+
+      <!-- Developer Code Snippet -->
+      <div class="api-drawer">
+        <div class="api-drawer-header">
+          <span>🔌 DEVELOPER API USAGE (ELEVENLABS COMPATIBLE)</span>
+          <button class="copy-btn" onclick="copySnippet()">Copy cURL</button>
+          <span>🔌 LOCAL REST API USAGE</span>
+          <button class="action-sub-btn" style="padding:2px 8px; font-size:10px;" onclick="copySnippet()">Copy cURL</button>
+        </div>
+        <pre class="code-block" id="apiSnippet">curl -X POST "http://localhost:8000/v1/text-to-speech/mira_female" \
+  -H "xi-api-key: openflow-live-key-2026" \
+        <pre class="code-block" id="apiSnippet">curl -X POST "http://localhost:8000/api/tts/synthesize" \
+  -H "Content-Type: application/json" \
+  -d '{"text": "ନମସ୍କାର ! ମୁଁ ମୀରା ।"}' \
+  --output speech.wav</pre>
+  -d '{"text": "ନମସ୍କାର !", "voice_id": "sam", "temperature": 0.67}' \
+  --output cloned_speech.wav</pre>
+      </div>
+    </div>
+  </main>
+
+  <!-- MODAL: VOICE ENROLLMENT (VoiceStudio Clone) -->
+  <div class="modal-backdrop" id="enrollModal">
+    <div class="modal-window">
+      <div class="modal-header">
+        <div class="modal-title">
+          <span>🎙️ Clone Your Voice (Zero-Shot)</span>
+        </div>
+        <button class="modal-close" onclick="closeEnrollModal()">&times;</button>
+      </div>
+
+      <div class="modal-tabs">
+        <button class="modal-tab-btn active" id="tabBtnMic" onclick="switchEnrollTab('mic')">Microphone (10s Live)</button>
+        <button class="modal-tab-btn" id="tabBtnFile" onclick="switchEnrollTab('file')">Audio File Upload</button>
+      </div>
+
+      <!-- Speaker info -->
+      <div style="display:grid; grid-template-columns:1.5fr 1fr; gap:12px;">
+        <div class="form-group">
+          <label class="form-label">Speaker Name</label>
+          <input type="text" id="enrollName" class="form-input" placeholder="e.g., Sachin, Smita, Kishore">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Acoustic Centroid</label>
+          <select id="enrollGender" class="form-select">
+            <option value="male" selected>Male (Baritone/Tenor)</option>
+            <option value="female">Female (Mezzo/Soprano)</option>
+            <option value="auto">Auto-detect Pitch</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Tab Content: Mic -->
+      <div id="enrollTabMic">
+        <div class="calibration-quote">
+          <strong>Reading Calibration Prompt:</strong><br>
+          <span class="odia-text">"ନମସ୍କାର, ମୁଁ ମୋର ସ୍ୱର ରେକର୍ଡ କରୁଛି । ଆଜିର ପାଗ ବହୁତ ସୁନ୍ଦର ଅଟେ । ମୁଁ ଓଡ଼ିଆ ଭାଷାରେ କଥାବାର୍ତ୍ତା କରିବାକୁ ପସନ୍ଦ କରେ ।"</span><br>
+          <small style="color:#94a3b8;">Or in English: "Hello! I am recording my voice sample to clone my natural speech."</small>
+        </div>
+
+        <div class="mic-recorder-box" style="margin-top:14px;">
+          <button type="button" class="btn-record-mic" id="recordMicBtn" onclick="toggleMicRecording()">
+            <span id="micIcon">🎙️</span>
+          </button>
+          <div id="recordStatusText" style="font-size:13px; font-weight:700; color:#fff;">Click to start 10-second recording</div>
+          <div class="progress-bar-container">
+            <div class="progress-bar-fill" id="recordProgress"></div>
+          </div>
+          <audio id="recordedPreviewAudio" controls style="display:none; width:100%; margin-top:8px;"></audio>
+        </div>
+      </div>
+
+      <!-- Tab Content: File -->
+      <div id="enrollTabFile" style="display:none;">
+        <div class="form-group">
+          <label class="form-label">Select Audio File (.wav, .mp3, .m4a)</label>
+          <input type="file" id="enrollFileInput" class="form-input" accept="audio/*">
+          <span style="font-size:11px; color:#94a3b8; margin-top:4px;">
+            Ideal duration: 5–15 seconds of clean, isolated human speech.
+          </span>
+        </div>
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:8px;">
+        <button type="button" class="action-sub-btn" onclick="closeEnrollModal()">Cancel</button>
+        <button type="button" class="btn-generate" id="submitEnrollBtn" style="padding:10px 20px; font-size:13px;" onclick="submitEnrollment()">
+          <span>Save Voice &amp; Activate</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    MIRA Voice AI Studio • Powered by OpenFlow Neural Flow Matching on NVIDIA RTX 4050 • Built for Odisha
+    MIRA Voice Studio • Neural Flow Matching on NVIDIA RTX 4050 • Offline Broadcast Speech Platform
+  </footer>
+
+  <script>
+    let activePersona = 'mira_female';
+    let activeVoiceId = 'mira_female';
+    let voicesCatalog = [];
+    let currentAudioBlob = null;
+    let audioContext = null;
+    let analyser = null;
+    let sourceNode = null;
+    let animFrame = null;
+
+    // Mic recording state
+    let mediaRecorder = null;
+    let recordedChunks = [];
+    let isRecording = false;
+    let recordInterval = null;
+    let recordedBlob = null;
+
+    const PRESETS = {
+      sachin_bput: "ନମସ୍କାର ସମସ୍ତଙ୍କୁ!\n\nମୋ ନାଁ ସଚିନ ମଲ୍ଲିକ। ମୁଁ BPUT ରାଉରକେଲାରେ Mechanical Engineering ପଢ଼ୁଛି।\n\nମୋର Technology, Artificial Intelligence ଏବଂ Innovation ପ୍ରତି ବହୁତ ଆଗ୍ରହ ରହିଛି।\n\nମୁଁ ନୂଆ ନୂଆ ଜିନିଷ ଶିଖିବା, ନିଜେ କିଛି ନୂଆ Build କରିବା ଏବଂ Real-world Problems ର Solutions ବାହାର କରିବାକୁ ପସନ୍ଦ କରେ।\n\nମୋର ବିଶ୍ୱାସ, କେବଳ ଆଇଡିଆ ରଖିବା ନୁହେଁ, ସେହି ଆଇଡିଆକୁ ବାସ୍ତବ ରୂପ ଦେବା ହିଁ ପ୍ରକୃତ ସଫଳତା।\n\nଧନ୍ୟବାଦ!",
+      festival_ad: "ନମସ୍କାର ଆଜ୍ଞା ! ଆମର ନୂତନ ପାର୍ବଣ ଧମାକା ଅଫର ଆରମ୍ଭ ହୋଇଯାଇଛି । ସମସ୍ତ ସମ୍ବଲପୁରୀ ଶାଢ଼ୀ ଏବଂ ହସ୍ତତନ୍ତ ସାମଗ୍ରୀ ଉପରେ ଏବେ ଫ୍ଲାଟ୍ ତିରିଶ ପ୍ରତିଶତ ରିହାତି ମିଳୁଛି । ଆଜି ହିଁ ଅର୍ଡର କରନ୍ତୁ ଏବଂ ମାଗଣା ଡେଲିଭରୀ ପାଆନ୍ତୁ ।",
+      podcast_interview: "ହଁ ମାନେ ଦେଖନ୍ତୁ, ଆମେ ଯେତେବେଳେ କାମ ଆରମ୍ଭ କରୁ, ସେତେବେଳେ ବହୁତ କିଛି ଚ୍ୟାଲେଞ୍ଜ ଆସେ । ଆଚ୍ଛା ଭାଇନା, ଆପଣ କୁହନ୍ତୁ ତ, ଆପଣଙ୍କର ଏହି ନୂଆ Idea ଟା କେମିତି ମୁଣ୍ଡକୁ ଆସିଲା ? ସତ କହିବାକୁ ଗଲେ, ସଚିନ ବାବୁ ଯାହା କହିଲେ, ସେଇଟା ଏକଦମ ଠିକ୍ କଥା ।",
+      kyc_notice: "ଧନ୍ୟବାଦ ସଚିନ ବାବୁ ! ଆପଣଙ୍କ ଓଡ଼ିଶା ଗ୍ରାମ୍ୟ ବ୍ୟାଙ୍କ ଖାତାରେ KYC ଯାଞ୍ଚ ସଫଳତାର ସହ ପୂରା ହୋଇଛି । ଆପଣଙ୍କ ଆକାଉଣ୍ଟ ଏବେ ସମ୍ପୂର୍ଣ୍ଣ ସୁରକ୍ଷିତ ଏବଂ ସକ୍ରିୟ ଅଛି ।",
+      food_menu: "ଭାଇ ଆଜି ଆମ ହୋଟେଲରେ ସ୍ପେଶାଲ ମସାଲା ଦୋସା, ଚିକେନ ବିରିୟାନୀ ଏବଂ ଗରମ ଗରମ ଛେନାପୋଡ଼ ମିଳୁଛି । ଆପଣଙ୍କ ଅର୍ଡର ପାଇଁ ଏବେ କଲ୍ କରନ୍ତୁ କିମ୍ବା ଠିକଣା କୁହନ୍ତୁ !",
+      sambalpuri_juhar: "ଜୁହାର୍ ହୋ ସମକୁଁ ! କେନ୍ତା ଅଛ ? ଆମର୍ ସମ୍ବଲପୁରୀ ମାଏଟ୍‌ର ଭାଷା ଆର୍ କଥାବାର୍ତ୍ତା କେଡ଼େ ମିଠା ଦେଖୁନ୍ । ମୁଇଁ ମୀରା, ଆପଣଙ୍କର୍ ନିଜର୍ AI ସାଙ୍ଗ୍ ।",
+      subhadra_scheme: "ନମସ୍କାର ମାଆ ଓ ଭଉଣୀମାନେ ! ସୁଭଦ୍ରା ଯୋଜନା ଅଧୀନରେ ଆପଣଙ୍କ ଆବେଦନ ଗ୍ରହଣ କରାଯାଇଛି । ପ୍ରଥମ କିସ୍ତି ଟଙ୍କା ସିଧାସଳଖ ଆପଣଙ୍କ ବ୍ୟାଙ୍କ ଖାତାକୁ ଆସନ୍ତା ଧନତେରସରେ ଜମା ହେବ ।"
+      food_menu: "ନମସ୍କାର ଆଜ୍ଞା ! ରୟାଲ ରେଷ୍ଟୁରାଣ୍ଟକୁ ଆପଣଙ୍କୁ ସ୍ୱାଗତ । ଆଜି ଆପଣଙ୍କ ପାଇଁ କ'ଣ ଅର୍ଡର କରିବି ? ଆମ ପାଖରେ ମଟନ କସା ଏବଂ ଗରମ ନାନ୍ ବହୁତ ସ୍ୱାଦିଷ୍ଟ ହୋଇଛି ।",
+      cultural_heritage: "ଓଡ଼ିଶାର ସଂସ୍କୃତି ଏବଂ ପରମ୍ପରା ଅତ୍ୟନ୍ତ ମହାନ । ରଥଯାତ୍ରା ଏବଂ ରଜ ପର୍ବ ସମଗ୍ର ବିଶ୍ୱରେ ପ୍ରସିଦ୍ଧ । ଏହା ଭାଇଚାରା ଏବଂ ପ୍ରେମର ପ୍ରତୀକ ଅଟେ ।"
+    };
+
+    function selectPersona(personaId) {
+      activePersona = personaId;
+    async function loadVoices() {
+      try {
+        const res = await fetch('/api/voices');
+        const data = await res.json();
+        voicesCatalog = data.voices || [];
+        renderVoiceGrid();
+      } catch (e) {
+        console.error("Failed to load voices:", e);
+      }
+    }
+
+    function renderVoiceGrid() {
+      const grid = document.getElementById('personaGrid');
+      grid.innerHTML = '';
+
+      voicesCatalog.forEach(v => {
+        const card = document.createElement('div');
+        const isActive = (v.id === activeVoiceId);
+        card.className = `persona-card ${isActive ? 'active' : ''}`;
+        card.id = `card-${v.id}`;
+        card.onclick = (e) => {
+          if (!e.target.closest('.btn-card-action')) {
+            selectPersona(v.id);
+          }
+        };
+
+        const avatar = v.gender === 'female' ? '👩' : (v.gender === 'male' ? '👨' : '🎙️');
+        const isBuiltin = (v.category === 'builtin');
+        const tagClass = isBuiltin ? 'tag-builtin' : 'tag-cloned';
+        const tagLabel = isBuiltin ? 'BUILT-IN' : 'CLONED';
+
+        let sampleBtn = '';
+        if (v.has_sample && v.sample_url) {
+          sampleBtn = `<button class="btn-card-action" title="Audition Sample" onclick="playVoiceSample('${v.sample_url}', event)">▶️ Sample</button>`;
+        }
+
+        let deleteBtn = '';
+        if (!isBuiltin) {
+          deleteBtn = `<button class="btn-card-action danger" title="Delete Voice" onclick="deleteVoice('${v.id}', event)">🗑️</button>`;
+        }
+
+        const f0Text = v.f0_median > 0 ? `${v.f0_median.toFixed(0)} Hz` : '';
+
+        card.innerHTML = `
+          <div class="persona-top">
+            <span class="persona-avatar">${avatar}</span>
+            <div class="persona-badges">
+              <span class="persona-gender-tag">${v.gender}</span>
+              <span class="persona-gender-tag ${tagClass}">${tagLabel}</span>
+            </div>
+          </div>
+          <div class="persona-name" title="${v.name}">${v.name}</div>
+          <div class="persona-desc">${v.description}</div>
+          <div class="persona-meta-row">
+            <span>${f0Text}</span>
+            <div style="display:flex; gap:4px;">
+              ${sampleBtn}
+              ${deleteBtn}
+            </div>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+
+      updateTelemetryVoiceName();
+    }
+
+    function selectPersona(vId) {
+      activeVoiceId = vId;
+      document.querySelectorAll('.persona-card').forEach(c => c.classList.remove('active'));
+      if (personaId === 'mira_female') document.getElementById('card-female').classList.add('active');
+      else if (personaId === 'mira_male') document.getElementById('card-male').classList.add('active');
+      else if (personaId === 'mira_sambalpuri') document.getElementById('card-sambalpuri').classList.add('active');
+      const activeEl = document.getElementById(`card-${vId}`);
+      if (activeEl) activeEl.classList.add('active');
+      updateTelemetryVoiceName();
+      updateSnippet();
+    }
+
+    function updateTelemetryVoiceName() {
+      const v = voicesCatalog.find(x => x.id === activeVoiceId);
+      const name = v ? v.name : activeVoiceId;
+      document.getElementById('statActiveVoice').textContent = name;
+    }
+
+    function playVoiceSample(url, evt) {
+      if (evt) evt.stopPropagation();
+      const player = document.getElementById('audioPlayer');
+      player.src = url;
+      player.play().catch(() => {});
+      document.getElementById('playerPlaceholder').style.display = 'none';
+      setupVisualizer(player);
+    }
+
+    async function deleteVoice(spkId, evt) {
+      if (evt) evt.stopPropagation();
+      if (!confirm(`Are you sure you want to delete voice '${spkId}'?`)) return;
+      try {
+        const res = await fetch(`/api/voices/${spkId}`, { method: 'DELETE' });
+        if (res.ok) {
+          if (activeVoiceId === spkId) activeVoiceId = 'mira_female';
+          await loadVoices();
+        } else {
+          alert("Failed to delete voice.");
+        }
+      } catch (e) {
+        alert("Error deleting voice: " + e.message);
+      }
+    }
+
+    function updateSliders() {
+      const t = parseFloat(document.getElementById('tempSlider').value);
+      const s = parseFloat(document.getElementById('speedSlider').value);
+      document.getElementById('tempVal').textContent = t.toFixed(2);
+      document.getElementById('speedVal').textContent = `${s.toFixed(2)}x`;
+
+      const hintEl = document.getElementById('tempHint');
+      if (t <= 0.35) {
+        hintEl.textContent = "Deterministic & Calm Cadence (Steady)";
+      } else if (t <= 0.80) {
+        hintEl.textContent = "Natural Conversational Realism (Recommended)";
+      } else {
+        hintEl.textContent = "Dynamic Inflection & Expressive Prosody";
+      }
+
+      document.getElementById('speedHint').textContent = `Speech pace (~${(16.2 * s).toFixed(1)} chars/s)`;
+      updateSnippet();
+    }
+
+    function loadPreset(key) {
+      if (PRESETS[key]) {
+        document.getElementById('scriptText').value = PRESETS[key];
+        if (key === 'sambalpuri_juhar') {
+          selectPersona('mira_sambalpuri');
+        } else if (key === 'kyc_notice') {
+          selectPersona('mira_male');
+        if (key === 'cultural_heritage' || key === 'sachin_bput' || key === 'kyc_notice') {
+          // If Sam exists, pick Sam; else pick mira_male
+          const samVoice = voicesCatalog.find(v => v.id === 'sam');
+          if (samVoice && key === 'sachin_bput') selectPersona('sam');
+          else selectPersona('mira_male');
+        } else {
+          selectPersona('mira_female');
+        }
+        updateCharCount();
+      }
+    }
+
+    function updateCharCount() {
+      const text = document.getElementById('scriptText').value;
+      const chars = text.length;
+      // Rough estimation: ~12 chars per second in spoken Odia
+      const estSec = (chars / 12).toFixed(1);
+      const speed = parseFloat(document.getElementById('speedSlider').value) || 1.0;
+      const estSec = (chars / (16.2 * speed)).toFixed(1);
+      document.getElementById('charCount').textContent = `${chars} characters | ~${estSec}s audio`;
+    }
+
+    document.getElementById('scriptText').addEventListener('input', updateCharCount);
+    updateCharCount();
+
+    function handleFileUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      document.getElementById('fileNameDisplay').textContent = file.name;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        document.getElementById('scriptText').value = e.target.result;
+        updateCharCount();
+      };
+      reader.readAsText(file);
+    }
+
+    function updateSnippet() {
+      const snippet = `curl -X POST "http://localhost:8000/v1/text-to-speech/${activePersona}" \\
+  -H "xi-api-key: openflow-live-key-2026" \\
+      const t = parseFloat(document.getElementById('tempSlider').value);
+      const s = parseFloat(document.getElementById('speedSlider').value);
+      const snippet = `curl -X POST "http://localhost:8000/api/tts/synthesize" \\
+  -H "Content-Type: application/json" \\
+  -d '{"text": "ନମସ୍କାର ! ମୁଁ ମୀରା ।"}' \\
+  --output speech.wav`;
+  -d '{"text": "ନମସ୍କାର !", "voice_id": "${activeVoiceId}", "temperature": ${t.toFixed(2)}, "speed": ${s.toFixed(2)}}' \\
+  --output cloned_speech.wav`;
+      document.getElementById('apiSnippet').textContent = snippet;
+    }
+
+    function copySnippet() {
+      const text = document.getElementById('apiSnippet').textContent;
+      navigator.clipboard.writeText(text).then(() => {
+        alert("cURL command copied to clipboard!");
+      });
+    }
+
+    async function humanizeScript() {
+      const text = document.getElementById('scriptText').value.trim();
+      if (!text) {
+        alert("Please enter a script to humanize.");
+        return;
+      }
+      if (!text) return;
+      try {
+        const res = await fetch('/v1/humanize', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: text })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          document.getElementById('scriptText').value = data.humanized;
+          updateCharCount();
+          const sel = document.getElementById('speakingStyle');
+          if (sel) sel.value = 'conv';
+        }
+      } catch (e) {
+        console.error("Humanize error:", e);
+      }
+    }
+
+    async function synthesizeSpeech() {
+    async function synthesizeSpeech(isHardwareAudition) {
+      const text = document.getElementById('scriptText').value.trim();
+      if (!text) {
+        alert("Please enter or upload a script first.");
+        alert("Please enter a paragraph to synthesize.");
+        return;
+      }
+
+      const btn = document.getElementById('generateBtn');
+      const btnLabel = document.getElementById('btnLabel');
+      const btnIcon = document.getElementById('btnIcon');
+      const btn = isHardwareAudition ? document.getElementById('auditionBtn') : document.getElementById('generateBtn');
+      const addBreath = document.getElementById('addBreath').checked;
+      const speakingStyle = document.getElementById('speakingStyle') ? document.getElementById('speakingStyle').value : 'conv';
+      const temp = parseFloat(document.getElementById('tempSlider').value);
+      const speed = parseFloat(document.getElementById('speedSlider').value);
+
+      btn.disabled = true;
+      btnIcon.textContent = "⏳";
+      btnLabel.textContent = "Synthesizing 24kHz Studio Speech on GPU...";
+      const origText = btn.innerHTML;
+      btn.innerHTML = `<span>⏳</span><span>Processing on RTX 4050...</span>`;
+
+      const tStart = performance.now();
+
+      try {
+        const response = await fetch(`/v1/text-to-speech/${activePersona}`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "xi-api-key": "openflow-live-key-2026"
+          },
+        const endpoint = isHardwareAudition ? '/api/tts/audition' : '/api/tts/synthesize';
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            text: text,
+            add_breath: addBreath,
+            style: speakingStyle,
+            model_id: "openflow-mira-v2"
+            voice_id: activeVoiceId,
+            temperature: temp,
+            speed: speed,
+            expressiveness: 1.0,
+            add_breath: addBreath
+          })
+        });
+
+        if (!response.ok) {
+          const err = await response.json();
+          throw new Error(err.detail ? JSON.stringify(err.detail) : "Synthesis failed.");
+          throw new Error(err.detail || "Synthesis request failed.");
+        }
+
+        const durHeader = response.headers.get("X-Audio-Duration") || "0.0s";
+        const synthTimeHeader = response.headers.get("X-Synthesis-Time-Ms") || ((performance.now() - tStart)).toFixed(1);
+        const rtfHeader = response.headers.get("X-Real-Time-Factor") || "0.09";
+        if (isHardwareAudition) {
+          const data = await response.json();
+          document.getElementById('statDuration').textContent = data.duration_s || "0.0s";
+          document.getElementById('statGenTime').textContent = `${data.synth_time_ms}ms`;
+          document.getElementById('statRtf').textContent = data.speedup;
+        } else {
+          const durHeader = response.headers.get("X-Audio-Duration") || "0.0s";
+          const synthTimeHeader = response.headers.get("X-Synthesis-Time-Ms") || (performance.now() - tStart).toFixed(1);
+          const rtfHeader = response.headers.get("X-Real-Time-Factor") || "0.05";
+
+        const blob = await response.blob();
+        currentAudioBlob = blob;
+          const blob = await response.blob();
+          currentAudioBlob = blob;
+
+        const audioUrl = URL.createObjectURL(blob);
+        const player = document.getElementById('audioPlayer');
+        player.src = audioUrl;
+        player.load();
+        document.getElementById('playerPlaceholder').style.display = 'none';
+          const audioUrl = URL.createObjectURL(blob);
+          const player = document.getElementById('audioPlayer');
+          player.src = audioUrl;
+          player.load();
+          document.getElementById('playerPlaceholder').style.display = 'none';
+
+        // Update Telemetry
+        const durFloat = parseFloat(durHeader.replace('s', ''));
+        const genTimeFloat = parseFloat(synthTimeHeader);
+        const speedup = (durFloat / (genTimeFloat / 1000)).toFixed(1);
+          const durFloat = parseFloat(durHeader.replace('s', ''));
+          const genTimeFloat = parseFloat(synthTimeHeader);
+          const speedup = durFloat > 0 ? (durFloat / (genTimeFloat / 1000)).toFixed(1) : "45.0";
+
+        document.getElementById('statDuration').textContent = durHeader;
+        document.getElementById('statGenTime').textContent = `${genTimeFloat.toFixed(1)}ms`;
+        document.getElementById('statRtf').textContent = `${speedup}x Real-Time`;
+        document.getElementById('downloadBtn').disabled = false;
+          document.getElementById('statDuration').textContent = durHeader;
+          document.getElementById('statGenTime').textContent = `${genTimeFloat.toFixed(1)}ms`;
+          document.getElementById('statRtf').textContent = `${speedup}x Real-Time`;
+          document.getElementById('downloadBtn').disabled = false;
+
+        // Auto-play audio and start visualizer
+        player.play().catch(() => {});
+        setupVisualizer(player);
+
+          player.play().catch(() => {});
+          setupVisualizer(player);
+        }
+      } catch (err) {
+        alert("Error during voice synthesis: " + err.message);
+      } finally {
+        btn.disabled = false;
+        btnIcon.textContent = "✨";
+        btnLabel.textContent = "Generate Studio Voice (24,000 Hz)";
+        btn.innerHTML = origText;
+      }
+    }
+
+    function setupVisualizer(audioEl) {
+      if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        analyser = audioContext.createAnalyser();
+        analyser.fftSize = 128;
+        sourceNode = audioContext.createMediaElementSource(audioEl);
+        sourceNode.connect(analyser);
+        analyser.connect(audioContext.destination);
+      }
+
+      const canvas = document.getElementById('waveformCanvas');
+      const ctx = canvas.getContext('2d');
+      const bufferLength = analyser.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+
+      function draw() {
+        animFrame = requestAnimationFrame(draw);
+        analyser.getByteFrequencyData(dataArray);
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const barWidth = (canvas.width / bufferLength) * 2.2;
+        let x = 0;
+
+        for (let i = 0; i < bufferLength; i++) {
+          const barHeight = (dataArray[i] / 255) * canvas.height * 0.9;
+          const gradient = ctx.createLinearGradient(0, canvas.height, 0, 0);
+          gradient.addColorStop(0, '#7c3aed');
+          gradient.addColorStop(1, '#f59e0b');
+          ctx.fillStyle = gradient;
+          ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
+          x += barWidth + 2;
+        }
+      }
+
+      if (animFrame) cancelAnimationFrame(animFrame);
+      draw();
+    }
+
+    function downloadAudio() {
+      if (!currentAudioBlob) return;
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(currentAudioBlob);
+      a.download = `mira_${activePersona}_${Date.now()}.wav`;
+      a.download = `mira_${activeVoiceId}_${Date.now()}.wav`;
+      a.click();
+    }
+
+    /* MODAL AND LIVE ENROLLMENT */
+    function openEnrollModal() {
+      document.getElementById('enrollModal').classList.add('open');
+      document.getElementById('enrollName').value = '';
+      document.getElementById('recordProgress').style.width = '0%';
+      document.getElementById('recordedPreviewAudio').style.display = 'none';
+      document.getElementById('recordStatusText').textContent = "Click to start 10-second recording";
+      recordedBlob = null;
+    }
+
+    function closeEnrollModal() {
+      document.getElementById('enrollModal').classList.remove('open');
+      if (isRecording) stopRecording(false);
+    }
+
+    function switchEnrollTab(tab) {
+      const isMic = (tab === 'mic');
+      document.getElementById('enrollTabMic').style.display = isMic ? 'block' : 'none';
+      document.getElementById('enrollTabFile').style.display = isMic ? 'none' : 'block';
+      document.getElementById('tabBtnMic').classList.toggle('active', isMic);
+      document.getElementById('tabBtnFile').classList.toggle('active', !isMic);
+    }
+
+    async function toggleMicRecording() {
+      if (isRecording) {
+        stopRecording(true);
+      } else {
+        startRecording();
+      }
+    }
+
+    async function startRecording() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+        recordedChunks = [];
+        recordedBlob = null;
+
+        mediaRecorder.ondataavailable = (e) => {
+          if (e.data.size > 0) recordedChunks.push(e.data);
+        };
+
+        mediaRecorder.onstop = () => {
+          recordedBlob = new Blob(recordedChunks, { type: 'audio/wav' });
+          const preview = document.getElementById('recordedPreviewAudio');
+          preview.src = URL.createObjectURL(recordedBlob);
+          preview.style.display = 'block';
+          document.getElementById('recordStatusText').textContent = "✅ Recording complete! Ready to enroll.";
+        };
+
+        mediaRecorder.start();
+        isRecording = true;
+        document.getElementById('recordMicBtn').classList.add('recording');
+        document.getElementById('micIcon').textContent = "⏹️";
+
+        let elapsed = 0;
+        const totalDuration = 10.0;
+        recordInterval = setInterval(() => {
+          elapsed += 0.1;
+          const pct = Math.min(100, (elapsed / totalDuration) * 100);
+          document.getElementById('recordProgress').style.width = `${pct}%`;
+          document.getElementById('recordStatusText').textContent = `🔴 Recording... [${(totalDuration - elapsed).toFixed(1)}s remaining]`;
+
+          if (elapsed >= totalDuration) {
+            stopRecording(true);
+          }
+        }, 100);
+
+      } catch (err) {
+        alert("Microphone access failed: " + err.message);
+      }
+    }
+
+    function stopRecording(save) {
+      if (!isRecording) return;
+      isRecording = false;
+      clearInterval(recordInterval);
+      document.getElementById('recordMicBtn').classList.remove('recording');
+      document.getElementById('micIcon').textContent = "🎙️";
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+        mediaRecorder.stream.getTracks().forEach(track => track.stop());
+      }
+    }
+
+    async function submitEnrollment() {
+      const name = document.getElementById('enrollName').value.trim() || 'My Voice';
+      const gender = document.getElementById('enrollGender').value;
+      const isMicTab = document.getElementById('tabBtnMic').classList.contains('active');
+
+      const formData = new FormData();
+      formData.append('name', name);
+      formData.append('gender', gender);
+
+      if (isMicTab) {
+        if (!recordedBlob) {
+          alert("Please record your voice first.");
+          return;
+        }
+        formData.append('file', recordedBlob, 'mic_recording.wav');
+      } else {
+        const fileInput = document.getElementById('enrollFileInput');
+        if (!fileInput.files || fileInput.files.length === 0) {
+          alert("Please select an audio file to upload.");
+          return;
+        }
+        formData.append('file', fileInput.files[0]);
+      }
+
+      const submitBtn = document.getElementById('submitEnrollBtn');
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Extracting Features on GPU...";
+
+      try {
+        const res = await fetch('/api/voices/enroll', {
+          method: 'POST',
+          body: formData
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.detail || "Enrollment failed.");
+        }
+
+        alert(`🎉 Voice '${data.name}' successfully enrolled!\nDetected: ${data.gender.toUpperCase()} | Pitch F0: ${data.f0_median} Hz`);
+        closeEnrollModal();
+        await loadVoices();
+        selectPersona(data.speaker_id);
+      } catch (e) {
+        alert("Enrollment error: " + e.message);
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Save Voice & Activate";
+      }
+    }
+
+    // Init
+    window.addEventListener('DOMContentLoaded', () => {
+      loadVoices();
+      updateCharCount();
+      updateSliders();
+    });
+  </script>
+</body>
+</html>
+

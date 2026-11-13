@@ -1,13 +1,18 @@
 """MIRA benchmark: does the fine-tuned SmolLM2-135M writer make dictation better, and is it safe to ship?
 
-Odia: FLEURS Odia dev clips -> IndicConformer (the app's Odia engine) -> raw / refine_odia rules / MIRA,
-scored against the human transcripts (word error rate, lower is better).
-English: held-out spoken-style sentences (not in data/mira_train.jsonl). The ship-blocker is MIRA
-answering English dictation in Odia script, or dropping/adding content.
-Run from the repo's parent:  python -m openflow.bench_mira [N_ODIA_CLIPS] [model_dir]
+English, FLEURS dev (held out of training): recogniser-style lowercase text in, the human-written
+sentence as the answer key. 'Words changed' must stay near 0 (MIRA fixes form, never content);
+'formatted WER' counts case and punctuation too, so it shows how much of the writing MIRA restores.
+English dictation: held-out spoken sentences; the ship-blocker is answering in Odia script, or
+dropping/adding content.
+Odia (--odia): FLEURS Odia clips -> IndicConformer -> raw / refine_odia rules / MIRA.
+Run from the repo's parent:  python -m openflow.bench_mira [N] [model_dir] [--odia]
 """
+import csv
+import io
 import os
 import re
+import urllib.request
 import sys
 import time
 
@@ -49,9 +54,18 @@ def wer(refs, hyps):
     return 100 * e / max(1, n)
 
 
+def formatted_wer(refs, hyps):
+    e = n = 0
+    for r, h in zip(refs, hyps):
+        r, h = r.replace("’", "'").split(), h.split()
+        e, n = e + edits(r, h), n + len(r)
+    return 100 * e / max(1, n)
+
+
 def main():
-    n = int(sys.argv[1]) if len(sys.argv) > 1 else 30
-    folder = sys.argv[2] if len(sys.argv) > 2 else os.path.join(os.path.dirname(__file__), "models", "mira_ct2_int8")
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    n = int(args[0]) if args else 30
+    folder = args[1] if len(args) > 1 else os.path.join(os.path.dirname(__file__), "models", "mira_v2_ct2_int8")
     mira = LocalLLM(folder, threads=min(8, os.cpu_count() or 4))
     mira.refine_dictation("warm up", "smart_clean")
 

@@ -73,7 +73,10 @@ class ConversationalDataset(Dataset):
                         # Mask prompt tokens with -100 so loss is strictly on assistant response
                         labels = input_ids.clone()
                         labels[:p_len] = -100
-                        labels[labels == tokenizer.pad_token_id] = -100
+                        # CRITICAL FIX: Only mask actual padding tokens (attention_mask == 0).
+                        # Since tokenizer.pad_token_id == tokenizer.eos_token_id (token 2: <|im_end|>),
+                        # masking by token_id wiped out the assistant's EOS signal and caused runaway 11s generation!
+                        labels[attention_mask == 0] = -100
 
                         # Ensure there is at least one target token to calculate loss
                         if (labels != -100).sum() > 0:
@@ -135,7 +138,7 @@ def train():
 
     # 3. Prepare Dataset & DataLoader
     dataset = ConversationalDataset(DATA_PATH, tokenizer, max_length=256)
-    train_loader = DataLoader(dataset, batch_size=4, shuffle=True, pin_memory=True)
+    train_loader = DataLoader(dataset, batch_size=8, shuffle=True, pin_memory=True)
     print(f"  Loaded {len(dataset)} valid conversational examples into {len(train_loader)} batches.")
 
     # 4. Optimizer, Scheduler & Training Loop

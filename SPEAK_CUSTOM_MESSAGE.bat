@@ -13,3 +13,4 @@ echo.
 cd /d "%~dp0"
 python speak_custom_message.py
 pause
+

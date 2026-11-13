@@ -1,0 +1,450 @@
+{
+  "ବିଲକୁଲ": {
+    "LITERAL": 0.0,
+    "MEDIAL_CONJ": 0.0,
+    "TERMINAL_HAL": 0.0,
+    "FULL_CLUSTER": 2.7782,
+    "PHONETIC_ENG": 0.0
+  },
+  "ବିଲକୁଲ୍": {
+    "LITERAL": 0.0,
+    "MEDIAL_CONJ": 0.0,
+    "TERMINAL_HAL": 0.0,
+    "FULL_CLUSTER": 2.7782,
+    "PHONETIC_ENG": 0.0
+  },
+  "ଜଲଦି": {
+    "LITERAL": 0.0,
+    "MEDIAL_CONJ": 2.645,
+    "TERMINAL_HAL": 0.0,
+    "FULL_CLUSTER": 0.0,
+    "PHONETIC_ENG": 0.0
+  },
+  "ମୁସକିଲ": {
+    "LITERAL": 0.0,
+    "MEDIAL_CONJ": 0.0,
+    "TERMINAL_HAL": 0.0,
+    "FULL_CLUSTER": 2.7782,
+    "PHONETIC_ENG": 0.0
+  },
+  "ସରକାର": {
+    "LITERAL": 0.0,
+    "MEDIAL_CONJ": 0.0,
+    "TERMINAL_HAL": 0.0,
+    "FULL_CLUSTER": 2.7782,
+    "PHONETIC_ENG": 0.0
+  },
+  "ସରକାରୀ": {
+    "LITERAL": 0.0,
+    "MEDIAL_CONJ": 2.645,
+    "TERMINAL_HAL": 0.0,
+    "FULL_CLUSTER": 0.0,
+    "PHONETIC_ENG": 0.0
+  },
+  "ଦରକାର": {
+    "LITERAL": 0.0,
+    "MEDIAL_CONJ": 0.0,
+    "TERMINAL_HAL": 2.645,
+    "FULL_CLUSTER": 0.0,
+    "PHONETIC_ENG": 0.0
+  },
+  "ଖବର": {
+    "LITERAL": 0.0,
+    "MEDIAL_CONJ": 0.0,
+    "TERMINAL_HAL": 2.645,
+    "FULL_CLUSTER": 0.0,
+    "PHONETIC_ENG": 0.0
+  },
+  "ଖରାପ": {
+    "LITERAL": 0.0,
+    "MEDIAL_CONJ": 0.0,
+    "TERMINAL_HAL": 2.645,
+    "FULL_CLUSTER": 0.0,
+    "PHONETIC_ENG": 0.0
+  },
+  "ଗରମ": {
+    "LITERAL": -0.075,
+    "MEDIAL_CONJ": 0.0,
+    "TERMINAL_HAL": 2.5824,
+    "FULL_CLUSTER": 0.0,
+    "PHONETIC_ENG": 0.0
+  },
+  "ବାସ": {
+    "LITERAL": 0.0,
+    "MEDIAL_CONJ": 0.0,
+    "TERMINAL_HAL": 2.645,
+    "FULL_CLUSTER": 0.0,
+    "PHONETIC_ENG": 0.0
+  },
+  "ଖାସ": {
+    "LITERAL": 0.0,
+    "MEDIAL_CONJ": 0.0,
+    "TERMINAL_HAL": 2.645,
+    "FULL_CLUSTER": 0.0,
+    "PHONETIC_ENG": 0.0
+  },
+  "ସାଫ": {
+    "LITERAL": 0.0,
+    "MEDIAL_CONJ": 0.0,
+    "TERMINAL_HAL": 2.5824,
+    "FULL_CLUSTER": 0.45,
+    "PHONETIC_ENG": 0.0
+  },
+  "ନଗଦ": {
+    "LITERAL": 0.0,
+    "MEDIAL_CONJ": 0.0,
+    "TERMINAL_HAL": 2.645,
+    "FULL_CLUSTER": 0.0,
+    "PHONETIC_ENG": 0.0
+  },
+  "ବରଫ": {
+    "LITERAL": 0.0,
+    "MEDIAL_CONJ": 0.0,
+    "TERMINAL_HAL": 2.645,
+    "FULL_CLUSTER": 0.0,
+    "PHONETIC_ENG": 0.0
+  },
+  "କାଗଜ": {
+    "LITERAL": 0.0,
+    "MEDIAL_CONJ": 0.0,
+    "TERMINAL_HAL": 2.645,
+    "FULL_CLUSTER": 0.0,
+    "PHONETIC_ENG": 0.0
+  },
+  "ଦୋକାନ": {
+    "LITERAL": 0.0,
+    "MEDIAL_CONJ": 0.0,
+    "TERMINAL_HAL": 2.645,
+    "FULL_CLUSTER": 0.0,
+    "PHONETIC_ENG": 0.0
+  },
+  "ରୁମାଲ": {
+    "LITERAL": 0.0,
+    "MEDIAL_CONJ": 0.0,
+    "TERMINAL_HAL": 2.645,
+    "FULL_CLUSTER": 0.0,
+    "PHONETIC_ENG": 0.0
+  },
+  "ଅର୍ଡର": {
+    "LITERAL": 0.0,
+    "MEDIAL_CONJ": 0.0,
+    "TERMINAL_HAL": 0.0,
+    "FULL_CLUSTER": 2.7782,
+    "PHONETIC_ENG": 0.0
+  },
+  "ଅଫିସ": {
+    "LITERAL": 0.0,
+    "MEDIAL_CONJ": 0.0,
+    "TERMINAL_HAL": 2.645,
+    "FULL_CLUSTER": 0.0,
+    "PHONETIC_ENG": 0.0
+  },
+  "ହଷ୍ଟେଲ": {
+    "LITERAL": 0.0,
+    "MEDIAL_CONJ": 0.0,
+    "TERMINAL_HAL": 0.0,
+    "FULL_CLUSTER": 2.7782,
+    "PHONETIC_ENG": 0.0
+  },
+  "ପାର୍ସଲ": {
+    "LITERAL": -0.075,
+    "MEDIAL_CONJ": 0.0,
+    "TERMINAL_HAL": 0.0,
+    "FULL_CLUSTER": 2.739,
+    "PHONETIC_ENG": 0.0
+  },
+  "ଡେଲିଭର": {
+    "LITERAL": 0.0,
+    "MEDIAL_CONJ": 0.45,
+    "TERMINAL_HAL": 2.5824,
+    "FULL_CLUSTER": 0.0,
+    "PHONETIC_ENG": 0.0
+  },
+  "ଡେଲିଭରି": {
+    "LITERAL": 0.0,
+    "MEDIAL_CONJ": 0.0,
+    "TERMINAL_HAL": 0.0,
+    "FULL_CLUSTER": 0.0,
+    "PHONETIC_ENG": 2.5563
+  },
+  "କନଫର୍ମ": {
+    "LITERAL": 0.0,
+    "MEDIAL_CONJ": 0.0,
+    "TERMINAL_HAL": 0.0,
+    "FULL_CLUSTER": 2.7782,
+    "PHONETIC_ENG": 0.0
+  },
+  "ପରଫେକ୍ଟ": {
+    "LITERAL": 0.0,
+    "MEDIAL_CONJ": 2.645,
+    "TERMINAL_HAL": 0.0,
+    "FULL_CLUSTER": 0.0,
+    "PHONETIC_ENG": 0.0
+  },
+  "ନମ୍ବର": {
+    "LITERAL": 0.0,
+    "MEDIAL_CONJ": 0.0,
+    "TERMINAL_HAL": 0.0,
+    "FULL_CLUSTER": 2.7782,
+    "PHONETIC_ENG": 0.0
+  },
+  "ସିଷ୍ଟମ": {
+    "LITERAL": 0.0,
+    "MEDIAL_CONJ": 0.0,
+    "TERMINAL_HAL": 0.0,
+    "FULL_CLUSTER": 2.7782,
+    "PHONETIC_ENG": 0.0
+  },
+  "ପ୍ରୋଗ୍ରାମ": {
+    "LITERAL": 0.0,
+    "MEDIAL_CONJ": 0.0,
+    "TERMINAL_HAL": 0.0,
+    "FULL_CLUSTER": 2.7782,
+    "PHONETIC_ENG": 0.0
+  },
+  "ଟାଇମ": {
+    "LITERAL": 0.0,
+    "MEDIAL_CONJ": 0.0,
+    "TERMINAL_HAL": 2.645,
+    "FULL_CLUSTER": 0.0,
+    "PHONETIC_ENG": 0.0
+  },
+  "ଟିମ": {
+    "LITERAL": 0.0,
+    "MEDIAL_CONJ": 0.0,
+    "TERMINAL_HAL": 2.5824,
+    "FULL_CLUSTER": 0.45,
+    "PHONETIC_ENG": 0.0
+  },
+  "ଫିଲ୍ମ": {
+    "LITERAL": 0.0,
+    "MEDIAL_CONJ": 0.0,
+    "TERMINAL_HAL": 0.0,
+    "FULL_CLUSTER": 2.7782,
+    "PHONETIC_ENG": 0.0
+  },
+  "ନ୍ୟୁଜ": {
+    "LITERAL": 0.0,
+    "MEDIAL_CONJ": 0.0,
+    "TERMINAL_HAL": 0.0,
+    "FULL_CLUSTER": 2.7782,
+    "PHONETIC_ENG": 0.0
+  },
+  "ଲାଇଭ": {
+    "LITERAL": 0.0,
+    "MEDIAL_CONJ": 0.0,
+    "TERMINAL_HAL": 2.645,
+    "FULL_CLUSTER": 0.0,
+    "PHONETIC_ENG": 0.0
+  },
+  "ଫୋନ": {
+    "LITERAL": 0.0,
+    "MEDIAL_CONJ": 0.0,
+    "TERMINAL_HAL": 2.645,
+    "FULL_CLUSTER": 0.0,
+    "PHONETIC_ENG": 0.0
+  },
+  "ପ୍ଲାନ": {
+    "LITERAL": 0.0,
+    "MEDIAL_CONJ": 0.0,
+    "TERMINAL_HAL": 0.0,
+    "FULL_CLUSTER": 2.7782,
+    "PHONETIC_ENG": 0.0
+  },
+  "କଲ": {
+    "LITERAL": 0.0,
+    "MEDIAL_CONJ": 0.0,
+    "TERMINAL_HAL": 2.645,
+    "FULL_CLUSTER": 0.0,
+    "PHONETIC_ENG": 0.0
+  },
+  "ବଲ": {
+    "LITERAL": 0.0,
+    "MEDIAL_CONJ": 0.0,
+    "TERMINAL_HAL": 2.645,
+    "FULL_CLUSTER": 0.0,
+    "PHONETIC_ENG": 0.0
+  },
+  "ସ୍କୁଲ": {
+    "LITERAL": 0.0,
+    "MEDIAL_CONJ": 0.0,
+    "TERMINAL_HAL": 0.0,
+    "FULL_CLUSTER": 2.7782,
+    "PHONETIC_ENG": 0.0
+  },
+  "ମ୍ୟାଡାମ": {
+    "LITERAL": 0.0,
+    "MEDIAL_CONJ": 0.0,
+    "TERMINAL_HAL": 0.0,
+    "FULL_CLUSTER": 2.739,
+    "PHONETIC_ENG": 0.45
+  },
+  "ମେସେଜ": {
+    "LITERAL": 0.0,
+    "MEDIAL_CONJ": 0.0,
+    "TERMINAL_HAL": 2.5824,
+    "FULL_CLUSTER": 0.0,
+    "PHONETIC_ENG": 0.45
+  },
+  "ଟ୍ରାଫିକ": {
+    "LITERAL": 0.0,
+    "MEDIAL_CONJ": 0.0,
+    "TERMINAL_HAL": 0.0,
+    "FULL_CLUSTER": 2.7782,
+    "PHONETIC_ENG": 0.0
+  },
+  "ପୋଲିସ": {
+    "LITERAL": 0.0,
+    "MEDIAL_CONJ": 0.0,
+    "TERMINAL_HAL": 2.5824,
+    "FULL_CLUSTER": 0.0,
+    "PHONETIC_ENG": 0.45
+  },
+  "ଚ୍ୟାନେଲ": {
+    "LITERAL": 0.0,
+    "MEDIAL_CONJ": 0.0,
+    "TERMINAL_HAL": 0.0,
+    "FULL_CLUSTER": 2.7782,
+    "PHONETIC_ENG": 0.0
+  },
+  "କମ୍ପ୍ଲିଟ": {
+    "LITERAL": 0.0,
+    "MEDIAL_CONJ": 0.45,
+    "TERMINAL_HAL": 0.0,
+    "FULL_CLUSTER": 2.739,
+    "PHONETIC_ENG": 0.0
+  },
+  "ପର୍ସେଣ୍ଟ": {
+    "LITERAL": 0.0,
+    "MEDIAL_CONJ": 0.0,
+    "TERMINAL_HAL": 0.0,
+    "FULL_CLUSTER": 2.7782,
+    "PHONETIC_ENG": 0.0
+  },
+  "ଏପିସୋଡ": {
+    "LITERAL": 0.0,
+    "MEDIAL_CONJ": 0.0,
+    "TERMINAL_HAL": 2.645,
+    "FULL_CLUSTER": 0.0,
+    "PHONETIC_ENG": 0.0
+  },
+  "ବ୍ୟାଙ୍କ": {
+    "LITERAL": 0.0,
+    "MEDIAL_CONJ": 0.0,
+    "TERMINAL_HAL": 0.0,
+    "FULL_CLUSTER": 2.7782,
+    "PHONETIC_ENG": 0.0
+  },
+  "ଚେକ": {
+    "LITERAL": 0.0,
+    "MEDIAL_CONJ": 0.0,
+    "TERMINAL_HAL": 2.645,
+    "FULL_CLUSTER": 0.0,
+    "PHONETIC_ENG": 0.0
+  },
+  "କାର୍ଡ": {
+    "LITERAL": 0.0,
+    "MEDIAL_CONJ": 0.0,
+    "TERMINAL_HAL": 0.0,
+    "FULL_CLUSTER": 2.7782,
+    "PHONETIC_ENG": 0.0
+  },
+  "ଫ୍ରେଣ୍ଡ": {
+    "LITERAL": 0.0,
+    "MEDIAL_CONJ": 0.0,
+    "TERMINAL_HAL": 0.0,
+    "FULL_CLUSTER": 2.7782,
+    "PHONETIC_ENG": 0.0
+  },
+  "ବେଷ୍ଟ": {
+    "LITERAL": 0.0,
+    "MEDIAL_CONJ": 0.0,
+    "TERMINAL_HAL": 0.0,
+    "FULL_CLUSTER": 2.7782,
+    "PHONETIC_ENG": 0.0
+  },
+  "ଫାଷ୍ଟ": {
+    "LITERAL": 0.0,
+    "MEDIAL_CONJ": 0.0,
+    "TERMINAL_HAL": 0.0,
+    "FULL_CLUSTER": 2.7782,
+    "PHONETIC_ENG": 0.0
+  },
+  "ଲାଷ୍ଟ": {
+    "LITERAL": 0.0,
+    "MEDIAL_CONJ": 0.0,
+    "TERMINAL_HAL": 0.0,
+    "FULL_CLUSTER": 2.7782,
+    "PHONETIC_ENG": 0.0
+  },
+  "ସର୍ଭିସ": {
+    "LITERAL": 0.0,
+    "MEDIAL_CONJ": 0.0,
+    "TERMINAL_HAL": 0.0,
+    "FULL_CLUSTER": 2.7782,
+    "PHONETIC_ENG": 0.0
+  },
+  "କ୍ଲିନିକ": {
+    "LITERAL": 0.0,
+    "MEDIAL_CONJ": 0.0,
+    "TERMINAL_HAL": 0.0,
+    "FULL_CLUSTER": 2.7782,
+    "PHONETIC_ENG": 0.0
+  },
+  "ଲୋକେସନ": {
+    "LITERAL": 0.0,
+    "MEDIAL_CONJ": 0.0,
+    "TERMINAL_HAL": 2.645,
+    "FULL_CLUSTER": 0.0,
+    "PHONETIC_ENG": 0.0
+  },
+  "ଆଡ୍ରେସ": {
+    "LITERAL": 0.0,
+    "MEDIAL_CONJ": 0.0,
+    "TERMINAL_HAL": 0.0,
+    "FULL_CLUSTER": 2.7782,
+    "PHONETIC_ENG": 0.0
+  },
+  "ୱେବସାଇଟ": {
+    "LITERAL": 0.0,
+    "MEDIAL_CONJ": 0.0,
+    "TERMINAL_HAL": 0.0,
+    "FULL_CLUSTER": 2.7782,
+    "PHONETIC_ENG": 0.0
+  },
+  "ଡିଷ୍ଟ୍ରିକ": {
+    "LITERAL": 0.0,
+    "MEDIAL_CONJ": 2.645,
+    "TERMINAL_HAL": 0.0,
+    "FULL_CLUSTER": 0.0,
+    "PHONETIC_ENG": 0.0
+  },
+  "ଡାକ୍ତର": {
+    "LITERAL": 0.0,
+    "MEDIAL_CONJ": 0.0,
+    "TERMINAL_HAL": 0.0,
+    "FULL_CLUSTER": 2.7782,
+    "PHONETIC_ENG": 0.0
+  },
+  "ଟେବୁଲ": {
+    "LITERAL": 0.0,
+    "MEDIAL_CONJ": 0.0,
+    "TERMINAL_HAL": 2.645,
+    "FULL_CLUSTER": 0.0,
+    "PHONETIC_ENG": 0.0
+  },
+  "ବୋତଲ": {
+    "LITERAL": 0.0,
+    "MEDIAL_CONJ": 0.0,
+    "TERMINAL_HAL": 2.645,
+    "FULL_CLUSTER": 0.0,
+    "PHONETIC_ENG": 0.0
+  },
+  "ବିଜନେସ": {
+    "LITERAL": 0.0,
+    "MEDIAL_CONJ": 0.0,
+    "TERMINAL_HAL": 0.0,
+    "FULL_CLUSTER": 2.7782,
+    "PHONETIC_ENG": 0.0
+  }
+}

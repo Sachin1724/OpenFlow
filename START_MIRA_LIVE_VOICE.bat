@@ -17,3 +17,4 @@ echo Starting MIRA Voice Engine...
 cd /d "%~dp0"
 python live_voice_conversation.py
 pause
+

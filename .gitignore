@@ -27,3 +27,12 @@ data/podcasts/
 data/OdiaTTS_Data/
 data/*.jsonl
 data/gdrive_odia/
+
+# Chatterbox Odia fine-tune artifacts (multi-GB datasets, weights, run logs)
+alm/odia_finetune/data/
+alm/odia_finetune/model_odia_init/
+alm/odia_finetune/checkpoints/
+alm/odia_finetune/smoke_ckpt/
+alm/odia_finetune/*.log
+alm/odia_finetune/*.txt
+.oil-ui/

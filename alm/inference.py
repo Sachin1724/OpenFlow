@@ -167,7 +167,6 @@ class MiraALMEngine:
             style=style,
             humanize=True,
             add_breath=has_breath,
-            conv_mode=True
         )
 
         # 4. Optional tonal question rise

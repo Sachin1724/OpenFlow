@@ -13,6 +13,7 @@ live_voice_conversation.py — Real-Time Live Voice-to-Voice Conversation with M
 import os
 import sys
 import io
+import json
 import re
 import time
 import numpy as np
@@ -21,7 +22,7 @@ import soundfile as sf
 import torch
 import torchaudio.functional as F
 from pathlib import Path
-from transformers import AutoModelForCausalLM, AutoTokenizer, VitsModel, VitsTokenizer
+from transformers import AutoModelForCausalLM, AutoTokenizer, StoppingCriteria, StoppingCriteriaList
 from peft import PeftModel
 from huggingface_hub import snapshot_download
 
@@ -35,12 +36,30 @@ from engine.indic_asr import IndicCTC
 from engine.dialect_normalizer import get_dialect_normalizer
 from engine.conversational_rl import get_conversational_rl_agent
 from engine.phonetic_translit import prepare_text_for_tts
+from engine.studio_voice import get_studio_voice
 
 BASE_LM = r"C:\Users\sachi\.cache\huggingface\hub\models--HuggingFaceTB--SmolLM2-135M-Instruct\snapshots\12fd25f77366fa6b3b4b768ec3050bf629380bac"
 LORA_PATH = str(SCRIPT_DIR / "models" / "mira_conversational_gpu")
 TTS_MODEL_ID = "facebook/mms-tts-ory"
 
 SYSTEM_PROMPT = "You are MIRA, a natural Odia voice assistant. Respond naturally in authentic colloquial Odia with warm emotions, active listening, and proper discourse markers."
+
+class SentenceStopCriteria(StoppingCriteria):
+    def __init__(self, tokenizer, prompt_len, min_tokens=8):
+        super().__init__()
+        self.tokenizer = tokenizer
+        self.prompt_len = prompt_len
+        self.min_tokens = min_tokens
+        self.stop_puncts = ["।", "!", "?"]
+
+    def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor, **kwargs) -> bool:
+        gen_len = input_ids.shape[1] - self.prompt_len
+        if gen_len < self.min_tokens:
+            return False
+        decoded = self.tokenizer.decode(input_ids[0, self.prompt_len:], skip_special_tokens=False)
+        if any(p in decoded for p in self.stop_puncts) or "<|im_end|>" in decoded:
+            return True
+        return False
 
 class MiraLiveVoiceSession:
     def __init__(self, voice_gender="natural"):
@@ -49,6 +68,7 @@ class MiraLiveVoiceSession:
         print("=" * 80)
 
         self.voice_gender = voice_gender
+        self.user_name = None
         self.device = "cuda:0" if torch.cuda.is_available() else "cpu"
         print(f"⚡ Compute Engine : {self.device} (NVIDIA RTX 4050 GPU Acceleration)")
         print(f"🔊 Voice Persona  : Crisp Natural Neural Voice (Zero Phase Fumbling)")
@@ -58,7 +78,7 @@ class MiraLiveVoiceSession:
         snap = snapshot_download("sachinmallick/openflow-odia-asr-int8")
         self.asr = IndicCTC(os.path.join(snap, "or"), threads=4)
 
-        # 2. Conversational LLM + LoRA
+        # 2. Conversational LLM + LoRA (Fused for Zero PEFT Overhead)
         print("[2/4] Loading MIRA Conversational Model on GPU...")
         self.tokenizer = AutoTokenizer.from_pretrained(BASE_LM)
         base_lm = AutoModelForCausalLM.from_pretrained(
@@ -66,99 +86,153 @@ class MiraLiveVoiceSession:
             dtype=torch.float16,
             device_map={"": self.device}
         )
-        self.llm = PeftModel.from_pretrained(base_lm, LORA_PATH)
+        peft_lm = PeftModel.from_pretrained(base_lm, LORA_PATH)
+        self.llm = peft_lm.merge_and_unload()
         self.llm.eval()
 
-        # 3. MIRA Sub-ms Normalizer & RL Agent
-        print("[3/4] Initializing MIRA Normalizer & Adaptive RL Policy...")
+        # 3. MIRA Sub-ms Normalizer & Adaptive RL Policy
+        print("[3/4] Initializing MIRA Normalizer, Dialogue Bank & RL Policy...")
         self.normalizer = get_dialect_normalizer()
         self.rl = get_conversational_rl_agent()
 
-        # 4. MMS Odia TTS
-        print("[4/4] Loading Expressive Odia TTS Voice Engine...")
-        self.tts_tokenizer = VitsTokenizer.from_pretrained(TTS_MODEL_ID)
-        self.tts_model = VitsModel.from_pretrained(TTS_MODEL_ID)
-        self.tts_sr = self.tts_model.config.sampling_rate
+        # Index Gold Conversational Dialogue Bank
+        self.gold_qa = []
+        gold_path = SCRIPT_DIR / "data" / "conversational_odia_gpu.jsonl"
+        if gold_path.exists():
+            with open(gold_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    if not line.strip():
+                        continue
+                    try:
+                        item = json.loads(line)
+                        msgs = item.get("messages", [])
+                        if len(msgs) >= 2:
+                            q = msgs[0]["content"].strip()
+                            a = msgs[1]["content"].strip()
+                            if q and a and item.get("source") in ["gold_conversational", "mira_persona_gold"]:
+                                self.gold_qa.append((q, a))
+                    except Exception:
+                        pass
+        print(f"  Indexed {len(self.gold_qa)} verified colloquial Odia dialogue pairs.")
+
+        # 4. Studio 24kHz HD Odia TTS
+        print(f"[4/4] Loading Studio 24kHz HD Odia Voice Engine (Persona: {self.voice_gender.upper()})...")
+        persona = "female" if self.voice_gender in ["natural", "female"] else "male"
+        self.studio_voice = get_studio_voice(voice_persona=persona)
+        self.tts_sr = self.studio_voice.sr
 
         print("\n✨ ALL ENGINES ONLINE! MIRA IS READY TO TALK!")
         print("=" * 80)
 
-    def _synthesize_raw_clause(self, clause_text: str, speaking_rate: float = 1.0) -> np.ndarray:
-        """Synthesize pure Odia phonetic characters for a single clause."""
-        phonetic_text = prepare_text_for_tts(clause_text)
-        clean = re.sub(r"[^\u0B00-\u0B7F\s]", "", phonetic_text).strip()
-        if not clean:
-            return np.zeros(0, dtype=np.float32)
-        try:
-            inputs = self.tts_tokenizer(clean, return_tensors="pt")
-            with torch.no_grad():
-                output = self.tts_model(**inputs, speaking_rate=speaking_rate).waveform
-            audio = output[0].cpu().numpy()
-            
-            # 40ms acoustic fade-out before punctuation
-            taper_len = min(int(0.04 * self.tts_sr), len(audio))
-            if taper_len > 0:
-                taper = np.linspace(1.0, 0.05, taper_len, dtype=np.float32)
-                audio[-taper_len:] *= taper
-            return audio
-        except Exception:
-            return np.zeros(0, dtype=np.float32)
-
-    def render_expressive_speech(self, text: str) -> np.ndarray:
+    def detect_intent_or_persona(self, user_text: str) -> str:
         """
-        Renders speech respecting Odia punctuation with calibrated prosody:
-        - Statement slows down slightly before full stops (speaking_rate=0.92).
-        - Comma (,): 120ms micro-stop (audible punctuation without breaking sentence flow).
-        - Full stop (। or .): 250ms statement completion breath.
-        - Question (?): 260ms reflective pause.
-        - Exclamation (!): 200ms energetic pause.
+        Fast Sub-millisecond Conversational Persona & Intent Grounding:
+        - Accurately captures user identity (e.g. 'ମୋ ନାଁ ସଚିନ !').
+        - Always responds with MIRA's identity ('ନମସ୍କାର ସଚିନ ! ମୁଁ ମୀରା...').
+        - Handles greetings, identity queries, active listening, and gratitude.
         """
-        PAUSE_MAP = {
-            ",": 0.12,   # Comma: brief 120ms micro-stop
-            "।": 0.25,   # Full Stop: 250ms natural completion breath
-            ".": 0.25,
-            "?": 0.26,   # Question: 260ms
-            "!": 0.20,   # Exclamation: 200ms
-            "\n": 0.30
-        }
+        raw_text = user_text.strip()
+        lower_text = user_text.lower().strip()
+        norm = self.normalizer.normalize(user_text)["normalized"].strip()
 
-        parts = re.split(r'([।!?,\n]+)', text)
-        audio_segments = []
-        current_text = ""
+        # 1. User Introductions & Name Extraction
+        name_patterns = [
+            r'(?:ମୋ\s*ନାଁ|ମୋ\s*ନାମ|ମୋ\s*ନା|ମୁଁ\s*ନାମ)\s+([^\s!?,।]+)',
+            r'ମୁଁ\s+([^\s!?,।]+)\s+(?:କହୁଛି|ଅଛି)',
+            r'(?:my\s*name\s*is|i\s*am)\s+([a-zA-Z]+)'
+        ]
+        for pat in name_patterns:
+            m = re.search(pat, norm, flags=re.IGNORECASE)
+            if m:
+                extracted = m.group(1).strip()
+                if extracted not in ["ଜଣେ", "ଏଠି", "ଭଲ", "ବହୁତ", "ଓଡ଼ିଆ", "କାମ", "କଥା", "ତମେ", "ତୁମେ"]:
+                    self.user_name = extracted
+                    return f"ନମସ୍କାର {self.user_name} ! ମୁଁ ମୀରା, ଆପଣଙ୍କ ଓଡ଼ିଆ AI ସାଥୀ । କୁହନ୍ତୁ, ଆଜି ଆପଣଙ୍କୁ କିପରି ସାହାଯ୍ୟ କରିପାରିବି ?"
 
-        for part in parts:
-            if not part:
+        # 2. Sambalpuri Language Requests & Authentic Kosali Dialogue
+        # E.g. 'say something in sambalpuri', 'ସମ୍ବଲପୁରୀ', 'ଜୁହାର'
+        if any(w in lower_text for w in ["sambalpuri", "samabalpuri", "smbalpuri"]) or any(w in raw_text for w in ["ସମ୍ବଲପୁରୀ", "ସମ୍ବଲପୁର"]):
+            name_str = f" {self.user_name} ଭାଇ" if self.user_name else ""
+            return f"ଜୁହାର୍{name_str} ! କେନ୍ତା ଅଛ ହୋ ? ମୁଇଁ ମୀରା, ତମର୍ ନିଜର୍ AI ସାଙ୍ଗ୍ ! କହୁନ୍, ଆଜି କାଣା ଚାଲିଛେ ? ସବୁ ଭଲ୍ ତ ? ଆପଣଙ୍କର୍ ଲାଗି ମୁଇଁ ଖାଣ୍ଟି ସମ୍ବଲପୁରୀରେ ବି କଥା ହେଇପାର୍ମି !"
+
+        if any(j in raw_text for j in ["ଜୁହାର", "ଜୁହାର୍"]):
+            name_str = f" {self.user_name} ଭାଇ" if self.user_name else ""
+            return f"ଜୁହାର୍{name_str} ! କେନ୍ତା ଅଛ ହୋ ? ମୁଇଁ ମୀରା, କହୁନ୍ ଆଜି କାଣା କଥା ହେମା ?"
+
+        if any(k in raw_text for k in ["କେନ୍ତା ଅଛ", "କେନ୍ତା ଅଛୁ"]):
+            return "ମୁଇଁ ବହୁତ୍ ବଢ଼ିଆ ଅଛି ହୋ ! ତମେ କେନ୍ତା ଅଛ କହୁନ୍ ?"
+
+        if any(k in raw_text for k in ["କାଣା କରୁଛ", "କାଣା କରୁଛୁ"]):
+            return "କାଣା ଆଉ କରମି, ତମର୍ କଥା ଶୁନବାର୍ ଲାଗି ବସିଛେଁ ! କହୁନ୍ କାଣା ସାହାଯ୍ୟ କରମି ?"
+
+        # 3. Direct Standard Greetings
+        if any(norm == g for g in ["ନମସ୍କାର", "ନମସ୍କାର !", "ହେଲୋ", "hello", "hi"]):
+            if self.user_name:
+                return f"ନମସ୍କାର {self.user_name} ! କୁହନ୍ତୁ, ଆଜି କଣ କଥା ହେବା ?"
+            return "ନମସ୍କାର ! ମୁଁ ମୀରା, ଆପଣଙ୍କ ଓଡ଼ିଆ AI ସାଥୀ । କୁହନ୍ତୁ, ଆଜି କଣ କଥା ହେବା ?"
+
+        # 4. Identity Queries (Who are you? What is your name?)
+        if any(q in norm for q in ["ତମେ କିଏ", "ତୁମେ କିଏ", "ତମ ନାଁ କଣ", "ତୁମ ନାମ କଣ", "ତମ ନାଁ", "ତୁମ ନାଁ", "who are you", "who r u"]):
+            return "ମୁଁ ମୀରା, ଆପଣଙ୍କ ବ୍ୟକ୍ତିଗତ ଓଡ଼ିଆ AI ସାଥୀ ! ଆଜି ଆପଣଙ୍କୁ କିପରି ସାହାଯ୍ୟ କରିବି କୁହନ୍ତୁ ?"
+
+        # 5. How are you / Status checks directed at MIRA
+        if re.search(r'^(?:ଆପଣ|ତମେ|ତୁମେ)?\s*(?:କେମିତି|କିପରି)\s*(?:ଅଛ|ଅଛନ୍ତି|ଅଛୁ)\s*[?!।,.]*$', norm) or norm in ["କେମିତି ଅଛ", "କେମିତି ଅଛନ୍ତି", "ଭଲ ଅଛ ତ"]:
+            return "ହଁ ଆଜ୍ଞା, ମୁଁ ବହୁତ ଭଲ ଅଛି ! ଆପଣ କେମିତି ଅଛନ୍ତି କୁହନ୍ତୁ ?"
+
+        # 6. Gratitude / Thanks
+        if any(t in norm for t in ["ଧନ୍ୟବାଦ", "ଥ୍ୟାଙ୍କସ", "thanks", "thank you"]):
+            return "ଆପଣଙ୍କୁ ବହୁତ ବହୁତ ଧନ୍ୟବାଦ ! ଆଉ କିଛି ସାହାଯ୍ୟ ଦରକାର କି ?"
+
+        # 7. Active Listening Confirmation
+        if re.search(r'^(?:ତମେ\s*|ତୁମେ\s*)?ଶୁଣୁଛ(?:\s*କି)?\s*[?!।,.]*$', norm) or norm in ["ଶୁଣୁଛ", "ଶୁଣୁଛ କି", "ଶୁଣିପାରୁଛ"]:
+            return "ହଁ ହଁ, ମୁଁ ପୁରା ଧ୍ୟାନ ଦେଇ ଶୁଣୁଛି, କୁହନ୍ତୁ !"
+
+        # 8. Farewell
+        if any(f in norm for f in ["ବାଏ", "bye", "ଆସୁଛି", "ପରେ କଥା ହେବା"]):
+            return "ଧନ୍ୟବାଦ ! ପୁଣି କଥା ହେବା, ଆପଣଙ୍କ ଦିନଟି ଶୁଭମୟ ହେଉ !"
+
+        return None
+
+    def retrieve_gold_reply(self, user_text: str) -> str:
+        """
+        Fast Sub-millisecond Semantic Odia Conversational Bank Retrieval:
+        Provides instant, 100% natural, colloquial Odia replies for verified dialogue turns.
+        """
+        norm = self.normalizer.normalize(user_text)["normalized"].strip()
+        q_tokens = set(re.findall(r'[\u0B00-\u0B7F\w]+', norm.lower()))
+        if not q_tokens:
+            return None
+
+        best_match = None
+        best_score = 0.0
+        for q_gold, a_gold in self.gold_qa:
+            gold_tokens = set(re.findall(r'[\u0B00-\u0B7F\w]+', q_gold.lower()))
+            if not gold_tokens:
                 continue
-            if any(p in part for p in ["।", ".", "?", "!", ",", "\n"]):
-                p_char = part.strip()[:1]
-                is_full_stop = p_char in ["।", ".", "?"]
-                rate = 0.92 if is_full_stop else 1.0
+            intersection = len(q_tokens & gold_tokens)
+            union = len(q_tokens | gold_tokens)
+            score = intersection / union if union > 0 else 0.0
+            if intersection == len(gold_tokens) and len(gold_tokens) >= 2:
+                score += 0.3
+            elif intersection == len(q_tokens) and len(q_tokens) >= 2:
+                score += 0.2
+            if score > best_score:
+                best_score = score
+                best_match = a_gold
 
-                if current_text.strip():
-                    clause_wav = self._synthesize_raw_clause(current_text, speaking_rate=rate)
-                    if len(clause_wav) > 0:
-                        audio_segments.append(clause_wav)
-                    current_text = ""
+        if best_score >= 0.55 and best_match:
+            return best_match
+        return None
 
-                pause_sec = PAUSE_MAP.get(p_char, 0.20)
-                pause_samples = int(pause_sec * self.tts_sr)
-                audio_segments.append(np.zeros(pause_samples, dtype=np.float32))
-            else:
-                current_text += " " + part
-
-        if current_text.strip():
-            clause_wav = self._synthesize_raw_clause(current_text, speaking_rate=1.0)
-            if len(clause_wav) > 0:
-                audio_segments.append(clause_wav)
-
-        if not audio_segments:
-            return np.zeros(0, dtype=np.float32)
-
-        full_audio = np.concatenate(audio_segments, axis=0)
-
-        # Expressive rendering: avoid destructive phase-vocoder DSP that causes fumbling.
-        # Clean, crisp neural VITS audio is preserved directly with natural pauses.
-        return full_audio
+    def render_expressive_speech(self, text: str, add_breath: bool = True) -> np.ndarray:
+        """
+        Renders 24kHz broadcast-quality studio audio via StudioVoiceEngine:
+        - 24,000 Hz HD sample rate (crisp consonants, presence, and airiness).
+        - AI4Bharat Rasa acoustic booth female voice persona.
+        - Human pre-speech breathing + natural punctuation cadencing.
+        - Zero diminishing of word tails.
+        """
+        return self.studio_voice.synthesize(text, add_breath=add_breath)
 
     def speak(self, text: str):
         """Synthesize and play expressive audio out loud through speakers."""
@@ -171,23 +245,40 @@ class MiraLiveVoiceSession:
 
     def generate_reply(self, user_text: str) -> str:
         """Formulate a clean, authentic Odia response."""
+        # 1. Sub-millisecond Conversational Persona & Intent Grounding
+        persona = self.detect_intent_or_persona(user_text)
+        if persona:
+            if any(w in persona for w in ["ଜୁହାର", "କେନ୍ତା", "ମୁଇଁ", "କାଣା", "ହେମା", "କରମି", "କହୁନ୍"]):
+                return persona
+            return self.normalizer.normalize(persona)["normalized"]
+
+        # 2. Sub-millisecond Semantic Odia Conversational Bank Retrieval
+        gold_reply = self.retrieve_gold_reply(user_text)
+        if gold_reply:
+            return self.normalizer.normalize(gold_reply)["normalized"]
+
+        # 3. GPU Neural LoRA Model Generation with Sentence Early-Stopping
         messages = [
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": user_text}
         ]
         prompt = self.tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
         inputs = self.tokenizer(prompt, return_tensors="pt").to(self.device)
+        prompt_len = inputs["input_ids"].shape[1]
 
-        with torch.no_grad():
+        stopping = StoppingCriteriaList([SentenceStopCriteria(self.tokenizer, prompt_len)])
+        with torch.inference_mode():
             outputs = self.llm.generate(
                 **inputs,
-                max_new_tokens=160,
+                max_new_tokens=50,
                 do_sample=False,
                 pad_token_id=self.tokenizer.eos_token_id,
-                eos_token_id=self.tokenizer.eos_token_id
+                eos_token_id=self.tokenizer.eos_token_id,
+                stopping_criteria=stopping,
+                use_cache=True
             )
 
-        gen_tokens = outputs[0][inputs["input_ids"].shape[1]:]
+        gen_tokens = outputs[0][prompt_len:]
         raw = self.tokenizer.decode(gen_tokens, skip_special_tokens=True).strip()
 
         # 1. Clean unicode replacement characters and dangling byte glitches
@@ -200,16 +291,25 @@ class MiraLiveVoiceSession:
         # 4. Remove hallucinated BPE tokens
         raw = re.sub(r'\b(ilantro|cilantro)\b', 'ଧନିଆ', raw, flags=re.IGNORECASE)
 
-        # Sentence/clause boundary clean
-        for punct in ["।", "!", "?"]:
-            if punct in raw:
-                idx = raw.find(punct)
-                raw = raw[:idx + 1].strip()
-                break
-        if "," in raw and len(raw.split(",")) > 1:
-            clause = raw.split(",")[0].strip()
-            if len(clause.split()) >= 3:
-                raw = clause + " !"
+        # 5. Extract up to 2 complete conversational thoughts
+        sentences = re.split(r'([।!?])', raw)
+        reconstructed = []
+        sentence_count = 0
+        for i in range(0, len(sentences) - 1, 2):
+            s_body = sentences[i].strip()
+            s_punct = sentences[i+1].strip()
+            if s_body:
+                reconstructed.append(s_body + " " + s_punct)
+                sentence_count += 1
+                if sentence_count >= 2:
+                    break
+
+        if reconstructed:
+            raw = " ".join(reconstructed).strip()
+        else:
+            raw = raw.strip()
+            if raw and not raw.endswith(("।", "!", "?")):
+                raw += " !"
 
         raw = raw.replace("\ufffd", "").strip()
 
