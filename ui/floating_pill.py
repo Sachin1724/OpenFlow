@@ -1245,6 +1245,9 @@ class FloatingPill(QWidget):
         self.capsule_style = capsule_style
         self.follow_mouse_screen = follow_mouse_screen
         self.current_screen = None
+        # monitor unplugged / display sleep deletes the QScreen; drop the stale ref
+        QGuiApplication.instance().screenRemoved.connect(
+            lambda s: setattr(self, "current_screen", None) if s is self.current_screen else None)
         self._is_transitioning_screen = False
         self._recent_mics = []
 

@@ -105,6 +105,8 @@ class IslandPill(QWidget):
         self._dl = -1
         self._panel_idle = 0
         self._screen = None
+        QGuiApplication.instance().screenRemoved.connect(
+            lambda s: setattr(self, "_screen", None) if s is self._screen else None)
         self._enabled = False         # only an activated island ever shows; Settings can switch it off for good
 
         self._motion = animations_enabled()
