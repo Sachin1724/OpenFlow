@@ -36,3 +36,4 @@ alm/odia_finetune/smoke_ckpt/
 alm/odia_finetune/*.log
 alm/odia_finetune/*.txt
 .oil-ui/
+alm/checkpoints/*.pt
