@@ -4,6 +4,7 @@ Adapted from RASMUS/Chatterbox-Finnish's resize_and_load_t3_weights (same mean-i
 new tokens): https://huggingface.co/RASMUS/Chatterbox-Finnish/blob/main/src/model.py
 """
 import logging
+import torch
 
 logger = logging.getLogger("odia_finetune.model_resize")
 
@@ -31,7 +32,10 @@ def resize_and_load_t3_weights(new_model, pretrained_state_dict):
         new_state[name][:old_n, :].copy_(old_w)
         if new_n > old_n:
             mean_row = old_w.mean(dim=0)
-            new_state[name][old_n:, :].copy_(mean_row.unsqueeze(0).expand(new_n - old_n, -1))
+            # noise so the new rows start distinct -- identical rows made every Odia grapheme
+            # the same token and the first fine-tune never pulled them apart
+            noise = 0.02 * torch.randn(new_n - old_n, old_w.shape[1], generator=torch.Generator().manual_seed(0))
+            new_state[name][old_n:, :].copy_(mean_row.unsqueeze(0) + noise)
         logger.info(f"{name}: {old_n} -> {new_n} tokens ({new_n - old_n} mean-initialized)")
 
     new_model.load_state_dict(new_state)

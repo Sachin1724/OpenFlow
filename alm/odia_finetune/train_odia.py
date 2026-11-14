@@ -52,14 +52,23 @@ class Config:
     manifest_path: str = "./data/manifest.json"
     cache_path: str = "./data/cache_t3.pt"
     output_dir: str = "./checkpoints"
-    batch_size: int = 1
-    grad_accum: int = 16
+    batch_size: int = 8
+    grad_accum: int = 2
+    # ponytail: backbone frozen, only text_emb/text_head train. ~5s/micro-batch full fine-tune on a
+    # 6 GB 4050 = 25 h/epoch; embeddings-only is the fast test of whether Odia graphemes can map at
+    # all. Unfreeze (freeze_backbone=False) once this produces intelligible Odia.
+    freeze_backbone: bool = True
+    # LoRA on the frozen backbone: S3 tokenizer round-trips Odia at CER 0.02 and embeddings-only
+    # plateaued at loss 7.6, so T3 itself must learn Odia. Full fine-tune is 25 h/epoch here.
+    lora_r: int = 16
+    lr_lora: float = 2e-4
     lr: float = 1e-5
+    lr_new_vocab: float = 1e-4  # text_emb/text_head: 77 near-identical new rows need to move
     num_epochs: int = 1
     max_text_len: int = 256
     max_speech_len: int = 800
     log_every: int = 1
-    save_every_steps: int = 500
+    save_every_steps: int = 200  # optimizer updates, not micro-batches
 
 
 def load_manifest(path: str):
@@ -91,7 +100,27 @@ def main():
     for p in chatterbox_model.s3gen.parameters():
         p.requires_grad = False
     for p in t3_model.parameters():
+        p.requires_grad = not cfg.freeze_backbone
+    for p in (t3_model.text_emb.weight, t3_model.text_head.weight):
         p.requires_grad = True
+
+    # init from the latest checkpoint of any earlier stage (embeddings-only or merged LoRA)
+    prev = sorted(Path(cfg.output_dir).glob("t3_odia_*upd*.safetensors"), key=lambda p: p.stat().st_mtime)
+    if prev:
+        from safetensors.torch import load_file
+        logger.info(f"Init weights from {prev[-1]}: {t3_model.load_state_dict(load_file(str(prev[-1])), strict=False).unexpected_keys}")
+
+    if cfg.lora_r and cfg.freeze_backbone:
+        from peft import LoraConfig, get_peft_model
+        # frozen backbone in bf16 halves its 2 GB, checkpointing drops activations: keeps the
+        # run inside 6 GB instead of spilling to shared memory (the 17 s/update we saw)
+        t3_model.tfmr.to(torch.bfloat16)
+        t3_model.tfmr.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
+        t3_model.tfmr = get_peft_model(t3_model.tfmr, LoraConfig(
+            r=cfg.lora_r, lora_alpha=2 * cfg.lora_r, lora_dropout=0.0,
+            target_modules=["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]))
+        for p in (t3_model.text_emb.weight, t3_model.text_head.weight):
+            p.requires_grad = True
 
     t3_model = t3_model.to(device)
     t3_model.train()
@@ -122,22 +151,36 @@ def main():
     wrapped = T3ForFineTuning(t3_model, t3_config).to(device)
 
     import bitsandbytes as bnb
-    optimizer = bnb.optim.AdamW8bit(t3_model.parameters(), lr=cfg.lr)
+    vocab_params = [t3_model.text_emb.weight, t3_model.text_head.weight]
+    vocab_ids = {id(p) for p in vocab_params}
+    rest = [p for p in t3_model.parameters() if id(p) not in vocab_ids and p.requires_grad]
+    groups = [{"params": vocab_params, "lr": cfg.lr_new_vocab}]
+    if rest:
+        groups.append({"params": rest, "lr": cfg.lr_lora if cfg.lora_r else cfg.lr})
+    optimizer = bnb.optim.AdamW8bit(groups)
+    trainable = sum(p.numel() for g in groups for p in g["params"])
+    logger.info(f"Trainable params: {trainable/1e6:.1f}M (freeze_backbone={cfg.freeze_backbone})")
+
+    def ckpt_state():
+        if cfg.lora_r and cfg.freeze_backbone:
+            # merged full weights under plain T3 key names, so inference needs no peft
+            t3_model.tfmr.merge_adapter()
+            sd = {k.replace("base_model.model.", "").replace(".base_layer.", "."): v.detach().cpu().clone() for k, v in t3_model.state_dict().items() if "lora_" not in k}  # clone: unmerge would revert aliased tensors
+            t3_model.tfmr.unmerge_adapter()
+            return sd
+        # frozen backbone: save only what moved; load with strict=False
+        if cfg.freeze_backbone:
+            return {"text_emb.weight": t3_model.text_emb.weight.data.cpu(),
+                    "text_head.weight": t3_model.text_head.weight.data.cpu()}
+        return t3_model.state_dict()
 
     Path(cfg.output_dir).mkdir(parents=True, exist_ok=True)
     step = 0
     # ponytail: resumes weights only, not optimizer state or exact step count -- good enough
     # to not throw away GPU time already spent; add full optimizer checkpointing if a crash
     # mid-run ever needs to resume losslessly.
-    existing = sorted(Path(cfg.output_dir).glob("t3_odia_step*.safetensors"),
-                       key=lambda p: int(p.stem.rsplit("step", 1)[1]))
-    if existing:
-        from safetensors.torch import load_file
-        latest = existing[-1]
-        t3_model.load_state_dict(load_file(str(latest)))
-        step = int(latest.stem.rsplit("step", 1)[1])
-        logger.info(f"Resumed weights from {latest} (step {step})")
     t0 = time.time()
+    micro = 0
     for epoch in range(cfg.num_epochs):
         for batch in loader:
             if not batch:
@@ -158,10 +201,12 @@ def main():
                     labels_speech=batch["labels_speech"],
                 )
             (total_loss / cfg.grad_accum).backward()
+            micro += 1
+            if micro % cfg.grad_accum != 0:
+                continue
+            optimizer.step()
+            optimizer.zero_grad()
             step += 1
-            if step % cfg.grad_accum == 0:
-                optimizer.step()
-                optimizer.zero_grad()
 
             if step % cfg.log_every == 0:
                 elapsed = time.time() - t0
@@ -169,15 +214,15 @@ def main():
 
             if step % cfg.save_every_steps == 0:
                 from safetensors.torch import save_file
-                out_path = Path(cfg.output_dir) / f"t3_odia_step{step}.safetensors"
-                save_file(t3_model.state_dict(), str(out_path))
+                out_path = Path(cfg.output_dir) / f"t3_odia_{'lora_' if cfg.lora_r else ''}upd{step}.safetensors"
+                save_file(ckpt_state(), str(out_path))
                 logger.info(f"Checkpoint saved: {out_path}")
 
         logger.info(f"Epoch {epoch} complete.")
 
     from safetensors.torch import save_file
-    final_path = Path(cfg.output_dir) / "t3_odia_final.safetensors"
-    save_file(t3_model.state_dict(), str(final_path))
+    final_path = Path(cfg.output_dir) / f"t3_odia_{'lora_' if cfg.lora_r else ''}final.safetensors"
+    save_file(ckpt_state(), str(final_path))
     logger.info(f"Final model saved: {final_path}")
 
 
